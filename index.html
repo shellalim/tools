@@ -62,67 +62,85 @@
     <div class="alert alert-info text-center">Please select a menu above to load content here.</div>
   </div>
 
+  
   <!-- 🔹 jQuery Logic -->
-  <script>
-    $(document).ready(function () {
-      // Dummy list menu
-      const menus = [
-        { id: 'tools-sql', title: 'SQL Converter', desc: 'Convert Grid/Column to Values', icon: '👥' },
-        { id: 'projects', title: 'Project Overview', desc: 'Monitor ongoing projects', icon: '📁' },
-        { id: 'reports', title: 'Reports Center', desc: 'View analytics and reports', icon: '📊' },
-        { id: 'logs', title: 'Activity Logs', desc: 'Track recent activities', icon: '🧾' },
-        { id: 'settings', title: 'System Settings', desc: 'Configuration and preferences', icon: '⚙️' },
-      ];
+ <script>
+  $(document).ready(function () {
+    // ✅ Dummy list menu + url tujuan
+    const menus = [
+      { id: 'tools-sql', title: 'SQL Converter', desc: 'Convert Grid/Column to Values', icon: '🧩', url: 'tools-sql.html' },
+      { id: 'projects', title: 'Project Overview', desc: 'Monitor ongoing projects', icon: '📁', url: '' },
+      { id: 'reports', title: 'Reports Center', desc: 'View analytics and reports', icon: '📊', url: '' },
+      { id: 'logs', title: 'Activity Logs', desc: 'Track recent activities', icon: '🧾', url: '' },
+      { id: 'settings', title: 'System Settings', desc: 'Configuration and preferences', icon: '⚙️', url: '' },
+    ];
 
-      // Generate menu cards
-      function renderMenus(filter = '') {
-        $('#menuContainer').empty();
-        const filtered = menus.filter(m => m.title.toLowerCase().includes(filter.toLowerCase()));
-        if (filtered.length === 0) {
-          $('#menuContainer').html('<div class="text-center text-muted">No menu found.</div>');
-          return;
-        }
-        filtered.forEach(menu => {
-          $('#menuContainer').append(`
-            <div class="col-md-4">
-              <div class="card menu-card" data-id="${menu.id}">
-                <div class="card-body">
-                  <h5 class="card-title">${menu.icon} ${menu.title}</h5>
-                  <p class="card-text small text-muted">${menu.desc}</p>
-                </div>
+    // ✅ Render menu cards
+    function renderMenus(filter = '') {
+      $('#menuContainer').empty();
+      const filtered = menus.filter(m => m.title.toLowerCase().includes(filter.toLowerCase()));
+      if (filtered.length === 0) {
+        $('#menuContainer').html('<div class="text-center text-muted">No menu found.</div>');
+        return;
+      }
+      filtered.forEach(menu => {
+        $('#menuContainer').append(`
+          <div class="col-md-4">
+            <div class="card menu-card shadow-sm border-0 card-hover" data-id="${menu.id}">
+              <div class="card-body text-center">
+                <div class="fs-1 mb-2">${menu.icon}</div>
+                <h5 class="card-title fw-bold">${menu.title}</h5>
+                <p class="card-text small text-muted">${menu.desc}</p>
               </div>
             </div>
-          `);
-        });
-      }
-
-      renderMenus();
-
-      // Filter search
-      $('#menuFilter').on('input', function () {
-        renderMenus($(this).val());
+          </div>
+        `);
       });
+    }
 
-      // Menu click handler
-      $(document).on('click', '.menu-card', function () {
-        const id = $(this).data('id');
-        $('.menu-card').removeClass('border-primary');
-        $(this).addClass('border-primary');
+    renderMenus();
 
-        $('#mainContent').html(`<div class="text-center py-5 text-muted">Loading ${id}...</div>`);
-
-        // Simulasi load view dengan timeout (nanti bisa diganti .load('/views/'+id+'.html'))
-        setTimeout(() => {
-          $('#mainContent').html(`
-            <div class="card p-4 shadow-sm">
-              <h4>${id.charAt(0).toUpperCase() + id.slice(1)} Module</h4>
-              <p class="text-muted">This is dynamically loaded content for <b>${id}</b>.</p>
-            </div>
-          `);
-        }, 500);
-      });
+    // ✅ Filter search
+    $('#menuFilter').on('input', function () {
+      renderMenus($(this).val());
     });
-  </script>
+
+    // ✅ Menu click handler — handle redirect OR dynamic content
+     $(document).on('click', '.menu-card', function () {
+      const id = $(this).data('id');
+      const menu = menus.find(m => m.id === id);
+
+      $('.menu-card').removeClass('border-primary');
+      $(this).addClass('border-primary');
+
+      $('#mainContent').html(`
+        <div class="text-center py-5 text-muted">
+          <div class="spinner-border text-primary mb-3" role="status"></div><br>
+          Loading <b>${menu.title}</b>...
+        </div>
+      `);
+
+      if (menu && menu.url) {
+        // 🌐 Load partial view (tool-sql.html, dsb.)
+        $('#mainContent').load(menu.url, function (response, status, xhr) {
+          if (status === "error") {
+            $('#mainContent').html(`<div class="alert alert-danger">Failed to load: ${menu.url}</div>`);
+          }
+        });
+      } else {
+        // 🧩 Render konten langsung di halaman
+        $('#mainContent').html(`
+          <div class="card p-4 shadow-sm">
+            <h4 class="fw-bold">${menu.title}</h4>
+            <p class="text-muted">${menu.desc}</p>
+            <p class="small text-muted mb-0">This module is rendered directly without an external file.</p>
+          </div>
+        `);
+      }
+    });
+  });
+</script>
 
 </body>
 </html>
+
