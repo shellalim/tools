@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Tools</title>
+ 
+  <!-- ✅ Bootstrap 5.3 + Font Awesome + DataTables -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.min.js" integrity="sha384-G/EV+4j2dNv+tEPo3++6LCgdCROaejBqfUeNjuKAiuXbjrxilcCdDz6ZAVfHWe1Y" crossorigin="anonymous"></script>
+    
+    <!-- JS: jQuery + Bootstrap + DataTables -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/js/bootstrap.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap.min.js"></script>
+  <style>
+    .selected {
+      background-color: cadetblue;
+    }
+    .pre-style {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      background: #f8f8f8;
+      padding: 10px;
+      border: 1px solid #ddd;
+      max-height: 400px;
+      overflow-y: auto;
+      width: 100%;
+    }
+    .content-wrapper {
+      padding: 20px;
+    }
+    .box {
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .box-header {
+      background: #f5f5f5;
+      padding: 10px 15px;
+      border-bottom: 1px solid #ddd;
+    }
+    .box-title {
+      font-weight: bold;
+    }
+    .callout {
+      border-left: 5px solid #3c763d;
+      background-color: #dff0d8;
+      padding: 10px;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+
+<body>
+<div class="container-fluid py-3">
+
+  <!-- Header -->
+  <div class="mb-4">
+    <h3 class="fw-bold text-primary mb-2"><i class="bi bi-tools me-2"></i>Tools</h3>
+    <div class="alert alert-info shadow-sm">
+      <h6 class="fw-semibold"><i class="bi bi-info-circle me-1"></i> Notice</h6>
+        <p class="mb-1 small">
+        This tool automatically generates repeated SQL or C# statements based on your query template and a list of values (e.g., copied from Excel).
+        </p>
+        <p class="small mb-0">
+        Enter a query containing placeholders (such as <code>#X</code> or <code>#Y</code>), then provide one or more value lists. The system will loop through the data and produce one SQL statement for each combination.
+        </p>
+
+    </div>
+  </div>
+
+ <!-- Parameter Loop Generator -->
+    <div class="card shadow-sm mb-5">
+        <div class="card-header bg-primary text-white fw-semibold">
+            <i class="bi bi-braces-asterisk me-2"></i>Parameter Loop Generator
+        </div>
+
+        <div class="card-body">
+
+            <!-- Template -->
+            <div class="mb-4">
+            <label class="form-label fw-semibold">
+                Template
+            </label>
+            <textarea id="loopTemplate" class="form-control" rows="4"
+                placeholder="contoh: SELECT * FROM #X WHERE tipe = #Y"></textarea>
+
+            <div class="alert alert-info mt-2 small">
+                use parameter exmple: <b>#X</b>, <b>#Y</b>, etc.  
+                All Combination will be auto generate.
+            </div>
+            </div>
+
+            <!-- Parameter blocks -->
+            <div id="paramContainer"></div>
+
+            <button id="btnAddParam" class="btn btn-primary mb-4">
+            <i class="bi bi-plus-lg"></i> Add Parameter
+            </button>
+
+            <!-- Action -->
+            <div class="text-end mb-3">
+            <button id="btnGenerate" class="btn btn-success">
+                <i class="bi bi-gear"></i> Generate Output
+            </button>
+            </div>
+
+            <!-- Output -->
+            <label class="form-label d-flex justify-content-between align-items-center">
+            <span>Output</span>
+            <button id="btnCopyOutput" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-clipboard"></i> Copy
+            </button>
+            </label>
+
+            <pre id="loopOutput"
+            class="border rounded p-3 bg-light small"
+            style="min-height: 200px; white-space: pre-wrap;"></pre>
+
+        </div>
+    </div>
+
+</div>
+
+<!-- Bootstrap Icons -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<!-- DataTables -->
+<link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+    let paramCounter = 0;
+
+// ========================================================
+// Add Parameter Block
+// ========================================================
+$("#btnAddParam").on("click", function () {
+
+  paramCounter++;
+
+  $("#paramContainer").append(`
+    <div class="card p-3 mb-3 param-block" data-id="${paramCounter}">
+      <div class="d-flex justify-content-between mb-2">
+        <strong>Parameter #${paramCounter}</strong>
+        <button class="btn btn-sm btn-danger btnRemoveParam">
+          <i class="bi bi-x"></i>
+        </button>
+      </div>
+
+      <label class="form-label">Nama Parameter</label>
+      <input type="text" class="form-control param-name" placeholder="#X">
+
+      <label class="form-label mt-3">Nilai (pisahkan dengan koma)</label>
+      <textarea class="form-control param-values" rows="4"
+        placeholder="Paste data dari Excel (satu baris satu value)"></textarea>
+
+    </div>
+  `);
+});
+
+// Remove block
+$(document).on("click", ".btnRemoveParam", function () {
+  $(this).closest(".param-block").remove();
+});
+
+
+// ========================================================
+// Generate Output
+// ========================================================
+$("#btnGenerate").on("click", function () {
+
+  const template = $("#loopTemplate").val().trim();
+  // Parsing semua parameter
+  const params = {};
+  const rows = [];
+  if (!template) {
+    alert("Silakan isi template.");
+    return;
+  }
+
+  $(".param-block").each(function () {
+        const key = $(this).find(".param-name").val().trim();
+        const raw = $(this).find(".param-values").val();
+
+        if (!key) return;
+
+        const values = raw
+            .split(/\r?\n/)
+            .map(x => x.trim())
+            .filter(x => x);
+
+        params[key] = values;
+    });
+
+    // Hitung jumlah baris maximum
+    const rowCount = Math.max(
+        ...Object.values(params).map(x => x.length)
+    );
+
+    // Loop berdasarkan jumlah baris
+    for (let i = 0; i < rowCount; i++) {
+
+        let sqlLine = template;
+
+        for (const p in params) {
+            sqlLine = sqlLine.replaceAll(
+                p,
+                params[p][i] ?? ""   // jika kurang, biarkan kosong
+            );
+        }
+
+        rows.push(sqlLine);
+    }
+
+    // Tampilkan Output
+    $("#loopOutput").text(rows.join("\n"));
+});
+
+
+// ========================================================
+// Copy Output
+// ========================================================
+$("#btnCopyOutput").on("click", function () {
+  const text = $("#loopOutput").text();
+  navigator.clipboard.writeText(text).then(() => {
+    alert("Output copied!");
+  });
+});
+
+
+// ========================================================
+// Build All Combination
+// ========================================================
+function buildCombinations(params) {
+
+  let result = [{}];
+
+  params.forEach(p => {
+
+    let next = [];
+
+    result.forEach(existing => {
+
+      p.values.forEach(val => {
+
+        next.push({
+          ...existing,
+          [p.param]: val
+        });
+
+      });
+
+    });
+
+    result = next;
+  });
+
+  return result;
+}
+
+</script>
+
+</body>
+</html>
