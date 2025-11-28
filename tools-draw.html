@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Canvas Draw — Single Page</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <style>
+    body{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0080ff}
+    .card{width:100%;max-width:900px;background-color: #ffffff;}
+    .canvas-wrapper {
+      width: 100%;
+      position: relative;
+    }
+
+    #drawCanvas {
+      width: 100%;
+      height: auto;
+      border: 1px solid #d0d0d0;
+      display: block;
+      background: transparent;
+    }
+
+    #drawCanvas{background:#fff;border:1px solid #ddd;touch-action:none;width: 100%;  height: auto;border: 1px solid #000000;display: block;}
+    .tools .btn{margin-right:.4rem}
+    .color-swatch{width:28px;height:28px;border-radius:6px;display:inline-block;margin-right:.4rem;border:1px solid #ccc;cursor:pointer}
+  </style>
+</head>
+<body>
+  <div class="card shadow-sm">
+  <div class="card-body">
+
+    <div class="d-flex mb-2 align-items-center justify-content-between">
+      <h5 class="mb-0">Canvas Draw</h5>
+      <div class="tools">
+        <button id="btnSave" class="btn btn-primary btn-sm">Save</button>
+        <button id="btnShare" class="btn btn-outline-success btn-sm">Share</button>
+        <button id="btnClear" class="btn btn-outline-danger btn-sm">Clear</button>
+      </div>
+    </div>
+
+    <div class="row g-3">
+      
+      <!-- CANVAS SIDE -->
+      <div class="col-12 col-lg-9">
+        <div class="canvas-wrapper">
+          <canvas id="drawCanvas"></canvas>
+        </div>
+      </div>
+
+      <!-- TOOLS -->
+      <div class="col-12 col-lg-3">
+
+        <div class="mb-2">
+          <label class="form-label small">Brush Size</label>
+          <input id="brushSize" type="range" min="1" max="50" value="4" class="form-range">
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label small">Color</label>
+          <input id="colorPicker" type="color" class="form-control form-control-color" value="#000000">
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label small">Mode</label>
+          <select id="mode" class="form-select form-select-sm">
+            <option value="draw">Draw</option>
+            <option value="erase">Erase</option>
+          </select>
+        </div>
+
+        <div class="mb-2">
+          <button id="bgWhite" class="btn btn-light btn-sm">Background White</button>
+          <button id="bgTransparent" class="btn btn-secondary btn-sm">Transparent</button>
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label small">Share Code</label>
+          <div class="input-group input-group-sm">
+            <input id="shareCode" class="form-control" readonly>
+            <button id="btnCopy" class="btn btn-outline-secondary">Copy</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<script>
+let canvas = $('#drawCanvas')[0];
+let ctx = canvas.getContext('2d');
+
+let brushSize = $('#brushSize').val();
+let brushColor = $('#colorPicker').val();
+let mode = 'draw';
+
+let drawing = false;
+let lastX = 0;
+let lastY = 0;
+
+/* ---------------------------
+   RESPONSIVE CANVAS HANDLING
+----------------------------*/
+function resizeCanvas(keepImage = true){
+
+  // Simpan sebelum resize
+  let saved = null;
+  if(keepImage){
+    saved = canvas.toDataURL();
+  }
+
+  // Tentukan ukuran container
+  const parentWidth = $('#drawCanvas').parent().width();
+
+  // Set ukuran internal supaya tidak blur
+  canvas.width = parentWidth;
+  canvas.height = parentWidth * 0.6;   // Bisa diubah rasio sesuka
+
+  // Restore gambar
+  if(saved){
+    let img = new Image();
+    img.onload = ()=> ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    img.src = saved;
+  }
+}
+
+// Resize awal & saat window berubah
+$(document).ready(()=> resizeCanvas(false));
+$(window).on('resize', ()=> resizeCanvas(true));
+
+/* ---------------------------
+   UPDATE SETTINGS
+----------------------------*/
+$('#brushSize').on('input', function(){
+  brushSize = this.value;
+});
+
+$('#colorPicker').on('input', function(){
+  brushColor = this.value;
+});
+
+$('#mode').on('change', function(){
+  mode = this.value;
+});
+
+/* ---------------------------
+   DRAW
+----------------------------*/
+$('#drawCanvas').on('mousedown touchstart', function(e){
+  drawing = true;
+  const rect = canvas.getBoundingClientRect();
+
+  let x = (e.clientX || e.touches[0].clientX) - rect.left;
+  let y = (e.clientY || e.touches[0].clientY) - rect.top;
+
+  lastX = x; lastY = y;
+});
+
+$('#drawCanvas').on('mousemove touchmove', function(e){
+  if(!drawing) return;
+
+  const rect = canvas.getBoundingClientRect();
+
+  let x = (e.clientX || e.touches[0].clientX) - rect.left;
+  let y = (e.clientY || e.touches[0].clientY) - rect.top;
+
+  ctx.beginPath();
+  ctx.lineWidth = brushSize;
+  ctx.lineCap = 'round';
+
+  if(mode === 'erase'){
+    ctx.globalCompositeOperation = 'destination-out';
+  } else {
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.strokeStyle = brushColor;
+  }
+
+  ctx.moveTo(lastX, lastY);
+  ctx.lineTo(x, y);
+  ctx.stroke();
+
+  lastX = x;
+  lastY = y;
+});
+
+$(document).on('mouseup touchend', ()=> drawing = false);
+
+/* ---------------------------
+   BUTTONS
+----------------------------*/
+
+// White background
+$('#bgWhite').on('click', function(){
+  resizeCanvas(false); // reset & redraw
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  $('#bgWhite').addClass("bg-primary");
+  $('#bgTransparent').removeClass("bg-primary");
+});
+
+// Transparent background
+$('#bgTransparent').on('click', function(){
+  resizeCanvas(false);
+  $('#bgTransparent').addClass("bg-primary");
+  $('#bgWhite').removeClass("bg-primary");
+});
+
+// Clear canvas
+$('#btnClear').on('click', ()=> resizeCanvas(false));
+
+// Save PNG
+$('#btnSave').on('click', function(){
+  const link = document.createElement('a');
+  link.href = canvas.toDataURL();
+  link.download = 'drawing.png';
+  link.click();
+});
+
+// Share — convert to base64 code
+$('#btnShare').on('click', function(){
+  $('#shareCode').val(canvas.toDataURL());
+});
+
+// Copy
+$('#btnCopy').on('click', function(){
+  navigator.clipboard.writeText($('#shareCode').val());
+});
+
+</script>
+</body>
+</html>
