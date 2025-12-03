@@ -38,16 +38,39 @@
       min-height: 300px;
       padding: 2rem;
     }
+    
+    .header-box {
+      display: flex;
+      align-items: center;       /* icon + text sejajar tengah secara vertikal */
+      justify-content: center;   /* seluruh kelompok berada di tengah halaman */
+      gap: 12px;
+      padding: 10px 0;
+      text-align: center;        /* teks di header_text agar ikut center */
+    }
+
+    .header-logo {
+      width: 48px;
+      height: 48px;
+      object-fit: cover;
+      border-radius: 50%;
+    }
+
+    .header-text h2,
+    .header-text p {
+      margin: 0;
+    }
+
   </style>
 </head>
 <body>
-
-  <!-- 🔹 Header -->
-  <header>
-    <h2>Shella Lim</h2>
-    <p class="mb-0 small">System Development Supervisor • Author of CladSmart Tools</p>
-  </header>
-
+  <header class="header-box">
+    <img src="/tools/images/favicon.ico" alt="Logo" class="header-logo">  <!-- GANTI gambar di sini -->
+    
+    <div class="header-text">
+      <h2>Shella Lim</h2>
+      <p class="mb-0 small">System Development Supervisor • Author of Inovation Tools</p>
+    </div>
+  </header> 
   <!-- 🔹 Content Section -->
   <section class="container py-4">
     <div class="text-center mb-3">
