@@ -95,8 +95,10 @@
       <div class="col-md-6">
         <label class="form-label">Expected Output Format</label>
         <select id="formatType" class="form-select">
-          <option value="tuple">('A001'),('A002')</option>
+          <option value="comma">A001,A002</option>
+          <option value="doublequoted">"A001","A002"</option>
           <option value="quoted">'A001','A002'</option>
+          <option value="tuple">('A001'),('A002')</option>
           <option value="in">IN ('A001','A002')</option>
         </select>
 
@@ -214,6 +216,8 @@ $(document).ready(function () {
 
     if (type === 'tuple') output = lines.map(x => `('${x}')`).join(',');
     else if (type === 'quoted') output = lines.map(x => `'${x}'`).join(',');
+    else if (type === 'doublequoted') output = lines.map(x => `"${x}"`).join(',');
+    else if (type === 'comma') output = lines.map(x => `${x}`).join(',');
     else if (type === 'in') output = `IN (${lines.map(x => `'${x}'`).join(',')})`;
 
     $('#outputText').text(output || '(no input)');
