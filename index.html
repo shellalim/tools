@@ -12,9 +12,38 @@
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
   <style>
+    /* ===== Background Config ===== */
     body {
-      background-color: #f8f9fa;
+      background: #ffffff; /* fallback */
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      /* backdrop-filter: blur(5px); */
     }
+
+    /* ===== Glass Morphism Style ===== */
+    .menu-card {
+      background: rgba(255, 255, 255, 0.18);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      transition: transform .25s ease, box-shadow .25s ease;
+    }
+
+    .menu-card:hover {
+      transform: scale(1.04);
+      box-shadow: 0 8px 28px rgba(0,0,0,0.2);
+    }
+
+    /* Search box glass */
+    #menuFilter {
+      background: rgba(255,255,255,0.25);
+      border: 1px solid rgba(255,255,255,0.3);
+      backdrop-filter: blur(12px);
+      border-radius: 14px;
+    }
+
     header {
       background-color: #0d6efd;
       color: white;
@@ -73,6 +102,12 @@
   </header> 
   <!-- 🔹 Content Section -->
   <section class="container py-4">
+    <div class="text-center my-3">
+      <button id="toggleBg" class="btn btn-primary px-4">
+        Use Background Image
+      </button>
+    </div>
+
     <div class="text-center mb-3">
       <input id="menuFilter" type="text" class="form-control" placeholder="🔍 Search menu...">
     </div>
@@ -89,17 +124,57 @@
 
   
   <!-- 🔹 jQuery Logic -->
- <script>
+ <script> 
+    let useImageBg = false; // default white background
+    const bgImageUrl = "https://images.unsplash.com/photo-1621847468516-1ed5d0df56fe?auto=format&fit=crop&w=1920&q=80"; 
+
   $(document).ready(function () {
+    // Apply Background Config
+    // if (UIConfig.backgroundType === 'image') {
+    //   $('body').css('background-image', `url(${UIConfig.backgroundImageUrl})`);
+    // } else {
+    //   $('body').css({
+    //     'background': '#ffffff'
+    //   });
+    // }
+
+    function ApplyBackground() {
+      if (useImageBg) {
+        $("body").css({
+          "background-image": `url(${bgImageUrl})`,
+          "background-size": "cover",
+          "background-position": "center",
+          // "backdrop-filter": "blur(5px)",
+          "background-attachment": "fixed"
+        });
+
+        $("#toggleBg").text("Use White Background");
+      } else {
+        $("body").css({
+          "background-image": "none",
+          "background": "#ffffff"
+        });
+
+        $("#toggleBg").text("Use Background Image");
+      }
+    }
+    
+    $("#toggleBg").on("click", function () {
+      useImageBg = !useImageBg;   // toggle value
+      ApplyBackground();
+    });
+
+    // apply initial background
+    ApplyBackground();
+
     // ✅ Dummy list menu + url tujuan
     const menus = [
       { id: 'tools-sql', title: 'SQL Converter', desc: 'Convert Grid/Column to Values', icon: '🧩', url: 'tools-sql.html' },
       { id: 'tools-loop', title: 'Js Loop Statement ', desc: 'Generates repeated SQL or C# ', icon: '📁', url: 'tools-loop.html' },
-      { id: 'reports', title: 'Reports Center', desc: 'View analytics and reports', icon: '📊', url: '' },
+      { id: 'tools-extract', title: 'Text Extraction Utility', desc: 'Extract specific parts of text dynamically', icon: '📊', url: 'tools-extract.html' },
       { id: 'logs', title: 'Activity Logs', desc: 'Track recent activities', icon: '🧾', url: '' },
       { id: 'settings', title: 'System Settings', desc: 'Configuration and preferences', icon: '⚙️', url: '' },
     ];
-
     // ✅ Render menu cards
     function renderMenus(filter = '') {
       $('#menuContainer').empty();

@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Tools</title>
+ 
+  <!-- ✅ Bootstrap 5.3 + Font Awesome + DataTables -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.min.js" integrity="sha384-G/EV+4j2dNv+tEPo3++6LCgdCROaejBqfUeNjuKAiuXbjrxilcCdDz6ZAVfHWe1Y" crossorigin="anonymous"></script>
+    
+    <!-- JS: jQuery + Bootstrap + DataTables -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/js/bootstrap.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap.min.js"></script>
+  <style>
+    .selected {
+      background-color: cadetblue;
+    }
+    .pre-style {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      background: #f8f8f8;
+      padding: 10px;
+      border: 1px solid #ddd;
+      max-height: 400px;
+      overflow-y: auto;
+      width: 100%;
+    }
+    .content-wrapper {
+      padding: 20px;
+    }
+    .box {
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .box-header {
+      background: #f5f5f5;
+      padding: 10px 15px;
+      border-bottom: 1px solid #ddd;
+    }
+    .box-title {
+      font-weight: bold;
+    }
+    .callout {
+      border-left: 5px solid #3c763d;
+      background-color: #dff0d8;
+      padding: 10px;
+      margin-bottom: 20px;
+    }
+    
+    .scope-active {
+      border-color: #198754 !important;
+      background-color: #e9f7ef;
+    }
+
+    .input-disabled {
+      background-color: #e9ecef !important;
+      color: #6c757d;
+    }
+  </style>
+</head>
+
+<body>
+<div class="container-fluid py-3">
+
+  <!-- Header -->
+ <div class="mb-4">
+    <h3 class="fw-bold text-primary mb-2">
+      <i class="bi bi-tools me-2"></i>Tools
+    </h3>
+
+    <div class="alert alert-info shadow-sm">
+      <div class="d-flex align-items-start gap-2">
+        <i class="bi bi-info-circle-fill fs-5 mt-1"></i>
+        <div>
+          <h6 class="fw-semibold mb-1">Text Extraction Utility</h6>
+          <p class="small mb-1">
+            This tool allows you to extract specific parts of text dynamically from one or multiple lines.
+            It is designed to help process structured strings such as database fields, logs, or system-generated text.
+          </p>
+          <p class="small mb-0">
+            You can extract values based on:
+            <strong>scope characters</strong> (e.g. <code>( )</code>, <code>[ ]</code>),
+            <strong>specific keywords</strong>,
+            or <strong>special characters</strong>.
+            The extraction supports <strong>first</strong>, <strong>last</strong>, or <strong>N-th</strong> occurrences.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+ <!-- Parameter Loop Generator -->
+    <div class="card shadow-sm mb-5">
+         <div class="card-header bg-primary text-white fw-semibold">
+          <i class="bi bi-braces-asterisk me-2"></i> Text Extractor Tool
+        </div>
+
+        <div class="card-body">
+
+          <!-- MODE -->
+          <div class="row g-3 mb-3">
+            <!-- INPUT -->
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Input Text</label>
+              <textarea id="inputText" class="form-control" rows="5"
+                placeholder="#PipeOriNo# (varchar(max), null) (CPLnToPipeDT) [TABLE-MAPPING] #ID-01-RAW#A [TABLE-MAPPING1] "></textarea>
+            </div>
+
+            
+            <!-- INPUT -->
+            <div class="col-md-6 con">
+              <label class="form-label d-flex justify-content-between align-items-center">
+                <span>Sample Text</span>
+                <button class="btn btn-outline-secondary btn-sm btnCopy">
+                  Copy
+                </button>
+              </label>
+              <pre 
+                class="border rounded p-3 bg-light small"
+                style="min-height:120px; white-space:pre-wrap">
+#PipeOriNo# (varchar(max), null) (CPLnToPipeDT) [TABLE-MAPPING] #ID-01-RAW#A [TABLE-MAPPING1] 
+#PipeOriNo# (varchar(max), null) (ColdSizingADT) [PROCESS-DATA] #ID-02-RAW#B [PROCESS-DATA2] 
+#PipeOriNo# (varchar(max), null) (EndExpanADT) [QUALITY-CHECK] #ID-03-RAW#C [QUALITY-CHECK1]
+#PipeOriNo# (varchar(max), null) (FinalDimensionScadaDT) [FINAL-RESULT] #ID-04-RAW#D  [FINAL-RESULT6]
+              </pre>
+
+            </div>
+          </div>
+
+          <!-- MODE -->
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Extract Mode</label>
+              <select id="extractMode" class="form-select">
+                <option value="scope">By Scope ( ), [ ], { }</option>
+                <option value="keyword">After Keyword</option>
+                <option value="char">After Special Character</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-4 keyword">
+              <label class="form-label fw-semibold">Scope / Keyword / Char</label>
+              <input id="extractValue" class="form-control"
+                    placeholder="(), AB, -, --">
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Position</label>
+              <select id="extractPosition" class="form-select">
+                <option value="first">First</option>
+                <option value="last" selected>Last</option>
+                <option value="nth">N-th</option>
+              </select>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Index (for N-th)</label>
+              <input id="nthIndex" type="number" class="form-control" value="1" min="1">
+            </div>
+          </div>
+          
+          <div class="startend row  g-3 mb-3">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Start Scope</label>
+              <input id="scopeStart" class="form-control" placeholder="contoh: (, [, --, ##">
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">End Scope</label>
+              <input id="scopeEnd" class="form-control" placeholder="contoh: ), ], --, ##">
+            </div>
+          </div>
+
+
+          <div class="output con">
+            <!-- OUTPUT -->
+            <label class="form-label d-flex justify-content-between align-items-center">
+              <span>Output</span>
+              <div>
+                <button class="btn btn-outline-secondary btn-sm btnCopy">
+                  Copy
+                </button>
+                <button id="btnExtract" class="btn btn-success btn-sm">
+                  <i class="bi bi-search"></i> Extract
+                </button>
+              </div>
+            </label>
+            <pre id="outputText"
+              class="border rounded p-3 bg-light small"
+              style="min-height:150px; white-space:pre-wrap"></pre>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Bootstrap Icons -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<!-- DataTables -->
+<link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+
+  function updateExtractModeUI() {
+    const mode = $('#extractMode').val();
+
+    if (mode === 'scope') {
+      // Scope ACTIVE
+      $('.startend input')
+        .prop('readonly', false)
+        .addClass('scope-active')
+        .removeClass('input-disabled');
+
+      // Keyword DISABLED
+      $('.keyword input')
+        .prop('readonly', true)
+        .addClass('input-disabled')
+        .removeClass('scope-active');
+
+    } else {
+      // Keyword ACTIVE
+      $('.keyword input')
+        .prop('readonly', false)
+        .addClass('scope-active')
+        .removeClass('input-disabled');
+
+      // Scope DISABLED
+      $('.startend input')
+        .prop('readonly', true)
+        .removeClass('scope-active')
+        .addClass('input-disabled');
+    }
+  }
+
+// init on load
+updateExtractModeUI();
+
+// change event
+$('#extractMode').on('change', updateExtractModeUI);
+/* =====================================================
+   UNIVERSAL EXTRACT FUNCTIONS
+   ===================================================== */
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function extractByScope(line, scope, position, nth) {
+    const start = $('#scopeStart').val();
+    const end = $('#scopeEnd').val();
+    if (!start || !end) return '';
+
+    const regex = new RegExp(
+      escapeRegex(start) + '(.*?)' + escapeRegex(end),
+      'g'
+    );
+    // const scopeMap = {
+    //     '()': /\(([^()]*)\)/g,
+    //     '[]': /\[([^\[\]]*)\]/g,
+    //     '{}': /\{([^{}]*)\}/g,
+    //     '<>': /<([^<>]*)>/g
+    // };
+
+    // const regex = scopeMap[scope];
+    if (!regex) return '';
+
+    const matches = [...line.matchAll(regex)].map(m => m[1]);
+    if (matches.length === 0) return '';
+
+    if (position === 'first') return matches[0];
+    if (position === 'last') return matches[matches.length - 1];
+    if (position === 'nth') return matches[nth - 1] || '';
+
+    return '';
+}
+
+function extractAfterKeyword(line, keyword, position) {
+    if (!keyword) return '';
+
+    const parts = line.split(keyword);
+    if (parts.length < 2) return '';
+
+    if (position === 'first') return parts[1].trim();
+    if (position === 'last') return parts[parts.length - 1].trim();
+
+    return '';
+}
+
+function extractAfterChar(line, char, position, nth) {
+    if (!char) return '';
+
+    const parts = line.split(char);
+    if (parts.length < 2) return '';
+
+    if (position === 'first') return parts[1].trim();
+    if (position === 'last') return parts[parts.length - 1].trim();
+    if (position === 'nth') return parts[nth] ? parts[nth].trim() : '';
+
+    return '';
+}
+
+/* =====================================================
+   UI BINDING
+   ===================================================== */
+
+$('#btnExtract').on('click', function () {
+
+    const text = $('#inputText').val();
+    const mode = $('#extractMode').val();
+    const value = $('#extractValue').val().trim();
+    const position = $('#extractPosition').val();
+    const nth = parseInt($('#nthIndex').val()) || 1;
+
+    if (!text) {
+        $('#outputText').text('(empty input)');
+        return;
+    }
+
+    const lines = text
+        .split(/\r?\n/)
+        .map(x => x.trim())
+        .filter(x => x);
+
+    const results = [];
+
+    lines.forEach(line => {
+
+        let extracted = '';
+
+        if (mode === 'scope') {
+            extracted = extractByScope(line, value, position, nth);
+        }
+        else if (mode === 'keyword') {
+            extracted = extractAfterKeyword(line, value, position);
+        }
+        else if (mode === 'char') {
+            extracted = extractAfterChar(line, value, position, nth);
+        }
+
+        if (extracted) {
+            results.push(extracted);
+        }
+    });
+
+    $('#outputText').text(
+        results.length ? results.join('\n') : '(no match)'
+    );
+});
+
+
+/* =====================================================
+   COPY OUTPUT
+   ===================================================== */
+// $('#btnCopy').on('click', function () {
+//     const text = $('#outputText').text();
+//     if (!text) return;
+
+//     navigator.clipboard.writeText(text).then(() => {
+//         alert('Copied!');
+//     });
+// });
+$('.btnCopy').on('click', function () {
+    const text = $(this)
+          .closest('.con')   // naik ke wrapper
+          .find('pre')          // ambil pre di dalamnya
+          .text()
+          .trim();
+    // const text = $('#outputText').text();
+    if (!text) return;
+
+    navigator.clipboard.writeText(text).then(() => {
+        alert('Copied!');
+    });
+});
+</script>
+
+
+</body>
+</html>
