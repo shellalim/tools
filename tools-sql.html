@@ -131,6 +131,14 @@
     </div>
     <div class="card-body row g-3 align-items-start">
       <div class="col-md-6">
+        
+        <label class="form-label">Expected Output Format</label>
+        <select id="formatType2" class="form-select">
+          <option value="comma">(A001,A002)</option>
+          <option value="doublequoted">("A001","A002")</option>
+          <option value="tuple">('A001'),('A002')</option>
+        </select>
+
         <label class="form-label">Example Output Format</label>
         <pre class="border rounded bg-light p-3 small">('Admin', 'Super Admin'), ('Row 2', 'Liner Pipe')</pre>
 
@@ -233,14 +241,44 @@ $(document).ready(function () {
   $('#btnConvert2').click(function () {
     const text = $('#inputText2').val().trim();
     if (!text) return $('#outputText2').text('No input provided.');
-
+    const type = $('#formatType2').val();
     const rows = text.split(/\r?\n/);
+    let output = '';
+
     const sqlRows = rows.map(row => {
       const cols = row.split('\t').map(c => `'${c.trim().replace(/'/g, "''")}'`);
       return '(' + cols.join(', ') + ')';
     });
 
-    $('#outputText2').text(sqlRows.join(',\n'));
+    const lines = text.split(/\r?\n/).map(x => x.trim()).filter(x => x);
+    if (type === 'tuple') output = rows.map(row => {
+              const cols = row.split('\t').map(c => {
+                  let val = c.trim();
+                  if (/^null$/i.test(val)) return 'NULL'; // tidak diubah
+                  return `'${val.replace(/'/g, "''")}'`;
+              });
+              return '(' + cols.join(', ') + ')';
+            });
+    else if (type === 'doublequoted') 
+            output = rows.map(row => {
+              const cols = row.split('\t').map(c => {
+                  let val = c.trim();
+                  if (/^null$/i.test(val)) return 'NULL';
+                  return `"${val.replace(/'/g, "''")}"`;
+              });
+              return '(' + cols.join(', ') + ')';
+            });
+    else if (type === 'comma') 
+            output = rows.map(row => {
+                  const cols = row.split('\t').map(c => {
+                      let val = c.trim();
+                      if (/^null$/i.test(val)) return 'NULL';
+                      return val.replace(/'/g, "''");
+                  });
+              return '(' + cols.join(', ') + ')';
+            });
+
+    $('#outputText2').text(output.join(',\n'));
   });
 
   // Copy Output (Multi)

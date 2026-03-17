@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Machine Status Slideshow</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #f0f2f7;
+    --surface:   #ffffff;
+    --border:    #dde2ef;
+    --text:      #1a1f36;
+    --muted:     #8892aa;
+    --accent:    #0057ff;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+  }
+
+  body {
+    background: var(--bg);
+    background-image:
+      linear-gradient(rgba(0,87,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,87,255,0.03) 1px, transparent 1px);
+    background-size: 32px 32px;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    padding: 24px;
+  }
+
+  /* ── CONTROLS ── */
+  .ss-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 10px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    margin-bottom: 10px;
+    box-shadow: 0 1px 8px rgba(0,87,255,0.05);
+  }
+
+  .ss-controls label {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+
+  .ss-controls input[type=range] { width: 90px; accent-color: var(--accent); }
+
+  .ss-controls .val {
+    font-size: 12px;
+    font-weight: 600;
+    min-width: 28px;
+    color: var(--text);
+  }
+
+  .ss-controls button {
+    font-size: 11px;
+    padding: 5px 14px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+
+  .ss-controls button:hover { background: var(--bg); border-color: var(--accent); color: var(--accent); }
+  .ss-controls button.active { background: rgba(0,87,255,0.08); color: var(--accent); border-color: var(--accent); }
+
+  .ss-slide-info {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  /* ── PROGRESS ── */
+  .ss-progress {
+    height: 2px;
+    background: var(--border);
+    border-radius: 1px;
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+
+  .ss-progress-bar {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 1px;
+    transition: width linear;
+  }
+
+  /* ── VIEWPORT ── */
+  .ss-viewport {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    min-height: 300px;
+    box-shadow: 0 2px 16px rgba(0,87,255,0.05);
+  }
+
+  /* ── SLIDES ── */
+  .ss-slide {
+    position: absolute;
+    inset: 0;
+    padding: 16px;
+    display: grid;
+    gap: 8px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    transform: translateX(36px);
+  }
+
+  .ss-slide.active  { opacity: 1; pointer-events: auto; transform: translateX(0); }
+  .ss-slide.exit    { opacity: 0; transform: translateX(-36px); }
+
+  /* ── SLIDE TITLE ── */
+  .ss-slide-title {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .ss-slide-title .title-text {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  /* ── LEGEND ── */
+  .legend {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ── BOX ── */
+  .box {
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    border: 1px solid transparent;
+    transition: transform 0.15s, box-shadow 0.15s;
+    cursor: default;
+  }
+
+  .box:hover {
+    transform: scale(1.04);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+  }
+
+  .box-tag {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.2;
+    word-break: break-all;
+  }
+
+  .box-status {
+    font-size: 10px;
+    opacity: 0.7;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  /* ── DOT NAV ── */
+  .ss-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    margin-top: 12px;
+  }
+
+  .ss-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--border);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .ss-dot.active {
+    width: 18px;
+    border-radius: 3px;
+    background: var(--accent);
+  }
+</style>
+</head>
+<body>
+
+<div class="ss-controls">
+  <label>Interval</label>
+  <input type="range" id="intervalRange" min="2" max="30" value="10" step="1">
+  <span class="val" id="intervalVal">10s</span>
+
+  <label style="margin-left:6px">Box / slide</label>
+  <input type="range" id="boxRange" min="4" max="20" value="20" step="1">
+  <span class="val" id="boxVal">20</span>
+
+  <button id="playBtn" class="active">Pause</button>
+  <button id="prevBtn">&#8592; Prev</button>
+  <button id="nextBtn">Next &#8594;</button>
+
+  <span class="ss-slide-info" id="slideInfo">1 / 1</span>
+</div>
+
+<div class="ss-progress">
+  <div class="ss-progress-bar" id="progressBar"></div>
+</div>
+
+<div class="ss-viewport" id="viewport"></div>
+
+<div class="ss-nav" id="dotNav"></div>
+
+<script>
+// ─────────────────────────────────────────────
+//  CONFIG
+// ─────────────────────────────────────────────
+const STATUS_STYLE = {
+  'SUBMITTED':   { color: '#FCEBEB', text: '#791F1F' },
+  'WAITING':     { color: '#FAEEDA', text: '#633806' },
+  'IN PROGRESS': { color: '#E6F1FB', text: '#0C447C' },
+  'CLOSED':      { color: '#EAF3DE', text: '#27500A' },
+};
+
+const LEGEND_DEF = [
+  { label: 'Submitted',   color: '#FCEBEB', text: '#791F1F' },
+  { label: 'Waiting',     color: '#FAEEDA', text: '#633806' },
+  { label: 'In Progress', color: '#E6F1FB', text: '#0C447C' },
+  { label: 'Closed',      color: '#EAF3DE', text: '#27500A' },
+];
+
+// ─────────────────────────────────────────────
+//  SAMPLE DATA  — ganti dengan cdata dari AJAX
+// ─────────────────────────────────────────────
+const SAMPLE_CDATA = [
+  {MachineTagNo:'P-101A', MachineStatus:'SUBMITTED'},
+  {MachineTagNo:'P-101B', MachineStatus:'CLOSED'},
+  {MachineTagNo:'P-102',  MachineStatus:'IN PROGRESS'},
+  {MachineTagNo:'E-201',  MachineStatus:'WAITING'},
+  {MachineTagNo:'C-301',  MachineStatus:'CLOSED'},
+  {MachineTagNo:'V-401',  MachineStatus:'SUBMITTED'},
+  {MachineTagNo:'T-501',  MachineStatus:'IN PROGRESS'},
+  {MachineTagNo:'HX-601', MachineStatus:'WAITING'},
+  {MachineTagNo:'P-103',  MachineStatus:'CLOSED'},
+  {MachineTagNo:'P-104A', MachineStatus:'SUBMITTED'},
+  {MachineTagNo:'M-701',  MachineStatus:'IN PROGRESS'},
+  {MachineTagNo:'M-702',  MachineStatus:'CLOSED'},
+  {MachineTagNo:'B-801',  MachineStatus:'WAITING'},
+  {MachineTagNo:'FT-901', MachineStatus:'CLOSED'},
+  {MachineTagNo:'P-105',  MachineStatus:'SUBMITTED'},
+  {MachineTagNo:'E-202',  MachineStatus:'IN PROGRESS'},
+  {MachineTagNo:'V-402',  MachineStatus:'CLOSED'},
+  {MachineTagNo:'C-302',  MachineStatus:'WAITING'},
+  {MachineTagNo:'P-106',  MachineStatus:'CLOSED'},
+  {MachineTagNo:'T-502',  MachineStatus:'SUBMITTED'},
+  {MachineTagNo:'HX-602', MachineStatus:'IN PROGRESS'},
+  {MachineTagNo:'P-107',  MachineStatus:'CLOSED'},
+  {MachineTagNo:'M-703',  MachineStatus:'WAITING'},
+  {MachineTagNo:'P-108',  MachineStatus:'SUBMITTED'},
+  {MachineTagNo:'E-203',  MachineStatus:'CLOSED'},
+  {MachineTagNo:'V-403',  MachineStatus:'IN PROGRESS'},
+  {MachineTagNo:'FT-902', MachineStatus:'CLOSED'},
+  {MachineTagNo:'B-802',  MachineStatus:'WAITING'},
+  {MachineTagNo:'P-109',  MachineStatus:'SUBMITTED'},
+  {MachineTagNo:'C-303',  MachineStatus:'CLOSED'},
+  {MachineTagNo:'T-503',  MachineStatus:'IN PROGRESS'},
+  {MachineTagNo:'M-704',  MachineStatus:'CLOSED'},
+  {MachineTagNo:'P-110',  MachineStatus:'WAITING'},
+  {MachineTagNo:'HX-603', MachineStatus:'SUBMITTED'},
+  {MachineTagNo:'E-204',  MachineStatus:'CLOSED'},
+  {MachineTagNo:'V-404',  MachineStatus:'IN PROGRESS'},
+  {MachineTagNo:'P-111',  MachineStatus:'CLOSED'},
+  {MachineTagNo:'FT-903', MachineStatus:'WAITING'},
+  {MachineTagNo:'B-803',  MachineStatus:'SUBMITTED'},
+  {MachineTagNo:'C-304',  MachineStatus:'CLOSED'},
+  {MachineTagNo:'P-112',  MachineStatus:'IN PROGRESS'},
+  {MachineTagNo:'M-705',  MachineStatus:'CLOSED'},
+];
+
+// ─────────────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────────────
+var SLIDES   = [];
+var current  = 0;
+var playing  = true;
+var interval = 10;
+var boxCount = 20;
+var timer    = null;
+
+// ─────────────────────────────────────────────
+//  HELPERS
+// ─────────────────────────────────────────────
+function chunkArray(arr, size) {
+  var out = [];
+  for (var i = 0; i < arr.length; i += size) {
+    out.push(arr.slice(i, i + size));
+  }
+  return out;
+}
+
+function machineStatusStyle(status) {
+  return STATUS_STYLE[status] || { color: '#F1EFE8', text: '#444441' };
+}
+
+function cols(n) {
+  if (n <= 4)  return 'repeat(4, 1fr)';
+  if (n <= 8)  return 'repeat(4, 1fr)';
+  if (n <= 12) return 'repeat(6, 1fr)';
+  if (n <= 16) return 'repeat(8, 1fr)';
+  return 'repeat(10, 1fr)';
+}
+
+function legendHTML() {
+  return '<div class="legend">' +
+    LEGEND_DEF.map(function(l) {
+      return '<div class="legend-item">' +
+               '<div class="legend-dot" style="background:' + l.color + ';border:1px solid ' + l.text + '55"></div>' +
+               l.label +
+             '</div>';
+    }).join('') +
+  '</div>';
+}
+
+// ─────────────────────────────────────────────
+//  BUILD SLIDES FROM cdata
+// ─────────────────────────────────────────────
+function buildSlidesFromCard(cdata, perSlide) {
+  perSlide = perSlide || 20;
+  var chunks = chunkArray(cdata, perSlide);
+  return chunks.map(function(chunk, i) {
+    return {
+      title: 'Machine Status &nbsp;·&nbsp; Slide ' + (i + 1) + ' / ' + chunks.length + ' &nbsp;·&nbsp; ' + cdata.length + ' machines',
+      boxes: chunk.map(function(item) {
+        var st = machineStatusStyle(item.MachineStatus);
+        return {
+          label : item.MachineStatus,
+          value : item.MachineTagNo,
+          color : st.color,
+          text  : st.text
+        };
+      })
+    };
+  });
+}
+
+// ─────────────────────────────────────────────
+//  RENDER: build all slide DOM elements
+// ─────────────────────────────────────────────
+function buildSlides() {
+  var viewport = document.getElementById('viewport');
+  var dotNav   = document.getElementById('dotNav');
+  var info     = document.getElementById('slideInfo');
+
+  viewport.innerHTML = '';
+  dotNav.innerHTML   = '';
+
+  SLIDES.forEach(function(s, i) {
+    // ── slide wrapper
+    var div = document.createElement('div');
+    div.className = 'ss-slide' + (i === current ? ' active' : '');
+    div.id = 'slide-' + i;
+    div.style.gridTemplateColumns = cols(boxCount);
+
+    // ── title row
+    var title = document.createElement('div');
+    title.className = 'ss-slide-title';
+    title.innerHTML = '<span class="title-text">' + s.title + '</span>' + legendHTML();
+    div.appendChild(title);
+
+    // ── boxes
+    s.boxes.forEach(function(b) {
+      var box = document.createElement('div');
+      box.className = 'box';
+      box.style.background   = b.color;
+      box.style.borderColor  = b.text + '22';
+      box.innerHTML =
+        '<div class="box-tag"    style="color:' + b.text + '">' + b.value + '</div>' +
+        '<div class="box-status" style="color:' + b.text + '">' + b.label + '</div>';
+      div.appendChild(box);
+    });
+
+    viewport.appendChild(div);
+
+    // ── dot
+    var dot = document.createElement('div');
+    dot.className = 'ss-dot' + (i === current ? ' active' : '');
+    dot.onclick = (function(idx) {
+      return function() { goTo(idx); if (playing) startTimer(); };
+    })(i);
+    dotNav.appendChild(dot);
+  });
+
+  info.textContent = (current + 1) + ' / ' + SLIDES.length;
+}
+
+// ─────────────────────────────────────────────
+//  NAVIGATE
+// ─────────────────────────────────────────────
+function goTo(idx) {
+  var prev = document.getElementById('slide-' + current);
+  if (prev) {
+    prev.classList.remove('active');
+    prev.classList.add('exit');
+    setTimeout(function() { prev.classList.remove('exit'); }, 500);
+  }
+
+  current = (idx + SLIDES.length) % SLIDES.length;
+
+  var next = document.getElementById('slide-' + current);
+  if (next) next.classList.add('active');
+
+  document.querySelectorAll('.ss-dot').forEach(function(d, i) {
+    d.className = 'ss-dot' + (i === current ? ' active' : '');
+  });
+
+  document.getElementById('slideInfo').textContent = (current + 1) + ' / ' + SLIDES.length;
+  resetProgress();
+}
+
+// ─────────────────────────────────────────────
+//  PROGRESS BAR
+// ─────────────────────────────────────────────
+function resetProgress() {
+  var bar = document.getElementById('progressBar');
+  bar.style.transition = 'none';
+  bar.style.width      = '0%';
+  if (!playing) return;
+  requestAnimationFrame(function() {
+    bar.style.transition = 'width ' + interval + 's linear';
+    bar.style.width      = '100%';
+  });
+}
+
+// ─────────────────────────────────────────────
+//  TIMER
+// ─────────────────────────────────────────────
+function startTimer() {
+  clearInterval(timer);
+  timer = setInterval(function() { goTo(current + 1); }, interval * 1000);
+  resetProgress();
+}
+
+function stopTimer() {
+  clearInterval(timer);
+  var bar = document.getElementById('progressBar');
+  bar.style.transition = 'none';
+}
+
+// ─────────────────────────────────────────────
+//  CONTROLS
+// ─────────────────────────────────────────────
+document.getElementById('playBtn').onclick = function() {
+  playing = !playing;
+  this.textContent = playing ? 'Pause' : 'Play';
+  this.classList.toggle('active', playing);
+  playing ? startTimer() : stopTimer();
+};
+
+document.getElementById('prevBtn').onclick = function() {
+  goTo(current - 1);
+  if (playing) startTimer();
+};
+
+document.getElementById('nextBtn').onclick = function() {
+  goTo(current + 1);
+  if (playing) startTimer();
+};
+
+document.getElementById('intervalRange').oninput = function() {
+  interval = +this.value;
+  document.getElementById('intervalVal').textContent = interval + 's';
+  if (playing) startTimer();
+};
+
+document.getElementById('boxRange').oninput = function() {
+  boxCount = +this.value;
+  document.getElementById('boxVal').textContent = boxCount;
+  SLIDES  = buildSlidesFromCard(SAMPLE_CDATA, boxCount);
+  current = 0;
+  buildSlides();
+  if (playing) startTimer();
+};
+
+// ─────────────────────────────────────────────
+//  PUBLIC API  — panggil ini dari AJAX callback
+// ─────────────────────────────────────────────
+window.loadCardToSlideshow = function(cdata) {
+  SLIDES  = buildSlidesFromCard(cdata, boxCount);
+  current = 0;
+  buildSlides();
+  if (playing) startTimer();
+};
+
+// ─────────────────────────────────────────────
+//  INIT  — pakai sample data, ganti dengan AJAX
+// ─────────────────────────────────────────────
+$(document).ready(function() {
+
+  // Pakai sample data dulu
+  SLIDES = buildSlidesFromCard(SAMPLE_CDATA, boxCount);
+  buildSlides();
+  startTimer();
+
+  // ── Uncomment ini untuk pakai data real dari AJAX:
+  // $.ajax({
+  //   url : '/YourController/GetMachineData',
+  //   type: 'GET',
+  //   success: function(cdata) {
+  //     loadCard(cdata);               // fungsi lama tetap jalan
+  //     loadCardToSlideshow(cdata);    // feed slideshow
+  //   }
+  // });
+});
+</script>
+</body>
+</html>
