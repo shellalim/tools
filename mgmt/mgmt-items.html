@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventaris Rumah Tangga</title>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f0e8;
+    --surface: #fffdf8;
+    --primary: #32a9c9;
+    --accent: #c8955c;
+    --danger: #b85c5c;
+    --text: #1a1a1a;
+    --muted: #7a7a6e;
+    --border: #e0d8c8;
+    --shadow: 0 2px 16px rgba(45,74,62,0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* LOGIN */
+  #login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary);
+  }
+
+  .login-box {
+    background: var(--surface);
+    border-radius: 20px;
+    padding: 48px 40px;
+    width: 360px;
+    text-align: center;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.2);
+  }
+
+  .login-box .icon { font-size: 48px; margin-bottom: 16px; }
+
+  .login-box h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 26px;
+    color: var(--primary);
+    margin-bottom: 6px;
+  }
+
+  .login-box p { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+
+  .login-box input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    font-size: 15px;
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+    transition: border 0.2s;
+    margin-bottom: 12px;
+    background: var(--bg);
+  }
+
+  .login-box input:focus { border-color: var(--primary); }
+
+  .btn-login {
+    width: 100%;
+    padding: 13px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .btn-login:hover { opacity: 0.85; }
+  .login-error { color: var(--danger); font-size: 13px; margin-top: 10px; display: none; }
+
+  /* MAIN */
+  #main-page { display: none; }
+
+  header {
+    background: var(--primary);
+    color: white;
+    padding: 0 32px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  header h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    letter-spacing: 0.3px;
+  }
+
+  header .header-right { display: flex; align-items: center; gap: 16px; }
+
+  .badge-warning {
+    background: #f0a500;
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    display: none;
+  }
+
+  .btn-logout {
+    background: rgba(255,255,255,0.15);
+    color: white;
+    border: none;
+    padding: 7px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .btn-logout:hover { background: rgba(255,255,255,0.25); }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 28px 24px; }
+
+  /* STATS */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 28px; }
+
+  .stat-card {
+    background: var(--surface);
+    border-radius: 14px;
+    padding: 20px;
+    border: 1px solid var(--border);
+  }
+
+  .stat-card .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+  .stat-card .value { font-family: 'DM Serif Display', serif; font-size: 28px; color: var(--primary); }
+  .stat-card .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* TOOLBAR */
+  .toolbar {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .toolbar input, .toolbar select {
+    padding: 9px 14px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+    background: var(--surface);
+    outline: none;
+  }
+
+  .toolbar input { flex: 1; min-width: 200px; }
+
+  .btn {
+    padding: 9px 18px;
+    border-radius: 9px;
+    font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: opacity 0.2s;
+  }
+
+  .btn:hover { opacity: 0.82; }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-accent { background: var(--accent); color: white; }
+  .btn-danger { background: var(--danger); color: white; }
+  .btn-ghost { background: var(--border); color: var(--text); }
+  .btn-sm { padding: 6px 12px; font-size: 13px; }
+
+  /* TABLE */
+  .table-wrap {
+    background: var(--surface);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+
+  thead { background: var(--primary); }
+  thead th {
+    color: white;
+    padding: 13px 16px;
+    font-size: 12px;
+    font-weight: 500;
+    text-align: left;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #f9f6f0; }
+
+  td {
+    padding: 12px 16px;
+    font-size: 14px;
+    vertical-align: middle;
+  }
+
+  .kondisi-badge {
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .kondisi-Baik { background: #d4edda; color: #276221; }
+  .kondisi-Rusak { background: #f8d7da; color: #721c24; }
+  .kondisi-Servis { background: #fff3cd; color: #856404; }
+
+  .garansi-warning { color: #f0a500; font-weight: 600; }
+  .garansi-expired { color: var(--danger); font-weight: 600; }
+
+  .action-btns { display: flex; gap: 6px; }
+  .action-btns button { display: flex; align-items: center; justify-content: center; }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .modal-overlay.active { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border-radius: 18px;
+    padding: 32px;
+    width: 100%;
+    max-width: 620px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .modal h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    color: var(--primary);
+    margin-bottom: 20px;
+  }
+
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group.full { grid-column: 1 / -1; }
+
+  .form-group label { font-size: 12px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
+
+  .form-group input, .form-group select, .form-group textarea {
+    padding: 10px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 9px;
+    font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    outline: none;
+    transition: border 0.2s;
+  }
+
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+    border-color: var(--primary);
+  }
+
+  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+
+  /* HISTORY MODAL */
+  .history-list { margin-top: 16px; }
+
+  .history-item {
+    display: flex;
+    gap: 14px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    align-items: flex-start;
+  }
+
+  .history-item:last-child { border-bottom: none; }
+
+  .history-date {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    min-width: 90px;
+  }
+
+  .history-note { font-size: 14px; }
+
+  .history-form { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+
+  .history-form input {
+    flex: 1;
+    padding: 9px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 9px;
+    font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+    min-width: 140px;
+  }
+
+  .loading { text-align: center; padding: 40px; color: var(--muted); }
+  .spinner { display: inline-block; width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 640px) {
+    .form-grid { grid-template-columns: 1fr; }
+    header { padding: 0 16px; }
+    .container { padding: 16px; }
+    .stats { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-page">
+  <div class="login-box">
+    <div class="icon">🏠</div>
+    <h1>Inventaris Rumah</h1>
+    <p>Masukkan password untuk melanjutkan</p>
+    <input type="password" id="password-input" placeholder="Password..." />
+    <button class="btn-login" id="btn-login">Masuk</button>
+    <div class="login-error" id="login-error">Password salah, coba lagi.</div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main-page">
+  <header>
+    <h1>🏠 Inventaris Rumah Tangga</h1>
+    <div class="header-right">
+      <span class="badge-warning" id="badge-warning">⚠️ Garansi Hampir Habis</span>
+      <button class="btn-logout" id="btn-logout">Keluar</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- STATS -->
+    <div class="stats">
+      <div class="stat-card">
+        <div class="label">Total Barang</div>
+        <div class="value" id="stat-total">0</div>
+        <div class="sub">item terdaftar</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Total Nilai</div>
+        <div class="value" id="stat-nilai">Rp 0</div>
+        <div class="sub">estimasi aset</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Garansi Aktif</div>
+        <div class="value" id="stat-garansi">0</div>
+        <div class="sub">masih berlaku</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Kondisi Baik</div>
+        <div class="value" id="stat-baik">0</div>
+        <div class="sub">dari total barang</div>
+      </div>
+    </div>
+
+    <!-- TOOLBAR -->
+    <div class="toolbar">
+      <input type="text" id="search-input" placeholder="🔍 Cari barang, merek, lokasi..." />
+      <select id="filter-kondisi">
+        <option value="">Semua Kondisi</option>
+        <option>Baik</option>
+        <option>Rusak</option>
+        <option>Servis</option>
+      </select>
+      <select id="filter-lokasi">
+        <option value="">Semua Lokasi</option>
+      </select>
+      <button class="btn btn-primary" id="btn-tambah">+ Tambah Barang</button>
+    </div>
+
+    <!-- TABLE -->
+    <div class="table-wrap">
+      <div class="loading" id="loading-state"><div class="spinner"></div></div>
+      <div id="empty-state" class="empty-state" style="display:none">
+        <div class="icon">📦</div>
+        <p>Belum ada barang. Tambah barang pertama!</p>
+      </div>
+      <table id="items-table" style="display:none">
+        <thead>
+          <tr>
+            <th>Nama Barang</th>
+            <th>Merek</th>
+            <th>Tgl Beli</th>
+            <th>Harga</th>
+            <th>Qty</th>
+            <th>Garansi Habis</th>
+            <th>Kondisi</th>
+            <th>Lokasi</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="items-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FORM BARANG -->
+<div class="modal-overlay" id="modal-barang">
+  <div class="modal">
+    <h2 id="modal-title">Tambah Barang</h2>
+    <div class="form-grid">
+      <input type="hidden" id="form-id" />
+      <div class="form-group">
+        <label>Nama Barang *</label>
+        <input type="text" id="form-nama" placeholder="TV, AC, Kulkas..." />
+      </div>
+      <div class="form-group">
+        <label>Merek</label>
+        <input type="text" id="form-merek" placeholder="Samsung, LG..." />
+      </div>
+      <div class="form-group">
+        <label>Tanggal Beli</label>
+        <input type="date" id="form-tanggal-beli" />
+      </div>
+      <div class="form-group">
+        <label>Harga Beli (Rp)</label>
+        <input type="number" id="form-harga" placeholder="0" />
+      </div>
+      <div class="form-group">
+        <label>Quantity</label>
+        <input type="number" id="form-qty" placeholder="1" value="1" />
+      </div>
+      <div class="form-group">
+        <label>Garansi (bulan)</label>
+        <input type="number" id="form-garansi-durasi" placeholder="12" />
+      </div>
+      <div class="form-group">
+        <label>Garansi Habis</label>
+        <input type="date" id="form-garansi-habis" />
+      </div>
+      <div class="form-group">
+        <label>Toko / Tempat Beli</label>
+        <input type="text" id="form-toko" placeholder="Tokopedia, Ace Hardware..." />
+      </div>
+      <div class="form-group">
+        <label>No. Seri / IMEI</label>
+        <input type="text" id="form-no-seri" />
+      </div>
+      <div class="form-group">
+        <label>No. Kontak Servis</label>
+        <input type="text" id="form-kontak-servis" placeholder="08xx..." />
+      </div>
+      <div class="form-group">
+        <label>Kondisi</label>
+        <select id="form-kondisi">
+          <option>Baik</option>
+          <option>Rusak</option>
+          <option>Servis</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Lokasi di Rumah</label>
+        <input type="text" id="form-lokasi" placeholder="Ruang tamu, Dapur..." />
+      </div>
+      <div class="form-group full">
+        <label>Link Foto Nota (Google Drive)</label>
+        <input type="text" id="form-foto-nota" placeholder="https://drive.google.com/..." />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-cancel-barang">Batal</button>
+      <button class="btn btn-primary" id="btn-save-barang">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL HISTORY -->
+<div class="modal-overlay" id="modal-history">
+  <div class="modal">
+    <h2 id="history-title">Riwayat Perawatan</h2>
+    <div class="history-list" id="history-list">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
+    <hr style="margin-top:16px; border-color: var(--border)">
+    <p style="font-size:13px; color:var(--muted); margin-top:14px; margin-bottom:8px; font-weight:500;">TAMBAH CATATAN BARU</p>
+    <div class="history-form">
+      <input type="date" id="history-date" />
+      <input type="text" id="history-note" placeholder="Keterangan (servis, cuci, ganti part...)" style="flex:2" />
+      <button class="btn btn-accent btn-sm" id="btn-add-history">+ Tambah</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-close-history">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbx4SEkSD3j99acDbwFacB17mnlhY4uEn4Xiub-p8i8s49zLr3GlQPOqMoopU5i2YQpZ/exec';
+let allItems = [];
+let currentHistoryId = null;
+
+function formatRp(n) {
+  if (!n) return 'Rp 0';
+  return 'Rp ' + parseInt(n).toLocaleString('id-ID');
+}
+
+function formatDate(d) {
+  if (!d) return '-';
+  const date = new Date(d);
+  if (isNaN(date)) return d;
+  return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function garansiStatus(tgl) {
+  if (!tgl) return { label: '-', cls: '' };
+  const now = new Date();
+  const exp = new Date(tgl);
+  const diff = Math.ceil((exp - now) / (1000 * 60 * 60 * 24));
+  if (diff < 0) return { label: formatDate(tgl) + ' (Expired)', cls: 'garansi-expired' };
+  if (diff <= 30) return { label: formatDate(tgl) + ` (${diff}h lagi)`, cls: 'garansi-warning' };
+  return { label: formatDate(tgl), cls: '' };
+}
+
+// LOGIN
+$('#btn-login, #password-input').on('click keypress', function(e) {
+  if (e.type === 'click' || e.which === 13) {
+    const pass = $('#password-input').val();
+    $.get(API_URL, { action: 'login', password: pass })
+      .done(function(res) {
+        if (res.status === 'ok') {
+          $('#login-page').hide();
+          $('#main-page').show();
+          loadItems();
+        } else {
+          $('#login-error').show();
+        }
+      })
+      .fail(function() { $('#login-error').text('Gagal koneksi ke server.').show(); });
+  }
+});
+
+$('#btn-logout').click(function() {
+  $('#main-page').hide();
+  $('#login-page').show();
+  $('#password-input').val('');
+  allItems = [];
+});
+
+// LOAD ITEMS
+function loadItems() {
+  $('#loading-state').show();
+  $('#items-table, #empty-state').hide();
+  $.get(API_URL, { action: 'getItems' })
+    .done(function(res) {
+      $('#loading-state').hide();
+      if (res.status === 'ok') {
+        allItems = res.data || [];
+        console.log(allItems)
+        renderItems(allItems);
+        updateStats(allItems);
+        populateLokasiFilter();
+      }
+    })
+    .fail(function() { $('#loading-state').hide(); alert('Gagal memuat data.'); });
+}
+
+// function populateLokasiFilter() {
+//   const lokasi = [...new Set(allItems.map(i => i.lokasi).filter(Boolean))];
+//   $('#filter-lokasi').html('<option value="">Semua Lokasi</option>');
+//   lokasi.forEach(l => $('#filter-lokasi').append(`<option>${l}</option>`));
+// }
+function populateLokasiFilter() {
+  const lokasi = [...new Set(allItems.map(i => i.lokasi).filter(Boolean))];
+  const select = $('#filter-lokasi');
+  select.off('change');  // matikan event sementara
+  select.html('<option value="">Semua Lokasi</option>');
+  lokasi.forEach(l => select.append(`<option>${l}</option>`));
+  select.on('change', function() { renderItems(allItems); });  // pasang lagi
+}
+
+function updateStats(items) {
+  $('#stat-total').text(items.length);
+  const total = items.reduce((s, i) => s + (parseFloat(i.harga_beli) * (parseInt(i.quantity) || 1) || 0), 0);
+  $('#stat-nilai').text(total >= 1000000 ? 'Rp ' + (total/1000000).toFixed(1) + 'jt' : formatRp(total));
+  const now = new Date();
+  const garansiAktif = items.filter(i => i.garansi_habis && new Date(i.garansi_habis) >= now).length;
+  $('#stat-garansi').text(garansiAktif);
+  $('#stat-baik').text(items.filter(i => i.kondisi === 'Baik').length);
+  const nearExpiry = items.filter(i => {
+    if (!i.garansi_habis) return false;
+    const diff = Math.ceil((new Date(i.garansi_habis) - now) / (1000 * 60 * 60 * 24));
+    return diff >= 0 && diff <= 30;
+  }).length;
+  $('#badge-warning').toggle(nearExpiry > 0).text(`⚠️ ${nearExpiry} Garansi Hampir Habis`);
+}
+
+function renderItems(items) {
+  const q = $('#search-input').val().toLowerCase();
+  const fk = $('#filter-kondisi').val();
+  const fl = $('#filter-lokasi').val();
+  let filtered = items.filter(i => {
+    const match = !q || String(i.nama_barang||'').toLowerCase().includes(q) || String(i.merek||'').toLowerCase().includes(q) || String(i.lokasi||'').toLowerCase().includes(q);
+    return match && (!fk || i.kondisi === fk) && (!fl || i.lokasi === fl);
+  });
+  if (!filtered.length) { $('#items-table').hide(); $('#empty-state').show(); return; }
+  $('#empty-state').hide();
+  $('#items-table').show();
+  const tbody = $('#items-body').empty();
+  filtered.forEach(item => {
+    const gs = garansiStatus(item.garansi_habis);
+    tbody.append(`
+      <tr>
+        <td><strong>${item.nama_barang || '-'}</strong></td>
+        <td>${item.merek || '-'}</td>
+        <td>${formatDate(item.tanggal_beli)}</td>
+        <td>${formatRp(item.harga_beli)}</td>
+        <td>${item.quantity || 1}</td>
+        <td class="${gs.cls}">${gs.label}</td>
+        <td><span class="kondisi-badge kondisi-${item.kondisi}">${item.kondisi || '-'}</span></td>
+        <td>${item.lokasi || '-'}</td>
+        <td>
+          <div class="action-btns">
+            <button onclick="openHistory('${item.id}','${(item.nama_barang||'')}')" style="padding:5px 10px;border-radius:20px;border:none;background:#378add;cursor:pointer;"><i data-lucide='clipboard-list' style='width:14px;height:14px;stroke:white;display:block;'></i></button>
+            <button onclick="editItem('${item.id}')" style="padding:5px 10px;border-radius:20px;border:none;background:#185fa5;cursor:pointer;"><i data-lucide='pencil' style='width:14px;height:14px;stroke:white;display:block;'></i></button>
+            <button onclick="duplicateItem('${item.id}')" style="padding:5px 10px;border-radius:20px;border:none;background:#185fa5;cursor:pointer;"><i data-lucide='book-copy' style='width:14px;height:14px;stroke:white;display:block;'></i></button>
+            <button onclick="deleteItem('${item.id}','${(item.nama_barang||'')}')" style="padding:5px 10px;border-radius:20px;border:none;background:#0c447c;cursor:pointer;"><i data-lucide='trash-2' style='width:14px;height:14px;stroke:white;display:block;'></i></button>
+          </div>
+        </td>
+      </tr>`);
+  });
+  lucide.createIcons();
+}
+
+$('#search-input, #filter-kondisi, #filter-lokasi').on('input change', function() { renderItems(allItems); });
+
+// TAMBAH / EDIT
+$('#btn-tambah').click(function() {
+  $('#form-id').val('');
+  $('#modal-title').text('Tambah Barang');
+  $('#modal-barang input, #modal-barang select').not('#form-id').val('');
+  $('#form-qty').val(1);
+  $('#form-kondisi').val('Baik');
+  $('#modal-barang').addClass('active');
+});
+
+function editItem(id) {
+  const item = allItems.find(i => String(i.id) === String(id));
+  if (!item) return;
+  $('#modal-title').text('Edit Barang');
+  $('#form-id').val(item.id);
+  $('#form-nama').val(item.nama_barang);
+  $('#form-merek').val(item.merek);
+  $('#form-tanggal-beli').val(item.tanggal_beli);
+  $('#form-harga').val(item.harga_beli);
+  $('#form-qty').val(item.quantity);
+  $('#form-garansi-durasi').val(item.garansi_durasi);
+  $('#form-garansi-habis').val(item.garansi_habis);
+  $('#form-toko').val(item.toko);
+  $('#form-no-seri').val(item.no_seri);
+  $('#form-kontak-servis').val(item.no_kontak_servis);
+  $('#form-kondisi').val(item.kondisi);
+  $('#form-lokasi').val(item.lokasi);
+  $('#form-foto-nota').val(item.foto_nota);
+  $('#modal-barang').addClass('active');
+}
+
+$('#btn-cancel-barang').click(function() { $('#modal-barang').removeClass('active'); });
+
+$('#btn-save-barang').click(function() {
+  const nama = $('#form-nama').val().trim();
+  if (!nama) { alert('Nama barang wajib diisi.'); return; }
+  const id = $('#form-id').val();
+  const params = {
+    action: id ? 'updateItem' : 'addItem',
+    id: id,
+    nama_barang: nama,
+    merek: $('#form-merek').val(),
+    tanggal_beli: $('#form-tanggal-beli').val(),
+    harga_beli: $('#form-harga').val(),
+    quantity: $('#form-qty').val(),
+    garansi_durasi: $('#form-garansi-durasi').val(),
+    garansi_habis: $('#form-garansi-habis').val(),
+    toko: $('#form-toko').val(),
+    no_seri: $('#form-no-seri').val(),
+    foto_nota: $('#form-foto-nota').val(),
+    kondisi: $('#form-kondisi').val(),
+    lokasi: $('#form-lokasi').val(),
+    no_kontak_servis: $('#form-kontak-servis').val()
+  };
+  $('#btn-save-barang').prop('disabled', true).text('Menyimpan...');
+  $.get(API_URL, params)
+    .done(function(res) {
+      if (res.status === 'ok') { $('#modal-barang').removeClass('active'); loadItems(); }
+      else alert('Gagal simpan: ' + res.message);
+    })
+    .fail(function() { alert('Gagal koneksi.'); })
+    .always(function() { $('#btn-save-barang').prop('disabled', false).text('Simpan'); });
+});
+
+// DELETE
+function deleteItem(id, nama) {
+  if (!confirm(`Hapus "${nama}"? Data tidak bisa dikembalikan.`)) return;
+  $.get(API_URL, { action: 'deleteItem', id: id })
+    .done(function(res) {
+      if (res.status === 'ok') loadItems();
+      else alert('Gagal hapus: ' + res.message);
+    });
+}
+
+// DUPLICATE
+function duplicateItem(id) {
+  const item = allItems.find(i => String(i.id) === String(id));
+  if (!item) return;
+  const params = {
+    action: 'addItem',
+    nama_barang: item.nama_barang + ' (copy)',
+    merek: item.merek,
+    tanggal_beli: item.tanggal_beli,
+    harga_beli: item.harga_beli,
+    quantity: item.quantity,
+    garansi_durasi: item.garansi_durasi,
+    garansi_habis: item.garansi_habis,
+    toko: item.toko,
+    no_seri: '',
+    foto_nota: item.foto_nota,
+    kondisi: item.kondisi,
+    lokasi: item.lokasi,
+    no_kontak_servis: item.no_kontak_servis
+  };
+  $.get(API_URL, params)
+    .done(function(res) {
+      if (res.status === 'ok') loadItems();
+      else alert('Gagal duplikat: ' + res.message);
+    });
+}
+
+// HISTORY
+function openHistory(id, nama) {
+  currentHistoryId = id;
+  $('#history-title').text(`📋 Riwayat — ${nama}`);
+  $('#modal-history').addClass('active');
+  $('#history-date').val(new Date().toISOString().split('T')[0]);
+  $('#history-note').val('');
+  loadHistory(id);
+}
+
+function loadHistory(id) {
+  $('#history-list').html('<div class="loading"><div class="spinner"></div></div>');
+  $.get(API_URL, { action: 'getHistory', id: id })
+    .done(function(res) {
+      if (res.status === 'ok') renderHistory(res.data || []);
+    });
+}
+
+function renderHistory(list) {
+  if (!list.length) { $('#history-list').html('<p style="color:var(--muted);font-size:14px">Belum ada riwayat perawatan.</p>'); return; }
+  const sorted = list.sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal));
+  $('#history-list').html(sorted.map(h => `
+    <div class="history-item">
+      <div class="history-date">📅 ${formatDate(h.tanggal)}</div>
+      <div class="history-note">${h.keterangan || '-'}</div>
+    </div>`).join(''));
+}
+
+$('#btn-add-history').click(function() {
+  const tgl = $('#history-date').val();
+  const note = $('#history-note').val().trim();
+  if (!tgl || !note) { alert('Tanggal dan keterangan wajib diisi.'); return; }
+  $('#btn-add-history').prop('disabled', true).text('...');
+  $.get(API_URL, { action: 'addHistory', id_barang: currentHistoryId, tanggal: tgl, keterangan: note })
+    .done(function(res) {
+      if (res.status === 'ok') { $('#history-note').val(''); loadHistory(currentHistoryId); }
+    })
+    .always(function() { $('#btn-add-history').prop('disabled', false).text('+ Tambah'); });
+});
+
+$('#btn-close-history').click(function() { $('#modal-history').removeClass('active'); });
+
+$('.modal-overlay').click(function(e) {
+  if ($(e.target).hasClass('modal-overlay')) $(this).removeClass('active');
+});
+
+
+</script>
+</body>
+</html>

@@ -201,15 +201,118 @@
         </div>
     </div>
 
-</div>
 
+ <!-- Parameter Loop Generator -->
+    <div class="card shadow-sm mb-5">
+         <div class="card-header bg-primary text-white fw-semibold">
+          <i class="bi bi-braces-asterisk me-2"></i> Text Editor
+        </div>
+        <div class="card-body">
+          <!-- MODE -->
+          <div class="row g-3 mb-3">
+            <!-- INPUT -->
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Input Text</label>
+              <textarea id="editor" class="form-control" rows="10" ></textarea>
+            </div>
+            <!-- INPUT -->
+            <div class="col-md-6 con">
+              <label class="form-label d-flex justify-content-between align-items-center">
+                <span>Sample Text</span>
+                <button class="btn btn-outline-secondary btn-sm btnCopy">
+                  Copy
+                </button>
+              </label>
+              <pre 
+                class="border rounded p-3 bg-light small"
+                style="min-height:120px; white-space:pre-wrap">
+Proposed Protection Rules
+1 Item yang Sudah Masuk MTS
+
+Item yang sudah terdaftar di MTS tidak diperbolehkan muncul atau diproses kembali di PTC list.
+
+Tujuan:
+Mencegah duplikasi tracking
+Menjaga satu sumber kebenaran (single source of truth)
+
+2 Ongoing PTC vs MTS Creation
+
+Jika item masih dalam status ongoing di PTC, maka:
+
+MTS tidak boleh dibuat, meskipun FVI sudah berstatus ACC
+
+Tujuan:
+
+Menjaga urutan proses yang benar
+
+Mencegah loncat proses sebelum PTC selesai 
+              </pre>
+
+            </div>
+          </div>
+          <div class="output con">
+            <!-- OUTPUT -->
+            <label class="form-label d-flex justify-content-between align-items-center">
+              <span>Output</span>
+              <div>
+                <button class="btn btn-outline-secondary btn-sm btnCopy">
+                  Copy
+                </button>
+                <button id="btnCleanDblLine" class="btn btn-success btn-sm">
+                  <i class="bi bi-search"></i> Clean Double Line
+                </button>
+              </div>
+            </label>
+            <pre id="outputText1"
+              class="border rounded p-3 bg-light small"
+              style="min-height:150px; white-space:pre-wrap"></pre>
+            </div>
+        </div>
+    </div>
+
+</div>
 <!-- Bootstrap Icons -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 <!-- DataTables -->
 <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
+<script>
+  CKEDITOR.replace('editor', {
+    enterMode: CKEDITOR.ENTER_P,      // Enter = <p>
+    shiftEnterMode: CKEDITOR.ENTER_BR // Shift+Enter = <br>
+  });
 
+  function cleanDoubleLineBreak(html, maxBreak = 1) {
+    // normalize <br><br><br>...
+    const br = '<br>'.repeat(maxBreak);
+    html = html.replace(/(<br\s*\/?>\s*){2,}/gi, br);
+
+    // normalize empty <p>
+    html = html.replace(/(<p>\s*<\/p>){2,}/gi, '<p></p>');
+
+    return html;
+  }
+  function cleanEditorHtml(html) {
+    if (!html) return "";
+
+    return html
+        // hapus paragraf kosong (&nbsp; atau spasi)
+        .replace(/<p>(&nbsp;|\s)*<\/p>/gi, '')
+        // gabungkan paragraf jadi satu baris
+        .replace(/<\/p>\s*<p>/gi, '<br>')
+        // hapus sisa tag <p>
+        .replace(/<p>/gi, '')
+        .replace(/<\/p>/gi, '');
+  }
+  $('#btnCleanDblLine').click(function () {
+  let content = CKEDITOR.instances.editor.getData();
+  // content = cleanDoubleLineBreak(content, 1);
+  $('#editor').val(content);
+  $('#outputText1').html(cleanEditorHtml(content));
+});
+</script>
 <script>
 
   function updateExtractModeUI() {
@@ -357,18 +460,6 @@ $('#btnExtract').on('click', function () {
     );
 });
 
-
-/* =====================================================
-   COPY OUTPUT
-   ===================================================== */
-// $('#btnCopy').on('click', function () {
-//     const text = $('#outputText').text();
-//     if (!text) return;
-
-//     navigator.clipboard.writeText(text).then(() => {
-//         alert('Copied!');
-//     });
-// });
 $('.btnCopy').on('click', function () {
     const text = $(this)
           .closest('.con')   // naik ke wrapper
