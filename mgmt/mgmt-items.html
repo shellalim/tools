@@ -7,6 +7,7 @@
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highcharts/11.2.0/highcharts.js"></script>
 <style>
   :root {
     --bg: #f5f0e8;
@@ -21,7 +22,20 @@
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
-
+  #global-loading {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+    z-index: 9999;
+    animation: loading-bar 1.2s ease-in-out infinite;
+  }
+  @keyframes loading-bar {
+    0% { transform: translateX(-100%); }
+    50% { transform: translateX(0%); }
+    100% { transform: translateX(100%); }
+  }
   body {
     font-family: 'DM Sans', sans-serif;
     background: var(--bg);
@@ -345,10 +359,21 @@
     .container { padding: 16px; }
     .stats { grid-template-columns: 1fr 1fr; }
   }
+
+.chart-section { margin-bottom: 24px; background: var(--surface); border-radius: 16px; border: 1px solid var(--border); overflow: hidden; }
+.chart-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; cursor: pointer; user-select: none; border-bottom: 1px solid var(--border); }
+.chart-header h2 { font-size: 15px; font-weight: 500; color: var(--text); margin: 0; display: flex; align-items: center; gap: 8px; }
+.chart-header h2 span { font-size: 11px; font-weight: 400; color: var(--muted); background: var(--bg); padding: 2px 8px; border-radius: 20px; }
+.chart-toggle { width: 28px; height: 28px; border-radius: 50%; background: var(--bg); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 11px; color: var(--muted); transition: transform 0.3s; }
+.chart-toggle.open { transform: rotate(180deg); }
+.chart-body { padding: 20px; display: none; }
+.chart-body.open { display: block; }
+.chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.chart-card { background: var(--bg); border-radius: 12px; padding: 4px; border: 1px solid var(--border); }
 </style>
 </head>
 <body>
-
+<div id="global-loading"></div>
 <!-- LOGIN -->
 <div id="login-page">
   <div class="login-box">
@@ -370,7 +395,24 @@
       <button class="btn-logout" id="btn-logout">Keluar</button>
     </div>
   </header>
-
+  <!-- CHARTS -->
+  <div class="chart-section">
+    <div class="chart-header" id="chart-header">
+      <h2>Grafik & Analisis <span>6 chart</span></h2>
+      <div class="chart-toggle" id="chart-toggle">▼</div>
+    </div>
+    <div class="chart-body" id="chart-body">
+      <div class="chart-loading" id="chart-loading" style="text-align:center;padding:40px;color:var(--muted);font-size:14px;">Memuat data grafik...</div>
+      <div class="chart-grid" id="chart-grid" style="display:none">
+        <div class="chart-card"><div id="hc1" style="height:220px"></div></div>
+        <div class="chart-card"><div id="hc2" style="height:220px"></div></div>
+        <div class="chart-card"><div id="hc3" style="height:220px"></div></div>
+        <div class="chart-card"><div id="hc4" style="height:220px"></div></div>
+        <div class="chart-card"><div id="hc5" style="height:220px"></div></div>
+        <div class="chart-card"><div id="hc6" style="height:220px"></div></div>
+      </div>
+    </div>
+  </div>
   <div class="container">
     <!-- STATS -->
     <div class="stats">
@@ -529,7 +571,7 @@
 </div>
 
 <script>
-const API_URL = 'https://script.google.com/macros/s/AKfycbx4SEkSD3j99acDbwFacB17mnlhY4uEn4Xiub-p8i8s49zLr3GlQPOqMoopU5i2YQpZ/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbz0Rt2dhM52p-GeUzn--_6nnplxk9aOQMhqqi94wwRZOkND2Vpk3V3bUwDWP3aMPOlv/exec';
 let allItems = [];
 let currentHistoryId = null;
 
@@ -559,6 +601,7 @@ function garansiStatus(tgl) {
 $('#btn-login, #password-input').on('click keypress', function(e) {
   if (e.type === 'click' || e.which === 13) {
     const pass = $('#password-input').val();
+    showLoading()
     $.get(API_URL, { action: 'login', password: pass })
       .done(function(res) {
         if (res.status === 'ok') {
@@ -569,9 +612,22 @@ $('#btn-login, #password-input').on('click keypress', function(e) {
           $('#login-error').show();
         }
       })
-      .fail(function() { $('#login-error').text('Gagal koneksi ke server.').show(); });
+      .fail(function() { $('#login-error').text('Gagal koneksi ke server.').show();  });
+      hideLoading()
   }
 });
+
+
+function loadIco() {
+    $.get(API_URL, { action: 'getIcon' })
+      .done(function(res) {
+        if (res.status === 'ok' && res.data.favicon) {
+          setFavicon(res.data.favicon);
+        }
+      })
+};
+
+loadIco()
 
 $('#btn-logout').click(function() {
   $('#main-page').hide();
@@ -580,10 +636,113 @@ $('#btn-logout').click(function() {
   allItems = [];
 });
 
+
+let chartsLoaded = false;
+let chartInstances = {};
+
+$('#chart-header').click(function() {
+  const body = $('#chart-body');
+  const toggle = $('#chart-toggle');
+  body.toggleClass('open');
+  toggle.toggleClass('open');
+  if (body.hasClass('open') && !chartsLoaded) loadChartData();
+});
+
+function loadChartData() {
+  $('#chart-loading').show();
+  $('#chart-grid').hide();
+  showLoading()
+  $.get(API_URL, { action: 'getChartData' })
+    .done(function(res) {
+      if (res.status === 'ok') { renderCharts(res.data); chartsLoaded = true; }
+    })
+    .always(function() { $('#chart-loading').hide(); $('#chart-grid').show(); hideLoading()});
+}
+
+const hcBase = {
+  credits: { enabled: false },
+  exporting: { enabled: false },
+  chart: { backgroundColor: 'transparent', style: { fontFamily: 'DM Sans, sans-serif' }, spacing: [16,16,16,16] },
+  title: { align: 'left', style: { fontSize: '12px', fontWeight: '500' }, margin: 16 },
+  legend: { enabled: false },
+  tooltip: { borderRadius: 10, shadow: false, borderWidth: 1, style: { fontSize: '12px' } },
+  xAxis: { lineColor: '#e0d8c8', tickColor: 'transparent', labels: { style: { fontSize: '11px', color: '#7a7a6e' } } },
+  yAxis: { gridLineColor: '#e0d8c8', title: { text: null }, labels: { style: { fontSize: '11px', color: '#7a7a6e' } } }
+};
+
+function renderCharts(d) {
+  Object.values(chartInstances).forEach(c => c.destroy());
+  chartInstances = {};
+
+  chartInstances.c1 = Highcharts.chart('hc1', { ...hcBase,
+    chart: { ...hcBase.chart, type: 'pie' },
+    title: { ...hcBase.title, text: 'Kondisi barang' },
+    series: [{ name: 'Barang', innerSize: '65%', borderWidth: 0, data: [
+      { name: 'Baik', y: d.kondisi.Baik||0, color: '#1d9e75' },
+      { name: 'Servis', y: d.kondisi.Servis||0, color: '#ef9f27' },
+      { name: 'Rusak', y: d.kondisi.Rusak||0, color: '#e24b4a' }
+    ], dataLabels: { style: { fontSize: '11px', fontWeight: '400', textOutline: 'none' } } }]
+  });
+
+  const nilaiKeys = Object.keys(d.nilaiLokasi);
+  chartInstances.c2 = Highcharts.chart('hc2', { ...hcBase,
+    chart: { ...hcBase.chart, type: 'column' },
+    title: { ...hcBase.title, text: 'Nilai aset per lokasi' },
+    xAxis: { ...hcBase.xAxis, categories: nilaiKeys },
+    yAxis: { ...hcBase.yAxis, labels: { ...hcBase.yAxis.labels, format: '{value}jt' } },
+    plotOptions: { column: { borderRadius: 6, borderWidth: 0 } },
+    series: [{ name: 'Nilai (juta)', data: nilaiKeys.map(k => Math.round(d.nilaiLokasi[k]/1000000*10)/10), color: '#378add' }]
+  });
+
+  const tahunKeys = Object.keys(d.perTahun).sort();
+  chartInstances.c3 = Highcharts.chart('hc3', { ...hcBase,
+    chart: { ...hcBase.chart, type: 'areaspline' },
+    title: { ...hcBase.title, text: 'Pengeluaran per tahun' },
+    xAxis: { ...hcBase.xAxis, categories: tahunKeys },
+    yAxis: { ...hcBase.yAxis, labels: { ...hcBase.yAxis.labels, format: '{value}jt' } },
+    plotOptions: { areaspline: { fillOpacity: 0.1, marker: { radius: 4, symbol: 'circle' } } },
+    series: [{ name: 'Total (juta)', data: tahunKeys.map(k => Math.round(d.perTahun[k]/1000000*10)/10), color: '#534ab7', fillColor: 'rgba(83,74,183,0.1)' }]
+  });
+
+  const jumlahKeys = Object.keys(d.jumlahLokasi);
+  chartInstances.c4 = Highcharts.chart('hc4', { ...hcBase,
+    chart: { ...hcBase.chart, type: 'bar' },
+    title: { ...hcBase.title, text: 'Jumlah barang per lokasi' },
+    xAxis: { ...hcBase.xAxis, categories: jumlahKeys },
+    yAxis: { ...hcBase.yAxis, allowDecimals: false },
+    plotOptions: { bar: { borderRadius: 6, borderWidth: 0 } },
+    series: [{ name: 'Jumlah', data: jumlahKeys.map(k => d.jumlahLokasi[k]), color: '#0f6e56' }]
+  });
+
+  const garansiKeys = Object.keys(d.garansiPerBulan);
+  const bulanIni = new Date().toLocaleString('id-ID', { month: 'short', year: '2-digit' });
+  chartInstances.c5 = Highcharts.chart('hc5', { ...hcBase,
+    chart: { ...hcBase.chart, type: 'column' },
+    title: { ...hcBase.title, text: 'Garansi habis 6 bulan ke depan' },
+    xAxis: { ...hcBase.xAxis, categories: garansiKeys },
+    yAxis: { ...hcBase.yAxis, allowDecimals: false },
+    plotOptions: { column: { borderRadius: 6, borderWidth: 0 } },
+    series: [{ name: 'Garansi', data: garansiKeys.map(k => ({ y: d.garansiPerBulan[k], color: k === bulanIni ? '#e24b4a' : '#ef9f27' })) }]
+  });
+
+  const servisKeys = Object.keys(d.servisPerBarang).sort((a,b) => d.servisPerBarang[b]-d.servisPerBarang[a]).slice(0,8);
+  chartInstances.c6 = Highcharts.chart('hc6', { ...hcBase,
+    chart: { ...hcBase.chart, type: 'bar' },
+    title: { ...hcBase.title, text: 'Frekuensi servis per barang' },
+    xAxis: { ...hcBase.xAxis, categories: servisKeys },
+    yAxis: { ...hcBase.yAxis, allowDecimals: false },
+    plotOptions: { bar: { borderRadius: 6, borderWidth: 0 } },
+    series: [{ name: 'Servis', data: servisKeys.map(k => d.servisPerBarang[k]), color: '#993c1d' }]
+  });
+}
+
+
+
 // LOAD ITEMS
 function loadItems() {
   $('#loading-state').show();
   $('#items-table, #empty-state').hide();
+  showLoading()
   $.get(API_URL, { action: 'getItems' })
     .done(function(res) {
       $('#loading-state').hide();
@@ -596,6 +755,7 @@ function loadItems() {
       }
     })
     .fail(function() { $('#loading-state').hide(); alert('Gagal memuat data.'); });
+  hideLoading()
 }
 
 // function populateLokasiFilter() {
@@ -722,23 +882,27 @@ $('#btn-save-barang').click(function() {
     no_kontak_servis: $('#form-kontak-servis').val()
   };
   $('#btn-save-barang').prop('disabled', true).text('Menyimpan...');
+  showLoading()
   $.get(API_URL, params)
     .done(function(res) {
       if (res.status === 'ok') { $('#modal-barang').removeClass('active'); loadItems(); }
       else alert('Gagal simpan: ' + res.message);
     })
     .fail(function() { alert('Gagal koneksi.'); })
-    .always(function() { $('#btn-save-barang').prop('disabled', false).text('Simpan'); });
+    .always(function() { $('#btn-save-barang').prop('disabled', false).text('Simpan'); hideLoading()});
+  
 });
 
 // DELETE
 function deleteItem(id, nama) {
   if (!confirm(`Hapus "${nama}"? Data tidak bisa dikembalikan.`)) return;
+  showLoading()
   $.get(API_URL, { action: 'deleteItem', id: id })
     .done(function(res) {
       if (res.status === 'ok') loadItems();
       else alert('Gagal hapus: ' + res.message);
     });
+  hideLoading()
 }
 
 // DUPLICATE
@@ -761,11 +925,13 @@ function duplicateItem(id) {
     lokasi: item.lokasi,
     no_kontak_servis: item.no_kontak_servis
   };
+  showLoading()
   $.get(API_URL, params)
     .done(function(res) {
       if (res.status === 'ok') loadItems();
       else alert('Gagal duplikat: ' + res.message);
     });
+  hideLoading()
 }
 
 // HISTORY
@@ -780,10 +946,12 @@ function openHistory(id, nama) {
 
 function loadHistory(id) {
   $('#history-list').html('<div class="loading"><div class="spinner"></div></div>');
+  showLoading()
   $.get(API_URL, { action: 'getHistory', id: id })
     .done(function(res) {
       if (res.status === 'ok') renderHistory(res.data || []);
     });
+    hideLoading()
 }
 
 function renderHistory(list) {
@@ -801,20 +969,19 @@ $('#btn-add-history').click(function() {
   const note = $('#history-note').val().trim();
   if (!tgl || !note) { alert('Tanggal dan keterangan wajib diisi.'); return; }
   $('#btn-add-history').prop('disabled', true).text('...');
+  showLoading()
   $.get(API_URL, { action: 'addHistory', id_barang: currentHistoryId, tanggal: tgl, keterangan: note })
     .done(function(res) {
       if (res.status === 'ok') { $('#history-note').val(''); loadHistory(currentHistoryId); }
     })
-    .always(function() { $('#btn-add-history').prop('disabled', false).text('+ Tambah'); });
+    .always(function() { $('#btn-add-history').prop('disabled', false).text('+ Tambah'); hideLoading()});
 });
 
 $('#btn-close-history').click(function() { $('#modal-history').removeClass('active'); });
 
-$('.modal-overlay').click(function(e) {
-  if ($(e.target).hasClass('modal-overlay')) $(this).removeClass('active');
-});
 
-
+function showLoading() { $('#global-loading').show(); }
+function hideLoading() { $('#global-loading').hide(); }
 </script>
 </body>
 </html>
