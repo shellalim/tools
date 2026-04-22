@@ -10,14 +10,14 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highcharts/11.2.0/highcharts.js"></script>
 <style>
   :root {
-    --bg: #f5f0e8;
+    --bg: #e9eef7;
     --surface: #fffdf8;
     --primary: #32a9c9;
     --accent: #c8955c;
     --danger: #b85c5c;
     --text: #1a1a1a;
     --muted: #7a7a6e;
-    --border: #e0d8c8;
+    --border: ##c9c8e0;
     --shadow: 0 2px 16px rgba(45,74,62,0.08);
   }
 
@@ -360,8 +360,8 @@
     .stats { grid-template-columns: 1fr 1fr; }
   }
 
-.chart-section { margin-bottom: 24px; background: var(--surface); border-radius: 16px; border: 1px solid var(--border); overflow: hidden; }
-.chart-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; cursor: pointer; user-select: none; border-bottom: 1px solid var(--border); }
+.chart-section {  margin:10px;margin-bottom: 24px; background: var(--surface); border-radius: 16px; border: 1px solid var(--border); overflow: hidden; }
+.chart-header {display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; cursor: pointer; user-select: none; border-bottom: 1px solid var(--border); }
 .chart-header h2 { font-size: 15px; font-weight: 500; color: var(--text); margin: 0; display: flex; align-items: center; gap: 8px; }
 .chart-header h2 span { font-size: 11px; font-weight: 400; color: var(--muted); background: var(--bg); padding: 2px 8px; border-radius: 20px; }
 .chart-toggle { width: 28px; height: 28px; border-radius: 50%; background: var(--bg); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 11px; color: var(--muted); transition: transform 0.3s; }
@@ -582,7 +582,7 @@
 </div>
 
 <script>
-const API_URL = 'https://script.google.com/macros/s/AKfycbxzefcyX4nCoB4TVqoiM9ot3wAfDBmhn90HxNa3iR79_UM6dxsEhuu_znyDIjGwaZl9/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbyGqMSalc2cB2lhWLmwAFGZESGW-FoqlmLx_uY2WM7ZXArybjVZCPG35MPxFzvF8MCb/exec';
 let allItems = [];
 let currentHistoryId = null;
 
@@ -634,7 +634,7 @@ function loadIco() {
       .done(function(res) {
         console.log(res.data.icon)
         console.log(res.data.logo)
-        console.log(res.data.icon-heart)
+        console.log(res.data.iconHeart)
         if (res.status === 'ok' && res.data.icon) {
           let link = document.querySelector("link[rel~='icon']");
           if (!link) {
@@ -643,7 +643,7 @@ function loadIco() {
             document.head.appendChild(link);
           }
           link.href = res.data.logo;
-          setLogo(res.data.logo,res.data.icon-heart) 
+          setLogo(res.data.logo,res.data.iconHeart) 
         }
       })
 };
