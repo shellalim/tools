@@ -377,7 +377,9 @@
 <!-- LOGIN -->
 <div id="login-page">
   <div class="login-box">
-    <div class="icon">🏠</div>
+    <div class="icon">
+      <img  src="https://shellalim.github.io/tools/images/logo-sl-1-b.png" style="height: 150px;width: 150px;object-fit:contain;border-radius:8px;">
+    </div>
     <h1>Inventaris Rumah</h1>
     <p>Masukkan password untuk melanjutkan</p>
     <input type="password" id="password-input" placeholder="Password..." />
@@ -389,6 +391,8 @@
 <!-- MAIN -->
 <div id="main-page">
   <header>
+    <img id="header-logo" src="https://shellalim.github.io/tools/images/logo-sl-1-b.png" style="height: 30px;width: 30px;object-fit:contain;border-radius:8px;">
+
     <h1>🏠 Inventaris Rumah Tangga</h1>
     <div class="header-right">
       <span class="badge-warning" id="badge-warning">⚠️ Garansi Hampir Habis</span>
@@ -414,6 +418,11 @@
     </div>
   </div>
   <div class="container">
+    <!-- LOGO AREA -->
+    <div id="logo-area" style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+      <img id="logo1" src="" style="height:48px;object-fit:contain;display:none;" />
+      <img id="logo2" src="" style="height:48px;object-fit:contain;display:none;" />
+    </div>
     <!-- STATS -->
     <div class="stats">
       <div class="stat-card">
@@ -436,6 +445,8 @@
         <div class="value" id="stat-baik">0</div>
         <div class="sub">dari total barang</div>
       </div>
+
+
     </div>
 
     <!-- TOOLBAR -->
@@ -571,7 +582,7 @@
 </div>
 
 <script>
-const API_URL = 'https://script.google.com/macros/s/AKfycbz0Rt2dhM52p-GeUzn--_6nnplxk9aOQMhqqi94wwRZOkND2Vpk3V3bUwDWP3aMPOlv/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxdmMfsdFLzkoKB-YWDltcH1qY35pmi5LMUTdj-2bJiZLc-nJEAbFJWNXM08jSGxQU2/exec';
 let allItems = [];
 let currentHistoryId = null;
 
@@ -598,7 +609,7 @@ function garansiStatus(tgl) {
 }
 
 // LOGIN
-$('#btn-login, #password-input').on('click keypress', function(e) {
+$('#btn-login').on('click keypress', function(e) {
   if (e.type === 'click' || e.which === 13) {
     const pass = $('#password-input').val();
     showLoading()
@@ -621,11 +632,26 @@ $('#btn-login, #password-input').on('click keypress', function(e) {
 function loadIco() {
     $.get(API_URL, { action: 'getIcon' })
       .done(function(res) {
+        console.log(res)
         if (res.status === 'ok' && res.data.favicon) {
-          setFavicon(res.data.favicon);
+          let link = document.querySelector("link[rel~='icon']");
+          if (!link) {
+            link = document.createElement('link');
+            link.rel = 'icon';
+            document.head.appendChild(link);
+          }
+          link.href = res.data.favicon;
+          setLogo(res.data.logo,res.data.icon-heart) 
         }
       })
 };
+ 
+function setLogo(url, urlheart) {
+  if (!url) return;
+  $('#header-logo').attr('src', url).show();
+  $('#logo1').attr('src', url).show();
+  $('#logo2').attr('src', urlheart).show();
+}
 
 loadIco()
 
