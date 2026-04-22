@@ -632,10 +632,10 @@ $('#btn-login').on('click keypress', function(e) {
 function loadIco() {
     $.get(API_URL, { action: 'getIcon' })
       .done(function(res) {
-        console.log(res.data)
-        console.log(res.data.favicon)
+        console.log(res.data.icon)
         console.log(res.data.logo)
-        if (res.status === 'ok' && res.data.favicon) {
+        console.log(res.data.icon-heart)
+        if (res.status === 'ok' && res.data.icon) {
           let link = document.querySelector("link[rel~='icon']");
           if (!link) {
             link = document.createElement('link');
