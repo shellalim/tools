@@ -7,6 +7,80 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/css/select2.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/js/select2.min.js"></script>
+
+<!-- ==================== 2. CSS ==================== -->
+<style>
+  /* Tombol export di topbar */
+  .btn-export {
+    background: transparent;
+    border: 1px solid var(--green);
+    color: var(--green);
+    padding: 6px 14px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-export:hover { background: var(--green); color: #0f0f0f; }
+ 
+  /* Import tasks area */
+  .import-tasks-area {
+    border: 2px dashed var(--border2);
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text3);
+  }
+  .import-tasks-area:hover { border-color: var(--accent); color: var(--accent); }
+ 
+  /* Progress bar export */
+  .export-progress {
+    height: 3px;
+    background: var(--bg3);
+    border-radius: 2px;
+    margin-top: 12px;
+    overflow: hidden;
+    display: none;
+  }
+  .export-progress-bar {
+    height: 100%;
+    background: var(--green);
+    border-radius: 2px;
+    transition: width 0.3s;
+    width: 0%;
+  }
+ 
+  /* Sheet preview pills */
+  .sheet-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .sheet-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 11px;
+    color: var(--text2);
+    font-family: 'Space Mono', monospace;
+  }
+  .sheet-pill.ready { border-color: var(--green); color: var(--green); }
+  .sheet-pill .pill-icon { font-size: 10px; }
+</style>
 <style>
  :root {
   --bg: #ffffff;
@@ -31,7 +105,82 @@
 }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  /* Tambahkan ini */
+  #main {
+    height: 100vh;
+    overflow: hidden;
+  }
+  /* Select2 dark theme override */
+.select2-container--default .select2-selection--single {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+}
 
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  padding-left: 12px;
+  line-height: 34px;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+  height: 34px;
+}
+
+.select2-dropdown {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+}
+
+.select2-container--default .select2-search--dropdown .select2-search__field {
+  background: var(--bg4);
+  border: 1px solid var(--border2);
+  border-radius: 3px;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  padding: 6px 10px;
+}
+
+.select2-container--default .select2-search--dropdown .select2-search__field:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.select2-container--default .select2-results__option {
+  color: var(--text2);
+  padding: 8px 12px;
+}
+
+.select2-container--default .select2-results__option--highlighted[aria-selected] {
+  background: var(--bg4);
+  color: var(--accent);
+}
+
+.select2-container--default .select2-results__option[aria-selected=true] {
+  background: rgba(240,192,64,0.1);
+  color: var(--accent);
+}
+
+.select2-container--default .select2-results__option--group {
+  color: var(--text3);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+  .page-content {
+    height: calc(100vh - 53px); /* 53px = tinggi topbar */
+    overflow-y: auto;
+    overflow-x: auto;
+  }
   body {
     font-family: 'DM Sans', sans-serif;
     background: var(--bg);
@@ -346,7 +495,7 @@
     display: flex;
     align-items: center;
     gap: 16px;
-    margin-bottom: 20px;
+    margin-top: 10px;
   }
 
   .year-nav span {
@@ -360,7 +509,6 @@
 
   .timeline-months { display: flex; flex-direction: column; gap: 20px; }
 
-  .month-block {}
 
   .month-title {
     font-family: 'Space Mono', monospace;
@@ -514,10 +662,10 @@
   .legend-box { width: 12px; height: 12px; border-radius: 2px; }
 
   /* Scrollbar */
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  /* ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: var(--bg2); }
   ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text3); } */
 
   /* Page hidden */
   .page { display: none; }
@@ -585,144 +733,293 @@
   .mini-day { height: 10px; border-radius: 1px; background: var(--bg3); }
   .mini-day.active { background: var(--accent); opacity: 0.7; }
 
-  /* ===== TIMELINE PER USER ===== */
-  .tlu-wrap {
-    font-family: 'Space Mono', monospace;
-  }
+ /* ===== TIMELINE PER USER & PER TASK ===== */
+.tlu-month-headers,
+.tlu-day-headers,
+.tlt-month-headers,
+.tlt-day-headers {
+  margin-left: 0;
+  display: flex;
+}
+/* Scroll container — sama untuk keduanya */
+.tlu-outer,
+.tlt-outer {
+  overflow: auto;
+  position: relative;
+  max-height: 70vh;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
 
-  /* Month header strip */
-  .tlu-month-headers {
-    display: flex;
-    margin-left: 90px; /* user label width */
-    margin-bottom: 4px;
-    gap: 0;
-  }
+.tlu-wrap,
+.tlt-wrap {
+  font-family: 'Space Mono', monospace;
+  display: inline-block;
+  min-width: 100%;
+}
 
-  .tlu-month-hdr {
-    font-size: 9px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--text3);
-    text-align: center;
-    padding: 0 1px;
-    border-left: 1px solid var(--border);
-  }
+/* Sticky header atas */
+.tlu-sticky-header,
+.tlt-sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 500;
+  background: var(--bg2);
+  background-clip: padding-box;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 2px;
+  display: flex;
+}
 
-  /* Day number header */
-  .tlu-day-headers {
-    display: flex;
-    margin-left: 90px;
-    margin-bottom: 6px;
-  }
+/* Month strip */
+.tlu-month-headers,
+.tlt-month-headers {
+  display: flex;
+  margin-bottom: 0;
+}
 
-  .tlu-day-hdr {
-    font-size: 8px;
-    color: var(--text3);
-    text-align: center;
-    flex-shrink: 0;
-  }
+.tlu-month-hdr,
+.tlt-month-hdr {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text3);
+  text-align: center;
+  padding: 3px 1px;
+  border-left: 1px solid var(--border);
+  background: var(--bg2);
+}
 
-  .tlu-day-hdr.weekend { color: #3a3a3a; }
-  .tlu-day-hdr.today-col { color: var(--accent); font-weight: 700; }
+/* Day number row */
+.tlu-day-headers,
+.tlt-day-headers {
+  display: flex;
+  margin-bottom: 0;
+}
 
-  /* User row */
-  .tlu-user-row {
-    display: flex;
-    align-items: stretch;
-    margin-bottom: 3px;
-    min-height: 28px;
-  }
+.tlu-day-hdr,
+.tlt-day-hdr {
+  font-size: 8px;
+  color: var(--text3);
+  text-align: center;
+  flex-shrink: 0;
+  padding: 2px 0;
+  background: var(--bg2);
+}
 
-  .tlu-user-label {
-    width: 90px;
-    min-width: 90px;
-    display: flex;
-    align-items: center;
-    padding-right: 10px;
-    font-size: 10px;
-    color: var(--text2);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    flex-shrink: 0;
-  }
+.tlu-day-hdr.weekend,
+.tlt-day-hdr.weekend   { color: #3a3a3a; }
 
-  .tlu-user-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    margin-right: 6px;
-  }
+.tlu-day-hdr.today-col,
+.tlt-day-hdr.today-col { color: var(--accent); font-weight: 700; }
 
-  /* Day cell in user-timeline */
-  .tlu-cell {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    border-radius: 2px;
-    background: var(--bg3);
-    cursor: default;
-    flex-shrink: 0;
-    overflow: hidden;
-    position: relative;
-    transition: transform 0.1s, z-index 0.1s;
-    gap: 1px;
-    padding: 1px;
-  }
+/* Pojok kiri atas — z-index TERTINGGI */
+.tlu-corner,
+.tlt-corner {
+  position: sticky;
+  left: 0;
+  z-index: 700;
+  background: var(--bg2);
+  background-clip: padding-box;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  border-right: 1px solid var(--border);
+}
 
-  .tlu-cell:hover { transform: scale(1.3); z-index: 20; box-shadow: 0 2px 8px rgba(0,0,0,0.6); cursor: pointer; }
-  .tlu-cell.empty-month { background: transparent; }
-  .tlu-cell.weekend { background: rgba(255,255,255,0.015); }
-  .tlu-cell.today-cell { outline: 1px solid var(--accent); }
+/* Lebar corner & label beda antara tlu dan tlt */
+.tlu-corner,
+.tlu-user-label {
+  width: 90px;
+  min-width: 90px;
+}
 
-  /* Task code chip inside cell */
-  .tlu-code {
-    font-family: 'Space Mono', monospace;
-    font-weight: 700;
-    line-height: 1;
-    border-radius: 2px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    flex-shrink: 0;
-  }
+.tlt-corner,
+.tlt-task-label {
+  width: 350px;
+  min-width: 350px;
+}
 
-  /* Cell sizes */
-  .tlu-wrap.size-compact .tlu-cell { width: 14px; min-height: 20px; }
-  .tlu-wrap.size-compact .tlu-code { font-size: 6px; height: 8px; }
-  .tlu-wrap.size-compact .tlu-user-row { min-height: 20px; }
+/* margin header ikut lebar label */
+/* .tlu-month-headers,
+.tlu-day-headers { margin-left: 90px; } */
+/* 
+.tlt-month-headers,
+.tlt-day-headers  { margin-left: 350px; } */
 
-  .tlu-wrap.size-normal .tlu-cell { width: 20px; min-height: 28px; }
-  .tlu-wrap.size-normal .tlu-code { font-size: 7px; height: 11px; }
-  .tlu-wrap.size-normal .tlu-user-row { min-height: 28px; }
+/* Label kiri sticky — shared style */
+.tlu-user-label,
+.tlt-task-label {
+  display: flex;
+  align-items: center;
+  padding: 0 10px 0 8px;
+  font-size: 10px;
+  color: var(--text2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+  position: sticky;
+  left: 0;
+  z-index: 400;
+  background: var(--bg2);
+  background-clip: padding-box;
+  border-right: 1px solid var(--border);
+}
 
-  .tlu-wrap.size-large .tlu-cell { width: 28px; min-height: 38px; }
-  .tlu-wrap.size-large .tlu-code { font-size: 9px; height: 14px; }
-  .tlu-wrap.size-large .tlu-user-row { min-height: 38px; }
+.tlu-user-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-right: 6px;
+}
 
-  /* Divider between months */
-  .tlu-cell.month-start { border-left: 1px solid var(--border); }
+/* tlt-specific label styles */
+.tlt-task-label.is-child {
+  font-size: 10px;
+  color: var(--text3);
+  padding-left: 18px;
+}
 
-  /* User row separator */
-  .tlu-user-separator {
-    height: 1px;
-    background: var(--border);
-    margin: 4px 0 4px 90px;
-  }
+.tlt-task-label.is-parent {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+}
 
-  /* Sticky month nav */
-  .tlu-sticky-header {
-    position: sticky;
-    top: 0;
-    background: var(--bg);
-    z-index: 30;
-    padding-bottom: 4px;
-    margin-bottom: 4px;
-    border-bottom: 1px solid var(--border);
-  }
+.tlt-task-code-badge {
+  font-size: 8px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 0 4px;
+  color: var(--text3);
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+
+/* Rows */
+.tlu-user-row,
+.tlt-task-row {
+  display: flex;
+  align-items: stretch;
+  min-height: 65px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  padding: 2px 0;
+}
+
+/* Day cell — shared */
+.tlu-cell,
+.tlt-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  /* border-radius: 2px; */
+  background: var(--bg3);
+  cursor: default;
+  flex-shrink: 0;
+  overflow: hidden;
+  position: relative;
+  transition: transform 0.1s;
+  gap: 1px;
+  padding: 1px;
+}
+
+.tlu-cell:hover,
+.tlt-cell:hover    { transform: scale(1.3); z-index: 20; box-shadow: 0 2px 8px rgba(0,0,0,0.6); cursor: pointer; }
+
+.tlu-cell.weekend,
+.tlt-cell.weekend  { background: rgba(255,255,255,0.015); }
+
+.tlu-cell.today-cell,
+.tlt-cell.today-cell { outline: 1px solid var(--accent); }
+
+.tlu-cell.month-start,
+.tlt-cell.month-start { border-left: 1px solid var(--border); }
+
+/* Code/chip inside cell */
+.tlu-code,
+.tlt-user-chip {
+  font-family: 'Space Mono', monospace;
+  font-weight: 700;
+  line-height: 1;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+/* Cell sizes — compact */
+.tlu-wrap.size-compact .tlu-cell,
+.tlt-wrap.size-compact .tlt-cell      { width: 14px; min-height: 20px; }
+
+.tlu-wrap.size-compact .tlu-code,
+.tlt-wrap.size-compact .tlt-user-chip { font-size: 6px; height: 8px; }
+
+.tlu-wrap.size-compact .tlu-user-row,
+.tlt-wrap.size-compact .tlt-task-row  { min-height: 20px; }
+
+.tlu-wrap.size-compact .tlu-user-label,
+.tlt-wrap.size-compact .tlt-task-label{ min-height: 20px; }
+
+/* Cell sizes — normal */
+.tlu-wrap.size-normal .tlu-cell,
+.tlt-wrap.size-normal .tlt-cell       { width: 20px; min-height: 28px; }
+
+.tlu-wrap.size-normal .tlu-code,
+.tlt-wrap.size-normal .tlt-user-chip  { font-size: 7px; height: 11px; }
+
+.tlu-wrap.size-normal .tlu-user-row,
+.tlt-wrap.size-normal .tlt-task-row   { min-height: 28px; }
+
+.tlu-wrap.size-normal .tlu-user-label,
+.tlt-wrap.size-normal .tlt-task-label { min-height: 28px; }
+
+/* Cell sizes — large */
+.tlu-wrap.size-large .tlu-cell,
+.tlt-wrap.size-large .tlt-cell        { width: 28px; min-height: 38px; }
+
+.tlu-wrap.size-large .tlu-code,
+.tlt-wrap.size-large .tlt-user-chip   { font-size: 9px; height: 14px; }
+
+.tlu-wrap.size-large .tlu-user-row,
+.tlt-wrap.size-large .tlt-task-row    { min-height: 38px; }
+
+.tlu-wrap.size-large .tlu-user-label,
+.tlt-wrap.size-large .tlt-task-label  { min-height: 38px; }
+
+/* Row separators */
+.tlu-user-separator {
+  height: 1px;
+  background: var(--border);
+  margin-left: 90px;
+}
+
+.tlt-group-separator {
+  height: 1px;
+  background: var(--border2);
+  margin-left: 350px;
+}
+.tlu-cell.dimmed,
+.tlt-cell.dimmed {
+  opacity: 0.12;
+}
+
+.tlu-cell.highlighted,
+.tlt-cell.highlighted {
+  outline: 2px solid var(--accent);
+  z-index: 5;
+}
+
+.tlu-cell.highlighted:hover,
+.tlt-cell.highlighted:hover {
+  transform: scale(1.3);
+  z-index: 20;
+}
 
   /* ===== PLANNING GANTT ===== */
 .gantt-outer {
@@ -744,7 +1041,7 @@
   left: 0;
   z-index: 20;
   background: var(--bg);
-  box-shadow: 2px 0 6px rgba(0,0,0,0.3); /* shadow penanda sticky */
+  box-shadow: 1px 0 2px rgba(0,0,0,0.3); /* shadow penanda sticky */
 }
 
 
@@ -797,7 +1094,7 @@
 
 .gantt-row {
   display: flex; align-items: stretch;
-  border-bottom: 1px solid var(--border);
+  /* border-bottom: 1px solid var(--border); */
   min-height: 32px; position: relative;
 }
 .gantt-row:hover { background: var(--bg3); }
@@ -873,6 +1170,49 @@
   font-style: italic; font-family: 'Space Mono', monospace;
 }
 .gantt-separator { height: 1px; background: var(--border2); margin: 4px 0 4px 0; }
+
+
+
+/* top header should be above left column */
+.gantt-header-row {
+    z-index: 600;
+}
+
+/* top-left corner (intersection) must be highest */
+.gantt-header-row .gantt-task-col {
+    z-index: 700;
+}
+.gantt-task-col,
+.gantt-row-label {
+    position: sticky;
+    left: 0;
+    z-index: 400;
+    background: #fff;
+}
+.gantt-header-row, .tlu-sticky-header {
+    position: sticky;
+    top: 0px; /* adjust based on filter row height */
+    z-index: 500;
+    background: #fff;
+}
+.gantt-task-col,
+.gantt-row-label,
+.gantt-header-row {
+    background-clip: padding-box;
+}
+.gantt-outer, .tlu-container {
+    max-height: 70vh;   /* or whatever fits your layout */
+    overflow: auto;     /* THIS enables both X & Y scroll */
+    position: relative;
+} 
+#page-planning .filter-row {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: #fff; /* important so content doesn't show through */
+    padding: 8px 0;
+}
+
 
 
 /* User check pills in modal */
@@ -1023,7 +1363,12 @@
 <div id="main">
   <div class="topbar">
     <h1 id="page-title">DASHBOARD</h1>
-    <div class="topbar-actions" id="topbar-actions"></div>
+    <div class="topbar-actions" id="topbar-actions">
+      <button class="btn-export" id="btn-export-excel">
+        <span>📊</span> Export Excel
+      </button>
+    </div>
+    
   </div>
 
   <div class="page-content">
@@ -1222,7 +1567,6 @@
       </div>
       <div id="by-task-content"></div>
     </div>
-
     <!-- ===== PAGE: TIMELINE PER USER ===== -->
     <div class="page" id="page-timeline-user">
       <div class="filter-row" style="flex-wrap:wrap;gap:12px;margin-bottom:16px">
@@ -1231,20 +1575,44 @@
           <span id="tlu-current-year">2024</span>
           <button class="btn btn-ghost btn-sm" id="tlu-year-next">▶</button>
         </div>
-        <select class="form-control" id="tlu-filter-task" style="width:200px">
-          <option value="">Semua Task</option>
-        </select>
-        <div style="display:flex;align-items:center;gap:8px">
-          <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;white-space:nowrap">Ukuran Sel</label>
-          <select class="form-control" id="tlu-cell-size" style="width:100px">
+
+        <!-- Filter: tampilkan hanya log task ini -->
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <label style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Space Mono',monospace">Filter Task</label>
+          <select class="form-control" id="tlu-filter-task" style="width:200px">
+            <option value="">Semua Task</option>
+          </select>
+        </div>
+
+        <!-- Highlight: lacak task tertentu di grid -->
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <label style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Space Mono',monospace">Highlight Task</label>
+          <select class="form-control" id="tlu-highlight-task" style="width:200px">
+            <option value="">— Tidak ada —</option>
+          </select>
+        </div>
+
+        <!-- Ukuran sel -->
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <label style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Space Mono',monospace">Ukuran Sel</label>
+          <select class="form-control" id="tlu-cell-size" style="width:110px">
             <option value="compact">Kompak</option>
             <option value="normal" selected>Normal</option>
             <option value="large">Besar</option>
           </select>
         </div>
-        <div id="tlu-legend" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"></div>
+
+        <!-- Info highlight aktif -->
+        <div id="tlu-highlight-info" style="display:none;align-items:center;gap:8px;padding:6px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;font-size:12px;color:var(--text2)">
+          <span id="tlu-highlight-dot" style="width:10px;height:10px;border-radius:2px;display:inline-block;flex-shrink:0"></span>
+          <span id="tlu-highlight-label"></span>
+          <button onclick="$('#tlu-highlight-task').val('').trigger('change')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;line-height:1;padding:0 0 0 4px">×</button>
+        </div>
       </div>
-      <div id="tlu-container" style="overflow-x:auto;padding-bottom:20px"></div>
+
+      <div class="tlu-outer">
+        <div id="tlu-container"></div>
+      </div>
     </div>
 
     <!-- ===== PAGE: PLANNING GANTT ===== -->
@@ -1276,26 +1644,52 @@
 
     <!-- ===== PAGE: TIMELINE PER TASK ===== -->
     <div class="page" id="page-timeline-task">
-        <div class="filter-row" style="flex-wrap:wrap;gap:12px;margin-bottom:16px">
-            <div class="year-nav">
-            <button class="btn btn-ghost btn-sm" id="tlt-year-prev">◀</button>
-            <span id="tlt-current-year">2024</span>
-            <button class="btn btn-ghost btn-sm" id="tlt-year-next">▶</button>
-            </div>
-            <select class="form-control" id="tlt-filter-user" style="width:180px">
-            <option value="">Semua User</option>
-            </select>
-            <div style="display:flex;align-items:center;gap:8px">
-            <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;white-space:nowrap">Ukuran Sel</label>
-            <select class="form-control" id="tlt-cell-size" style="width:100px">
-                <option value="compact">Kompak</option>
-                <option value="normal" selected>Normal</option>
-                <option value="large">Besar</option>
-            </select>
-            </div>
-            <div id="tlt-legend" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"></div>
+      <div class="filter-row" style="flex-wrap:wrap;gap:12px;margin-bottom:16px">
+
+        <div class="year-nav">
+          <button class="btn btn-ghost btn-sm" id="tlt-year-prev">◀</button>
+          <span id="tlt-current-year">2024</span>
+          <button class="btn btn-ghost btn-sm" id="tlt-year-next">▶</button>
         </div>
-        <div id="tlt-container" style="overflow-x:auto;padding-bottom:20px"></div>
+
+        <!-- Filter: tampilkan hanya log user ini -->
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <label style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Space Mono',monospace">Filter User</label>
+          <select class="form-control" id="tlt-filter-user" style="width:200px">
+            <option value="">Semua User</option>
+          </select>
+        </div>
+
+        <!-- Highlight: lacak user tertentu di grid -->
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <label style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Space Mono',monospace">Highlight User</label>
+          <select class="form-control" id="tlt-highlight-user" style="width:200px">
+            <option value="">— Tidak ada —</option>
+          </select>
+        </div>
+
+        <!-- Ukuran sel -->
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <label style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Space Mono',monospace">Ukuran Sel</label>
+          <select class="form-control" id="tlt-cell-size" style="width:110px">
+            <option value="compact">Kompak</option>
+            <option value="normal" selected>Normal</option>
+            <option value="large">Besar</option>
+          </select>
+        </div>
+
+        <!-- Info highlight aktif -->
+        <div id="tlt-highlight-info" style="display:none;align-items:center;gap:8px;padding:6px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;font-size:12px;color:var(--text2)">
+          <span id="tlt-highlight-dot" style="width:10px;height:10px;border-radius:50%;display:inline-block;flex-shrink:0"></span>
+          <span id="tlt-highlight-label"></span>
+          <button onclick="$('#tlt-highlight-user').val('').trigger('change')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;line-height:1;padding:0 0 0 4px">×</button>
+        </div>
+
+      </div>
+
+      <div class="tlt-outer">
+        <div id="tlt-container"></div>
+      </div>
     </div>
 
     <!-- ===== PAGE: USERS ===== -->
@@ -1328,6 +1722,7 @@
             <div id="tasks-tree"></div>
             </div>
             <div class="card">
+            <button class="btn btn-ghost" id="btn-open-import-tasks" style="width:100%;margin-top:10px">📥 Import Tasks dari CSV</button>
             <div class="card-title">Tambah Task</div>
             <div class="form-group">
                 <label class="form-label">Nama Task</label>
@@ -1529,6 +1924,72 @@
   </div>
 </div>
 
+<!-- ==================== 4. HTML MODAL (paste sebelum </body>) ==================== -->
+ 
+<!-- Modal Export Excel -->
+<div class="modal-overlay" id="modal-export">
+  <div class="modal" style="width:520px">
+    <div class="modal-title">📊 Export Excel — <span id="export-year-label"></span></div>
+ 
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">
+      Semua data tahun berjalan akan di-export ke 1 file Excel dengan sheet terpisah.
+    </p>
+ 
+    <!-- Sheet preview -->
+    <div class="card-title">Sheet yang akan dibuat</div>
+    <div class="sheet-pills" id="export-sheet-preview"></div>
+ 
+    <div class="export-progress" id="export-progress">
+      <div class="export-progress-bar" id="export-progress-bar"></div>
+    </div>
+    <div id="export-status" style="font-size:12px;color:var(--text3);margin-top:8px;font-family:'Space Mono',monospace;min-height:16px"></div>
+ 
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-cancel-export">Batal</button>
+      <button class="btn btn-green" id="btn-do-export">⬇️ Download Excel</button>
+    </div>
+  </div>
+</div>
+ 
+<!-- Modal Import Master Tasks -->
+<div class="modal-overlay" id="modal-import-tasks">
+  <div class="modal" style="width:540px">
+    <div class="modal-title">📥 Import Master Tasks</div>
+ 
+    <div class="alert alert-info" style="margin-bottom:16px">
+      <span>ℹ️</span>
+      <div>
+        <strong>Format CSV:</strong><br>
+        <code style="font-size:11px;background:rgba(0,0,0,0.2);padding:2px 6px;border-radius:3px">nama_task,nama_induk,deskripsi</code><br>
+        <span style="font-size:11px">Kolom <code style="background:rgba(0,0,0,0.2);padding:1px 4px;border-radius:2px">nama_induk</code> dikosongkan jika task induk. Induk harus sudah ada atau ada di file yang sama di baris sebelumnya.</span>
+      </div>
+    </div>
+ 
+    <div class="import-tasks-area" id="import-tasks-area">
+      <div style="font-size:32px;margin-bottom:10px">📂</div>
+      <p style="font-size:13px">Klik atau drag & drop file CSV di sini</p>
+      <small style="font-size:11px;margin-top:6px;display:block">Format: nama_task, nama_induk, deskripsi</small>
+      <input type="file" id="csv-tasks-file" accept=".csv" style="display:none">
+    </div>
+ 
+    <div id="import-tasks-preview" style="margin-top:14px"></div>
+ 
+    <pre style="background:var(--bg3);padding:14px;border-radius:6px;font-size:11px;color:var(--text2);margin-top:14px;overflow-x:auto">nama_task,nama_induk,deskripsi
+Proyek Alpha,,Proyek utama
+Desain UI,Proyek Alpha,Sub-task desain
+Backend API,Proyek Alpha,Sub-task backend
+Proyek Beta,,Proyek kedua
+Riset,Proyek Beta,</pre>
+ 
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-cancel-import-tasks">Batal</button>
+      <button class="btn btn-ghost" id="btn-download-tasks-template">⬇️ Template CSV</button>
+      <button class="btn btn-green" id="btn-do-import-tasks" style="display:none">✅ Import Tasks</button>
+    </div>
+  </div>
+</div>
+ 
+
 <!-- NOTIF -->
 <div id="notif"></div>
 
@@ -1611,6 +2072,19 @@ function seedData() {
   DB.saveUsers(users);
   DB.saveTasks(tasks);
   DB.saveLogs(logs);
+}
+
+function initSelect2() {
+  $('select').each(function() {
+    // destroy dulu kalau sudah diinit sebelumnya
+    if ($(this).hasClass('select2-hidden-accessible')) {
+      $(this).select2('destroy');
+    }
+    $(this).select2({
+      width: $(this).css('width') || '200px',
+      dropdownParent: $('body'),
+    });
+  });
 }
 
 // ==================== COLORS ====================
@@ -1845,6 +2319,7 @@ function renderDashboard() {
 
   // Mini year overview
   renderMiniYear(yearNow, logs);
+  initSelect2();
 }
 
 function renderMiniYear(year, logs) {
@@ -1897,6 +2372,7 @@ function renderLogInput() {
   $('#log-date').val(today());
 
   renderLogRecent();
+  initSelect2();
 }
 
 function renderLogRecent() {
@@ -2095,6 +2571,7 @@ function renderTimeline() {
   $('#current-year').text(currentYear);
 
   buildTimeline();
+  initSelect2();
 }
 
 function buildTimeline() {
@@ -2746,15 +3223,30 @@ function getTaskCode(taskId, tasks) {
 
 function renderTimelineUser() {
   const tasks = DB.tasks();
-  // Populate task filter
+
+  // Populate SEKALI di sini, tidak di buildTimelineUser
   let tOpts = '<option value="">Semua Task</option>';
   tasks.forEach((t, i) => {
-    tOpts += `<option value="${t.id}">${i+1}. ${t.parentId?'↳ ':''}${t.name}</option>`;
+    const code = String(i + 1);
+    const indent = t.parentId ? '  ↳ ' : '';
+    tOpts += `<option value="${t.id}">${code}. ${indent}${t.name}</option>`;
   });
   $('#tlu-filter-task').html(tOpts);
+
+  let hOpts = '<option value="">— Tidak ada —</option>';
+  tasks.forEach((t, i) => {
+    const code = String(i + 1);
+    const indent = t.parentId ? '  ↳ ' : '';
+    hOpts += `<option value="${t.id}">${code}. ${indent}${t.name}</option>`;
+  });
+  $('#tlu-highlight-task').html(hOpts);
+
+  // Init Select2 SEKALI setelah populate
+  initSelect2();
+
   $('#tlu-current-year').text(tluYear);
-  buildTimelineUser();
-}
+  buildTimelineUser(); // build grid
+} 
 
 function buildTimelineUser() {
   const users = DB.users();
@@ -2792,40 +3284,16 @@ function buildTimelineUser() {
   const sizes = { compact: 14, normal: 20, large: 28 };
   const cellW = sizes[cellSize];
 
-  // ---- LEGEND ----
-  let legendHtml = '<span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-right:6px;white-space:nowrap">Kode Task:</span>';
-  tasks.forEach((t, i) => {
-    const code = String(i + 1);
-    legendHtml += `
-      <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;margin-right:8px;white-space:nowrap;cursor:default"
-            title="${t.name}${t.parentId ? ' (sub-task dari '+getTaskName(t.parentId)+')' : ''}">
-        <span style="width:18px;height:14px;border-radius:2px;background:${getTaskColor(i)};display:inline-flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-size:7px;font-weight:700;color:#0f0f0f">${code}</span>
-        <span style="color:var(--text2)">${t.name}</span>
-      </span>`;
-  });
-  $('#tlu-legend').html(legendHtml);
-
   // ---- BUILD HTML ----
   let html = `<div class="tlu-wrap size-${cellSize}">`;
 
   // Sticky top header
   html += `<div class="tlu-sticky-header">`;
+  html += `<div style="display:flex">`;
+  html += `<div class="tlu-corner"></div>`; // placeholder selebar label
+  html += `<div style="display:flex;flex-direction:column;flex:1">`;
 
-  // Month label row
-  html += `<div class="tlu-month-headers">`;
-  let curMonth = -1, curMonthStart = 0;
-  allDates.forEach((d, i) => {
-    if (d.month !== curMonth) {
-      if (curMonth >= 0) {
-        const w = (i - curMonthStart) * cellW;
-        html += `</div>`; // close previous month header cell (placeholder; we'll just write new)
-      }
-      curMonth = d.month;
-      curMonthStart = i;
-    }
-  });
-  // Re-do month headers properly by counting days per month
-  html = html.replace(/<div class="tlu-month-headers">[\s\S]*$/, ''); // trim off broken attempt
+  // month headers
   html += `<div class="tlu-month-headers">`;
   for (let m = 0; m < 12; m++) {
     const daysInMonth = new Date(tluYear, m+1, 0).getDate();
@@ -2834,15 +3302,19 @@ function buildTimelineUser() {
   }
   html += `</div>`;
 
-  // Day number row
+  // day headers
   html += `<div class="tlu-day-headers">`;
   allDates.forEach(d => {
     const isWeekend = d.dow === 0 || d.dow === 6;
     const isToday = d.date === todayStr;
     const cls = isToday ? 'today-col' : isWeekend ? 'weekend' : '';
-    html += `<div class="tlu-day-hdr ${cls}" style="width:${cellW}px;min-width:${cellW}px">${d.day === 1 || d.day % 5 === 0 ? d.day : ''}</div>`;
+    const label = (d.day === 1 || d.day % 5 === 0) ? d.day : '';
+    html += `<div class="tlu-day-hdr ${cls}" style="width:${cellW}px;min-width:${cellW}px">${label}</div>`;
   });
   html += `</div>`;
+
+  html += `</div>`; // end flex column
+  html += `</div>`; // end flex row
   html += `</div>`; // end sticky header
 
   // User rows
@@ -2970,8 +3442,54 @@ function renderTimelineTask() {
   });
   $('#tlt-filter-user').html(uOpts);
   $('#tlt-current-year').text(tltYear);
+  populateTltHighlight();
   buildTimelineTask();
+  initSelect2();
 }
+
+// Populate highlight user dropdown — dipanggil di renderTimelineTask()
+function populateTltHighlight() {
+  const users = DB.users();
+  let hOpts = '<option value="">— Tidak ada —</option>';
+  users.forEach((u, i) => {
+    hOpts += `<option value="${u.id}">${u.name}</option>`;
+  });
+  $('#tlt-highlight-user').html(hOpts);
+}
+
+// Highlight user handler
+$('#tlt-highlight-user').on('change', function() {
+  const userId = $(this).val();
+  const users = DB.users();
+
+  if (!userId) {
+    $('.tlt-cell').removeClass('dimmed highlighted');
+    $('#tlt-highlight-info').hide();
+    return;
+  }
+
+  const uIdx = users.findIndex(u => u.id === userId);
+  const uColor = getUserColor(uIdx);
+  const uName = getUserName(userId);
+
+  // Dim semua, highlight yang mengandung user ini
+  $('.tlt-cell.has-tlt-log').addClass('dimmed');
+  $('.tlt-cell.has-tlt-log').each(function() {
+    const usersData = String($(this).data('users') || '');
+    // format: "initials|fullname::..."
+    const names = usersData.split('::').map(s => s.split('|')[1]);
+    if (names.includes(uName)) {
+      $(this).removeClass('dimmed').addClass('highlighted');
+    }
+  });
+
+  // Info bar
+  $('#tlt-highlight-dot').css('background', uColor);
+  $('#tlt-highlight-label').html(
+    `${uName} — <span style="color:var(--text3)">${$('.tlt-cell.highlighted').length} hari aktif</span>`
+  );
+  $('#tlt-highlight-info').css('display', 'flex');
+});
 
 function buildTimelineTask() {
   const users = DB.users();
@@ -3024,7 +3542,8 @@ function buildTimelineTask() {
   let html = `<div class="tlu-wrap size-${cellSize}">`;
 
   // Sticky top header
-  html += `<div class="tlu-sticky-header" style="margin-left:140px">`;
+  html += `<div class="tlt-sticky-header">`;
+  html += `<div class="tlt-corner"></div>`;
 
   // Month label row
   html += `<div class="tlu-month-headers">`;
@@ -3057,8 +3576,8 @@ function buildTimelineTask() {
     const prefix = isChild ? '↳ ' : '';
 
     let rowHtml = `<div class="tlu-user-row">`;
-    rowHtml += `<div class="tlu-user-label" style="width:140px;min-width:140px;${labelStyle}" title="${task.name}">
-      ${prefix}${task.name.length > 16 ? task.name.slice(0,15)+'…' : task.name}
+    rowHtml += `<div class="tlu-user-label" style="width:350px;min-width:350px;${labelStyle}" title="${task.name}">
+      ${prefix}${task.name.length > 46 ? task.name.slice(0,45)+'…' : task.name}
     </div>`;
 
     allDates.forEach(d => {
@@ -3806,5 +4325,537 @@ $(document).ready(function() {
 });
 
 </script>
+
+<script>
+ 
+// ==================== EXPORT EXCEL ====================
+ 
+const YEAR_NOW = new Date().getFullYear();
+ 
+// Sheet definitions
+const SHEETS = [
+  { key: 'log',      label: 'Log',              icon: '📝' },
+  { key: 'byuser',   label: 'By User',           icon: '👤' },
+  { key: 'bytask',   label: 'By Task',           icon: '📋' },
+  { key: 'tlu',      label: 'Timeline Per User', icon: '🔢' },
+  { key: 'tlt',      label: 'Timeline Per Task', icon: '📊' },
+  { key: 'users',    label: 'Master Users',      icon: '👥' },
+  { key: 'tasks',    label: 'Master Tasks',      icon: '🗂️' },
+];
+ 
+$('#btn-export-excel').on('click', function() {
+  const year = new Date().getFullYear();
+  $('#export-year-label').text(year);
+ 
+  // Build sheet preview pills
+  let pillsHtml = '';
+  SHEETS.forEach(s => {
+    pillsHtml += `<div class="sheet-pill ready">
+      <span class="pill-icon">${s.icon}</span> ${s.label}
+    </div>`;
+  });
+  $('#export-sheet-preview').html(pillsHtml);
+  $('#export-status').text('');
+  $('#export-progress').hide();
+  $('#export-progress-bar').css('width', '0%');
+ 
+  $('#modal-export').addClass('open');
+});
+ 
+$('#btn-cancel-export').on('click', () => $('#modal-export').removeClass('open'));
+ 
+$('#btn-do-export').on('click', async function() {
+  const btn = $(this);
+  btn.prop('disabled', true).text('Memproses...');
+  $('#export-progress').show();
+ 
+  const wb = XLSX.utils.book_new();
+  const year = new Date().getFullYear();
+  const total = SHEETS.length;
+ 
+  function setProgress(i, label) {
+    const pct = Math.round((i / total) * 100);
+    $('#export-progress-bar').css('width', pct + '%');
+    $('#export-status').text(label);
+  }
+ 
+  // Small delay supaya UI update dulu
+  await new Promise(r => setTimeout(r, 50));
+ 
+  // ---- SHEET 1: LOG ----
+  setProgress(1, 'Membuat sheet Log...');
+  await new Promise(r => setTimeout(r, 30));
+  {
+    const logs = DB.logs().filter(l => l.date.startsWith(String(year)));
+    const tasks = DB.tasks();
+    const rows = [['Tanggal', 'User', 'Task', 'Task Induk', 'Catatan']];
+    logs.sort((a,b) => a.date.localeCompare(b.date)).forEach(l => {
+      const t = tasks.find(x => x.id === l.taskId);
+      const parent = t?.parentId ? tasks.find(x => x.id === t.parentId) : null;
+      rows.push([
+        l.date,
+        getUserName(l.userId),
+        getTaskName(l.taskId),
+        parent?.name || '',
+        l.note || ''
+      ]);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    styleHeaderRow(ws, rows[0].length);
+    ws['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 24 }, { wch: 20 }, { wch: 30 }];
+    XLSX.utils.book_append_sheet(wb, ws, 'Log');
+  }
+ 
+  // ---- SHEET 2: BY USER ----
+  setProgress(2, 'Membuat sheet By User...');
+  await new Promise(r => setTimeout(r, 30));
+  {
+    const users = DB.users();
+    const tasks = DB.tasks();
+    const logs = DB.logs().filter(l => l.date.startsWith(String(year)));
+    const rows = [['User', 'Role', 'Total Log', 'Hari Aktif', 'Task Paling Sering', 'Jumlah Hari Task Tsb']];
+ 
+    users.forEach(u => {
+      const uLogs = logs.filter(l => l.userId === u.id);
+      const uniqueDates = new Set(uLogs.map(l => l.date)).size;
+      const taskCount = {};
+      uLogs.forEach(l => { taskCount[l.taskId] = (taskCount[l.taskId] || 0) + 1; });
+      const topTask = Object.entries(taskCount).sort((a,b) => b[1]-a[1])[0];
+      rows.push([
+        u.name,
+        u.role || '',
+        uLogs.length,
+        uniqueDates,
+        topTask ? getTaskName(topTask[0]) : '',
+        topTask ? topTask[1] : 0
+      ]);
+    });
+ 
+    // Detail per user per task
+    rows.push([]);
+    rows.push(['--- DETAIL PER USER ---']);
+    rows.push(['User', 'Task', 'Task Induk', 'Jumlah Hari']);
+    users.forEach(u => {
+      const uLogs = logs.filter(l => l.userId === u.id);
+      const taskCount = {};
+      uLogs.forEach(l => { taskCount[l.taskId] = (taskCount[l.taskId] || 0) + 1; });
+      Object.entries(taskCount).sort((a,b) => b[1]-a[1]).forEach(([tid, cnt]) => {
+        const t = tasks.find(x => x.id === tid);
+        const parent = t?.parentId ? tasks.find(x => x.id === t.parentId) : null;
+        rows.push([u.name, getTaskName(tid), parent?.name || '', cnt]);
+      });
+    });
+ 
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 22 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 24 }, { wch: 18 }];
+    XLSX.utils.book_append_sheet(wb, ws, 'By User');
+  }
+ 
+  // ---- SHEET 3: BY TASK ----
+  setProgress(3, 'Membuat sheet By Task...');
+  await new Promise(r => setTimeout(r, 30));
+  {
+    const tasks = DB.tasks();
+    const logs = DB.logs().filter(l => l.date.startsWith(String(year)));
+    const rows = [['No', 'Task', 'Task Induk', 'Total Log', 'Hari Aktif', 'Jumlah User']];
+ 
+    tasks.forEach((t, i) => {
+      const tLogs = logs.filter(l => l.taskId === t.id);
+      const uniqueDates = new Set(tLogs.map(l => l.date)).size;
+      const uniqueUsers = new Set(tLogs.map(l => l.userId)).size;
+      const parent = t.parentId ? tasks.find(x => x.id === t.parentId) : null;
+      rows.push([
+        i + 1,
+        t.name,
+        parent?.name || '',
+        tLogs.length,
+        uniqueDates,
+        uniqueUsers
+      ]);
+    });
+ 
+    // Detail per task per user
+    rows.push([]);
+    rows.push(['--- DETAIL PER TASK ---']);
+    rows.push(['Task', 'Task Induk', 'User', 'Jumlah Hari', 'Tanggal Pertama', 'Tanggal Terakhir']);
+    tasks.forEach(t => {
+      const tLogs = logs.filter(l => l.taskId === t.id);
+      const parent = t.parentId ? tasks.find(x => x.id === t.parentId) : null;
+      const userCount = {};
+      tLogs.forEach(l => { userCount[l.userId] = (userCount[l.userId] || 0) + 1; });
+      Object.entries(userCount).sort((a,b) => b[1]-a[1]).forEach(([uid, cnt]) => {
+        const uLogs = tLogs.filter(l => l.userId === uid).map(l => l.date).sort();
+        rows.push([
+          t.name,
+          parent?.name || '',
+          getUserName(uid),
+          cnt,
+          uLogs[0] || '',
+          uLogs[uLogs.length-1] || ''
+        ]);
+      });
+    });
+ 
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 6 }, { wch: 24 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, ws, 'By Task');
+  }
+ 
+  // ---- SHEET 4: TIMELINE PER USER ----
+  setProgress(4, 'Membuat sheet Timeline Per User...');
+  await new Promise(r => setTimeout(r, 30));
+  {
+    const users = DB.users();
+    const tasks = DB.tasks();
+    const logs = DB.logs().filter(l => l.date.startsWith(String(year)));
+ 
+    // Build all dates
+    const allDates = [];
+    for (let m = 0; m < 12; m++) {
+      const dim = new Date(year, m+1, 0).getDate();
+      for (let d = 1; d <= dim; d++) {
+        const date = `${year}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        allDates.push(date);
+      }
+    }
+ 
+    // Log index: userId -> date -> [taskCode]
+    const logIndex = {};
+    users.forEach(u => { logIndex[u.id] = {}; });
+    logs.forEach(l => {
+      if (!logIndex[l.userId]) logIndex[l.userId] = {};
+      if (!logIndex[l.userId][l.date]) logIndex[l.userId][l.date] = [];
+      const tIdx = tasks.findIndex(t => t.id === l.taskId);
+      const code = tIdx >= 0 ? String(tIdx + 1) : '?';
+      if (!logIndex[l.userId][l.date].includes(code))
+        logIndex[l.userId][l.date].push(code);
+    });
+ 
+    // Header: User | Jan 1 | Jan 2 | ...
+    const header = ['User', ...allDates];
+    const rows = [header];
+ 
+    users.forEach(u => {
+      const row = [u.name];
+      allDates.forEach(date => {
+        const codes = logIndex[u.id]?.[date] || [];
+        row.push(codes.length > 0 ? codes.join(',') : '');
+      });
+      rows.push(row);
+    });
+ 
+    // Legend sheet info
+    rows.push([]);
+    rows.push(['--- KODE TASK ---']);
+    rows.push(['Kode', 'Nama Task', 'Task Induk']);
+    tasks.forEach((t, i) => {
+      const parent = t.parentId ? tasks.find(x => x.id === t.parentId) : null;
+      rows.push([String(i+1), t.name, parent?.name || '']);
+    });
+ 
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    // Set col widths: first col wide, rest narrow
+    const cols = [{ wch: 20 }, ...allDates.map(() => ({ wch: 4 }))];
+    ws['!cols'] = cols;
+    XLSX.utils.book_append_sheet(wb, ws, 'Timeline Per User');
+  }
+    // ---- SHEET 5: TIMELINE PER TASK ----
+  setProgress(5, 'Membuat sheet Timeline Per Task...');
+  await new Promise(r => setTimeout(r, 30));
+  {
+    const users = DB.users();
+    const tasks = DB.tasks();
+    const logs = DB.logs().filter(l => l.date.startsWith(String(year)));
+ 
+    const allDates = [];
+    for (let m = 0; m < 12; m++) {
+      const dim = new Date(year, m+1, 0).getDate();
+      for (let d = 1; d <= dim; d++) {
+        const date = `${year}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        allDates.push(date);
+      }
+    }
+ 
+    // Log index: taskId -> date -> [userInitials]
+    const logIndex = {};
+    tasks.forEach(t => { logIndex[t.id] = {}; });
+    logs.forEach(l => {
+      if (!logIndex[l.taskId]) logIndex[l.taskId] = {};
+      if (!logIndex[l.taskId][l.date]) logIndex[l.taskId][l.date] = [];
+      const initials = getUserName(l.userId).split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+      if (!logIndex[l.taskId][l.date].includes(initials))
+        logIndex[l.taskId][l.date].push(initials);
+    });
+ 
+    const header = ['No', 'Task', 'Task Induk', ...allDates];
+    const rows = [header];
+ 
+    // Parent first then children
+    const parents = tasks.filter(t => !t.parentId);
+    const orderedTasks = [];
+    parents.forEach(p => {
+      orderedTasks.push(p);
+      tasks.filter(t => t.parentId === p.id).forEach(c => orderedTasks.push(c));
+    });
+    tasks.filter(t => t.parentId && !tasks.find(p => p.id === t.parentId)).forEach(c => orderedTasks.push(c));
+ 
+    orderedTasks.forEach((t, i) => {
+      const parent = t.parentId ? tasks.find(x => x.id === t.parentId) : null;
+      const tIdx = tasks.findIndex(x => x.id === t.id);
+      const row = [tIdx + 1, t.name, parent?.name || ''];
+      allDates.forEach(date => {
+        const initials = logIndex[t.id]?.[date] || [];
+        row.push(initials.length > 0 ? initials.join(',') : '');
+      });
+      rows.push(row);
+    });
+ 
+    // Legend
+    rows.push([]);
+    rows.push(['--- KODE USER ---']);
+    rows.push(['Inisial', 'Nama User', 'Role']);
+    users.forEach(u => {
+      const initials = u.name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+      rows.push([initials, u.name, u.role || '']);
+    });
+ 
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 5 }, { wch: 24 }, { wch: 20 }, ...allDates.map(() => ({ wch: 4 }))];
+    XLSX.utils.book_append_sheet(wb, ws, 'Timeline Per Task');
+  }
+ 
+  // ---- SHEET 6: MASTER USERS ----
+  setProgress(6, 'Membuat sheet Master Users...');
+  await new Promise(r => setTimeout(r, 30));
+  {
+    const users = DB.users();
+    const logs = DB.logs().filter(l => l.date.startsWith(String(year)));
+    const rows = [['No', 'Nama', 'Role', 'Total Log (tahun ini)', 'Hari Aktif (tahun ini)']];
+    users.forEach((u, i) => {
+      const uLogs = logs.filter(l => l.userId === u.id);
+      const uniqueDates = new Set(uLogs.map(l => l.date)).size;
+      rows.push([i+1, u.name, u.role || '', uLogs.length, uniqueDates]);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 5 }, { wch: 24 }, { wch: 18 }, { wch: 22 }, { wch: 22 }];
+    XLSX.utils.book_append_sheet(wb, ws, 'Master Users');
+  }
+   // ---- SHEET 7: MASTER TASKS ----
+  setProgress(7, 'Membuat sheet Master Tasks...');
+  await new Promise(r => setTimeout(r, 30));
+  {
+    const tasks = DB.tasks();
+    const logs = DB.logs().filter(l => l.date.startsWith(String(year)));
+    const rows = [['No', 'Nama Task', 'Tipe', 'Task Induk', 'Deskripsi', 'Total Log (tahun ini)', 'Hari Aktif', 'Jumlah User']];
+ 
+    const parents = tasks.filter(t => !t.parentId);
+    const orderedTasks = [];
+    parents.forEach(p => {
+      orderedTasks.push(p);
+      tasks.filter(t => t.parentId === p.id).forEach(c => orderedTasks.push(c));
+    });
+    tasks.filter(t => t.parentId && !tasks.find(p => p.id === t.parentId)).forEach(c => orderedTasks.push(c));
+ 
+    orderedTasks.forEach((t, i) => {
+      const parent = t.parentId ? tasks.find(x => x.id === t.parentId) : null;
+      const tLogs = logs.filter(l => l.taskId === t.id);
+      const uniqueDates = new Set(tLogs.map(l => l.date)).size;
+      const uniqueUsers = new Set(tLogs.map(l => l.userId)).size;
+      rows.push([
+        tasks.findIndex(x => x.id === t.id) + 1,
+        t.name,
+        t.parentId ? 'Sub-task' : 'Induk',
+        parent?.name || '',
+        t.desc || '',
+        tLogs.length,
+        uniqueDates,
+        uniqueUsers
+      ]);
+    });
+ 
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 5 }, { wch: 24 }, { wch: 10 }, { wch: 20 }, { wch: 24 }, { wch: 20 }, { wch: 12 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, ws, 'Master Tasks');
+  }
+ 
+  // ---- DOWNLOAD ----
+  setProgress(7, 'Menyiapkan file...');
+  await new Promise(r => setTimeout(r, 50));
+ 
+  const filename = `taskflow-export-${year}-${today().replace(/-/g,'')}.xlsx`;
+  XLSX.writeFile(wb, filename);
+ 
+  $('#export-progress-bar').css('width', '100%');
+  $('#export-status').html(`<span style="color:var(--green)">✓ File berhasil didownload: ${filename}</span>`);
+  btn.prop('disabled', false).text('⬇️ Download Excel');
+  notify('Export selesai ✓');
+});
+ 
+// Helper: bold header row (row pertama)
+function styleHeaderRow(ws, colCount) {
+  // SheetJS tidak support rich styling di versi community,
+  // tapi kita bisa freeze row pertama sebagai header
+  ws['!freeze'] = { xSplit: 0, ySplit: 1 };
+}
+
+ 
+// ==================== IMPORT MASTER TASKS ====================
+ 
+// Buka modal dari halaman Tasks — tambahkan tombol ini di page-tasks
+// <button class="btn btn-ghost" id="btn-open-import-tasks">📥 Import Tasks CSV</button>
+ 
+$(document).on('click', '#btn-open-import-tasks', function() {
+  $('#import-tasks-preview').html('');
+  $('#btn-do-import-tasks').hide();
+  importTaskRows = [];
+  $('#csv-tasks-file').val('');
+  $('#modal-import-tasks').addClass('open');
+});
+ 
+$('#btn-cancel-import-tasks').on('click', () => $('#modal-import-tasks').removeClass('open'));
+ 
+$('#import-tasks-area').on('click', () => $('#csv-tasks-file').click());
+ 
+// Drag & drop
+$('#import-tasks-area').on('dragover', function(e) {
+  e.preventDefault();
+  $(this).css('border-color', 'var(--accent)');
+}).on('dragleave', function() {
+  $(this).css('border-color', '');
+}).on('drop', function(e) {
+  e.preventDefault();
+  $(this).css('border-color', '');
+  const file = e.originalEvent.dataTransfer.files[0];
+  if (file) readTasksCSV(file);
+});
+ 
+$('#csv-tasks-file').on('change', function() {
+  const file = this.files[0];
+  if (file) readTasksCSV(file);
+});
+ 
+let importTaskRows = [];
+
+
+function readTasksCSV(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    parseTasksCSV(e.target.result);
+  };
+  reader.readAsText(file);
+}
+ 
+function parseTasksCSV(text) {
+  const lines = text.trim().split('\n');
+  const firstLine = lines[0].toLowerCase().replace(/\r/,'');
+  const hasHeader = firstLine.includes('nama') || firstLine.includes('task') || firstLine.includes('name');
+  const dataLines = hasHeader ? lines.slice(1) : lines;
+ 
+  const existingTasks = DB.tasks();
+  importTaskRows = [];
+ 
+  // First pass: collect all task names from file (to resolve parent from same file)
+  const newTaskNames = {};
+  dataLines.forEach(line => {
+    const parts = line.replace(/\r/,'').split(',');
+    if (parts.length < 1 || !parts[0].trim()) return;
+    newTaskNames[parts[0].trim().toLowerCase()] = true;
+  });
+ 
+  dataLines.forEach((line, i) => {
+    const parts = line.replace(/\r/,'').split(',');
+    if (parts.length < 1 || !parts[0].trim()) return;
+ 
+    const name     = parts[0].trim();
+    const parentName = parts[1]?.trim() || '';
+    const desc     = parts.slice(2).join(',').trim();
+ 
+    // Check duplicate in existing
+    const isDup = existingTasks.find(t => t.name.toLowerCase() === name.toLowerCase());
+ 
+    // Find parent — either existing or will be created from same file
+    const parentExists = parentName === '' ||
+      existingTasks.find(t => t.name.toLowerCase() === parentName.toLowerCase()) ||
+      newTaskNames[parentName.toLowerCase()];
+ 
+    importTaskRows.push({
+      name, parentName, desc,
+      isDup: !!isDup,
+      parentValid: !!parentExists || parentName === '',
+      valid: !isDup && (!!parentExists || parentName === '')
+    });
+  });
+ 
+  const valid   = importTaskRows.filter(r => r.valid).length;
+  const dups    = importTaskRows.filter(r => r.isDup).length;
+  const invalid = importTaskRows.filter(r => !r.valid && !r.isDup).length;
+ 
+  let html = `<div class="alert ${invalid > 0 ? 'alert-warn' : 'alert-success'}" style="margin-bottom:10px">
+    <span>${invalid > 0 ? '⚠️' : '✅'}</span>
+    <span>${valid} task valid · ${dups} duplikat dilewati · ${invalid} error (parent tidak ditemukan)</span>
+  </div>
+  <div style="max-height:180px;overflow-y:auto">
+  <table><thead><tr><th>Nama Task</th><th>Induk</th><th>Status</th></tr></thead><tbody>`;
+ 
+  importTaskRows.slice(0, 30).forEach(r => {
+    let status = '';
+    if (r.isDup)         status = '<span style="color:var(--text3)">⊘ Duplikat</span>';
+    else if (!r.parentValid) status = '<span style="color:var(--red)">✗ Induk tidak ditemukan</span>';
+    else                 status = '<span style="color:var(--green)">✓ OK</span>';
+ 
+    html += `<tr>
+      <td>${r.name}</td>
+      <td style="color:var(--text3)">${r.parentName || '—'}</td>
+      <td>${status}</td>
+    </tr>`;
+  });
+ 
+  if (importTaskRows.length > 30) {
+    html += `<tr><td colspan="3" style="color:var(--text3);font-size:11px">...dan ${importTaskRows.length-30} baris lainnya</td></tr>`;
+  }
+ 
+  html += '</tbody></table></div>';
+  $('#import-tasks-preview').html(html);
+ 
+  if (valid > 0) $('#btn-do-import-tasks').show();
+  else           $('#btn-do-import-tasks').hide();
+}
+ 
+$('#btn-do-import-tasks').on('click', function() {
+  let tasks = DB.tasks();
+  let added = 0;
+ 
+  // Two-pass: first add parents (parentName = ''), then children
+  const validRows = importTaskRows.filter(r => r.valid);
+ 
+  // Pass 1: induk dulu
+  validRows.filter(r => r.parentName === '').forEach(r => {
+    tasks.push({ id: uid(), name: r.name, parentId: null, desc: r.desc });
+    added++;
+  });
+ 
+  // Pass 2: children — cari parentId dari tasks yang sudah ada + baru ditambah
+  validRows.filter(r => r.parentName !== '').forEach(r => {
+    const parent = tasks.find(t => t.name.toLowerCase() === r.parentName.toLowerCase());
+    tasks.push({ id: uid(), name: r.name, parentId: parent?.id || null, desc: r.desc });
+    added++;
+  });
+ 
+  DB.saveTasks(tasks);
+  $('#modal-import-tasks').removeClass('open');
+  notify(`${added} task berhasil diimport ✓`);
+  renderTasks();
+});
+ 
+$('#btn-download-tasks-template').on('click', function() {
+  const csv = 'nama_task,nama_induk,deskripsi\nProyek Alpha,,Proyek utama\nDesain UI,Proyek Alpha,Sub-task desain\nBackend API,Proyek Alpha,Sub-task backend\nProyek Beta,,Proyek kedua\nRiset,Proyek Beta,\n';
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'template-master-tasks.csv';
+  a.click();
+}); 
+</script>
+
 </body>
 </html>
