@@ -1,0 +1,3810 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TaskFlow — Project Management</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+ :root {
+  --bg: #ffffff;
+  --bg2: #f9fbfd;
+  --bg3: #eef3f8;
+  --bg4: #e4ecf5;
+  --border: #dbe3ec;
+  --border2: #c9d6e2;
+  --text: #0f172a;
+  --text2: #475569;
+  --text3: #94a3b8;
+  --accent: #4f9cff;
+  --accent2: #2f7be5;
+  --red: #ef4444;
+  --green: #22c55e;
+  --blue: #3b82f6;
+  --purple: #8b5cf6;
+  --orange: #f97316;
+  --teal: #14b8a6;
+  --pink: #ec4899;
+  --sidebar-w: 220px;
+}
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    min-height: 100vh;
+    font-size: 14px;
+  }
+
+  /* SIDEBAR */
+  #sidebar {
+    width: var(--sidebar-w);
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 100;
+  }
+
+  .sidebar-logo {
+    padding: 20px 18px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-logo .logo-text {
+    font-family: 'Space Mono', monospace;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 1px;
+  }
+
+  .sidebar-logo .logo-sub {
+    font-size: 10px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-top: 2px;
+  }
+
+  .nav-section {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text3);
+    padding: 4px 18px 8px;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 18px;
+    cursor: pointer;
+    color: var(--text2);
+    font-size: 13px;
+    font-weight: 400;
+    transition: all 0.15s;
+    border-left: 2px solid transparent;
+  }
+
+  .nav-item:hover { color: var(--text); background: var(--bg3); }
+
+  .nav-item.active {
+    color: var(--accent);
+    background: rgba(240,192,64,0.07);
+    border-left-color: var(--accent);
+    font-weight: 600;
+  }
+
+  .nav-item .icon { font-size: 15px; width: 18px; text-align: center; }
+
+  .sidebar-bottom {
+    margin-top: auto;
+    padding: 14px 18px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text3);
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* MAIN */
+  #main {
+    margin-left: var(--sidebar-w);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  .topbar {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  .topbar h1 {
+    font-family: 'Space Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.5px;
+  }
+
+  .topbar-actions { display: flex; gap: 10px; align-items: center; }
+
+  .page-content { padding: 28px; flex: 1; }
+
+  /* BUTTONS */
+  .btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.15s;
+  }
+
+  .btn-primary { background: var(--accent); color: #0f0f0f; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border2); }
+  .btn-ghost:hover { color: var(--text); border-color: var(--text3); background: var(--bg3); }
+  .btn-danger { background: transparent; color: var(--red); border: 1px solid var(--red); }
+  .btn-danger:hover { background: var(--red); color: white; }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn-green { background: var(--green); color: #0f0f0f; }
+  .btn-green:hover { opacity: 0.85; }
+
+  /* CARDS */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+  }
+
+  .card-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text3);
+    margin-bottom: 16px;
+  }
+
+  /* GRID */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+  /* STAT BOX */
+  .stat-box {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+  }
+
+  .stat-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; }
+  .stat-value { font-family: 'Space Mono', monospace; font-size: 28px; font-weight: 700; color: var(--accent); margin-top: 4px; }
+  .stat-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  /* FORM */
+  .form-group { margin-bottom: 16px; }
+
+  .form-label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text3);
+    margin-bottom: 6px;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .form-control {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 9px 12px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    transition: border-color 0.15s;
+  }
+
+  .form-control:focus { outline: none; border-color: var(--accent); }
+
+  select.form-control option { background: var(--bg3); }
+
+  /* TABLE */
+  .table-wrap { overflow-x: auto; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  thead th {
+    text-align: left;
+    padding: 10px 14px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text3);
+    border-bottom: 1px solid var(--border);
+    background: var(--bg3);
+  }
+
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  tbody tr:hover { background: var(--bg3); }
+  tbody td { padding: 10px 14px; color: var(--text2); vertical-align: middle; }
+  tbody td:first-child { color: var(--text); }
+
+  /* BADGE */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 500;
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* USER COLOR BADGES */
+  .uc-0 { background: rgba(59,130,246,0.10); color: var(--blue);   border: 1px solid rgba(59,130,246,0.25); }
+.uc-1 { background: rgba(34,197,94,0.10);  color: var(--green);  border: 1px solid rgba(34,197,94,0.25); }
+.uc-2 { background: rgba(79,156,255,0.10); color: var(--accent); border: 1px solid rgba(79,156,255,0.25); }
+.uc-3 { background: rgba(139,92,246,0.10); color: var(--purple); border: 1px solid rgba(139,92,246,0.25); }
+.uc-4 { background: rgba(249,115,22,0.10); color: var(--orange); border: 1px solid rgba(249,115,22,0.25); }
+.uc-5 { background: rgba(20,184,166,0.10); color: var(--teal);   border: 1px solid rgba(20,184,166,0.25); }
+.uc-6 { background: rgba(236,72,153,0.10); color: var(--pink);   border: 1px solid rgba(236,72,153,0.25); }
+.uc-7 { background: rgba(239,68,68,0.10);  color: var(--red);    border: 1px solid rgba(239,68,68,0.25); }
+
+  .badge-parent { background: rgba(240,192,64,0.1); color: var(--accent); border: 1px solid rgba(240,192,64,0.25); }
+  .badge-child { background: rgba(160,160,160,0.1); color: var(--text2); border: 1px solid var(--border); font-size: 10px; }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 999;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 28px;
+    width: 480px;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .modal-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 22px;
+    letter-spacing: 0.5px;
+  }
+
+  .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; }
+
+  /* TABS */
+  .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 22px; gap: 2px; }
+
+  .tab-btn {
+    padding: 9px 18px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text3);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-bottom: -1px;
+  }
+
+  .tab-btn:hover { color: var(--text2); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+
+  /* TIMELINE / CALENDAR */
+  .year-nav {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .year-nav span {
+    font-family: 'Space Mono', monospace;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    min-width: 60px;
+    text-align: center;
+  }
+
+  .timeline-months { display: flex; flex-direction: column; gap: 20px; }
+
+  .month-block {}
+
+  .month-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text3);
+    margin-bottom: 8px;
+  }
+
+  .month-grid {
+    display: grid;
+    grid-template-columns: 28px repeat(31, minmax(0, 1fr));
+    gap: 2px;
+    align-items: start;
+  }
+
+  .day-header {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    color: var(--text3);
+    text-align: center;
+    padding: 2px 0;
+  }
+
+  .day-cell {
+    min-height: 28px;
+    border-radius: 3px;
+    background: var(--bg3);
+    position: relative;
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+
+  .day-cell:hover { transform: scale(1.1); z-index: 10; }
+  .day-cell.empty { background: transparent; cursor: default; }
+  .day-cell.empty:hover { transform: none; }
+  .day-cell.has-log { }
+  .day-cell.today { outline: 2px solid var(--accent); }
+
+  .row-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    color: var(--text3);
+    writing-mode: horizontal-tb;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 4px;
+    height: 28px;
+  }
+
+  /* TOOLTIP */
+  .tooltip {
+    position: fixed;
+    background: var(--bg4);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--text);
+    z-index: 9999;
+    pointer-events: none;
+    display: none;
+    max-width: 280px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+
+  .tooltip-date { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--text3); margin-bottom: 6px; }
+  .tooltip-item { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+  .tooltip-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* FILTER ROW */
+  .filter-row { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+
+  .filter-row .form-control { width: auto; min-width: 160px; }
+
+  /* IMPORT */
+  .import-area {
+    border: 2px dashed var(--border2);
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text3);
+  }
+
+  .import-area:hover { border-color: var(--accent); color: var(--accent); }
+  .import-area .import-icon { font-size: 36px; margin-bottom: 12px; }
+  .import-area p { font-size: 13px; }
+  .import-area small { font-size: 11px; color: var(--text3); margin-top: 6px; display: block; }
+
+  /* ALERT */
+  .alert {
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .alert-info { background: rgba(85,153,238,0.1); border: 1px solid rgba(85,153,238,0.3); color: var(--blue); }
+  .alert-success { background: rgba(80,200,120,0.1); border: 1px solid rgba(80,200,120,0.3); color: var(--green); }
+  .alert-warn { background: rgba(240,192,64,0.1); border: 1px solid rgba(240,192,64,0.3); color: var(--accent); }
+
+  /* LOG INPUT */
+  .log-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  /* TASK TREE */
+  .task-row-indent { padding-left: 24px; }
+
+  .task-parent-row { font-weight: 600; }
+
+  /* SEARCH */
+  .search-box {
+    position: relative;
+  }
+
+  .search-box input {
+    padding-left: 32px;
+  }
+
+  .search-box .search-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text3);
+    font-size: 13px;
+    pointer-events: none;
+  }
+
+  /* Responsive tweaks */
+  .mb-20 { margin-bottom: 20px; }
+  .mb-10 { margin-bottom: 10px; }
+  .mt-10 { margin-top: 10px; }
+  .flex { display: flex; }
+  .flex-center { display: flex; align-items: center; }
+  .gap-10 { gap: 10px; }
+  .gap-6 { gap: 6px; }
+  .text-right { text-align: right; }
+  .text-sm { font-size: 12px; }
+  .color-muted { color: var(--text3); }
+  .mono { font-family: 'Space Mono', monospace; }
+
+  /* HEATMAP legend */
+  .legend { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text3); }
+  .legend-box { width: 12px; height: 12px; border-radius: 2px; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg2); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+  /* Page hidden */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text3);
+  }
+  .empty-state .empty-icon { font-size: 40px; margin-bottom: 14px; }
+  .empty-state p { font-size: 14px; }
+
+  /* Notification */
+  #notif {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+  }
+
+  .notif-item {
+    background: var(--bg4);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--text);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    animation: slideIn 0.2s ease;
+    max-width: 300px;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .notif-success { border-left: 3px solid var(--green); }
+  .notif-error { border-left: 3px solid var(--red); }
+
+  /* DASHBOARD summary cards */
+  .summary-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+
+  /* By-Task breakdown */
+  .task-detail-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+  .task-detail-row:hover { background: var(--bg3); }
+  .task-detail-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  /* Month mini overview */
+  .mini-cal-row { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 14px; }
+  .mini-month { flex: 1; }
+  .mini-month-label { font-size: 9px; color: var(--text3); font-family: 'Space Mono', monospace; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; text-align: center; }
+  .mini-month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .mini-day { height: 10px; border-radius: 1px; background: var(--bg3); }
+  .mini-day.active { background: var(--accent); opacity: 0.7; }
+
+  /* ===== TIMELINE PER USER ===== */
+  .tlu-wrap {
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* Month header strip */
+  .tlu-month-headers {
+    display: flex;
+    margin-left: 90px; /* user label width */
+    margin-bottom: 4px;
+    gap: 0;
+  }
+
+  .tlu-month-hdr {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text3);
+    text-align: center;
+    padding: 0 1px;
+    border-left: 1px solid var(--border);
+  }
+
+  /* Day number header */
+  .tlu-day-headers {
+    display: flex;
+    margin-left: 90px;
+    margin-bottom: 6px;
+  }
+
+  .tlu-day-hdr {
+    font-size: 8px;
+    color: var(--text3);
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .tlu-day-hdr.weekend { color: #3a3a3a; }
+  .tlu-day-hdr.today-col { color: var(--accent); font-weight: 700; }
+
+  /* User row */
+  .tlu-user-row {
+    display: flex;
+    align-items: stretch;
+    margin-bottom: 3px;
+    min-height: 28px;
+  }
+
+  .tlu-user-label {
+    width: 90px;
+    min-width: 90px;
+    display: flex;
+    align-items: center;
+    padding-right: 10px;
+    font-size: 10px;
+    color: var(--text2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
+  }
+
+  .tlu-user-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-right: 6px;
+  }
+
+  /* Day cell in user-timeline */
+  .tlu-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 2px;
+    background: var(--bg3);
+    cursor: default;
+    flex-shrink: 0;
+    overflow: hidden;
+    position: relative;
+    transition: transform 0.1s, z-index 0.1s;
+    gap: 1px;
+    padding: 1px;
+  }
+
+  .tlu-cell:hover { transform: scale(1.3); z-index: 20; box-shadow: 0 2px 8px rgba(0,0,0,0.6); cursor: pointer; }
+  .tlu-cell.empty-month { background: transparent; }
+  .tlu-cell.weekend { background: rgba(255,255,255,0.015); }
+  .tlu-cell.today-cell { outline: 1px solid var(--accent); }
+
+  /* Task code chip inside cell */
+  .tlu-code {
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    line-height: 1;
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    flex-shrink: 0;
+  }
+
+  /* Cell sizes */
+  .tlu-wrap.size-compact .tlu-cell { width: 14px; min-height: 20px; }
+  .tlu-wrap.size-compact .tlu-code { font-size: 6px; height: 8px; }
+  .tlu-wrap.size-compact .tlu-user-row { min-height: 20px; }
+
+  .tlu-wrap.size-normal .tlu-cell { width: 20px; min-height: 28px; }
+  .tlu-wrap.size-normal .tlu-code { font-size: 7px; height: 11px; }
+  .tlu-wrap.size-normal .tlu-user-row { min-height: 28px; }
+
+  .tlu-wrap.size-large .tlu-cell { width: 28px; min-height: 38px; }
+  .tlu-wrap.size-large .tlu-code { font-size: 9px; height: 14px; }
+  .tlu-wrap.size-large .tlu-user-row { min-height: 38px; }
+
+  /* Divider between months */
+  .tlu-cell.month-start { border-left: 1px solid var(--border); }
+
+  /* User row separator */
+  .tlu-user-separator {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 0 4px 90px;
+  }
+
+  /* Sticky month nav */
+  .tlu-sticky-header {
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 30;
+    padding-bottom: 4px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ===== PLANNING GANTT ===== */
+.gantt-outer {
+  overflow-x: auto;
+  position: relative;
+}
+
+
+.gantt-wrap {
+  display: flex;
+  flex-direction: column;
+  min-width: max-content;
+}
+
+/* Sticky left column — task label */
+.gantt-row-label,
+.gantt-task-col {
+  position: sticky;
+  left: 0;
+  z-index: 20;
+  background: var(--bg);
+  box-shadow: 2px 0 6px rgba(0,0,0,0.3); /* shadow penanda sticky */
+}
+
+
+.gantt-row:hover .gantt-row-label { background: var(--bg3); }
+.gantt-task-col {
+  z-index: 31;
+}
+
+.gantt-header-row {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: var(--bg);
+}
+.gantt-header-row {
+  display: flex;
+  position: sticky;
+  top: 0;
+  left: 0;
+  background: var(--bg);
+  z-index: 30;
+  border-bottom: 1px solid var(--border);
+}
+
+.gantt-task-col {
+  width: 160px;
+  min-width: 160px;
+  flex-shrink: 0;
+  z-index: 31; /* above month headers */
+  border-right: 1px solid var(--border);
+  padding: 6px 8px;
+}
+
+.gantt-month-hdr {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px; text-transform: uppercase;
+  letter-spacing: 1.5px; color: var(--text3);
+  padding: 3px 4px; border-left: 1px solid var(--border);
+  white-space: nowrap; overflow: hidden; background: var(--bg2);
+}
+
+.gantt-day-hdr {
+  font-family: 'Space Mono', monospace; font-size: 8px;
+  color: var(--text3); text-align: center;
+  border-left: 1px solid rgba(255,255,255,0.04);
+  flex-shrink: 0; padding: 2px 0;
+}
+.gantt-day-hdr.weekend  { color: rgba(148,163,184,0.4); }
+.gantt-day-hdr.today-col { color: var(--accent); font-weight: 700; }
+
+.gantt-row {
+  display: flex; align-items: stretch;
+  border-bottom: 1px solid var(--border);
+  min-height: 32px; position: relative;
+}
+.gantt-row:hover { background: var(--bg3); }
+.gantt-row.is-child  .gantt-row-label { font-size: 10px; }
+.gantt-row.is-parent .gantt-row-label { font-weight: 600; }
+
+.gantt-row-label {
+  width: 160px; min-width: 160px;
+  padding: 4px 8px;
+  display: flex; flex-direction: column; justify-content: center;
+  border-right: 1px solid var(--border);
+  flex-shrink: 0; cursor: pointer; user-select: none;
+  overflow: hidden;
+}
+
+.gantt-row-label .label-name {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: 11px; color: var(--text2);
+}
+.gantt-row.is-parent .gantt-row-label .label-name { font-weight: 600; color: var(--text); }
+.gantt-row.is-child  .gantt-row-label .label-name { color: var(--text3); font-size: 10px; }
+
+.gantt-row-label .label-dates {
+  font-size: 9px; color: var(--text3);
+  font-family: 'Space Mono', monospace;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
+.gantt-row-label .assigned-dots { display: flex; gap: 2px; margin-top: 3px; flex-wrap: wrap; }
+.gantt-row-label .assigned-dot  { width: 6px; height: 6px; border-radius: 50%; }
+
+.gantt-edit-hint {
+  font-size: 8px; color: var(--accent); opacity: 0;
+  transition: opacity 0.15s; font-family: 'Space Mono', monospace;
+}
+.gantt-row-label:hover .gantt-edit-hint { opacity: 1; }
+
+.gantt-track {
+  flex: 1; position: relative; display: flex; align-items: center;
+}
+
+.gantt-day-bg {
+  position: absolute; top: 0; bottom: 0;
+  border-left: 1px solid rgba(255,255,255,0.03); flex-shrink: 0;
+}
+.gantt-day-bg.weekend     { background: rgba(255,255,255,0.012); border-left-color: transparent; }
+.gantt-day-bg.month-start { border-left: 1px solid var(--border); }
+.gantt-day-bg.today-bg    { background: rgba(79,156,255,0.06); border-left: 1px solid rgba(79,156,255,0.3); }
+
+.gantt-bar-plan {
+  position: absolute; height: 10px; top: 50%;
+  transform: translateY(-50%);
+  border-radius: 2px; background: var(--accent);
+  opacity: 0.3; z-index: 2;
+}
+.gantt-bar-actual {
+  position: absolute; height: 6px; top: calc(50% + 5px);
+  border-radius: 2px; z-index: 3; opacity: 0.9;
+}
+.gantt-bar-users {
+  position: absolute; top: calc(50% - 13px);
+  display: flex; gap: 2px; z-index: 4; pointer-events: none;
+}
+.gantt-avatar {
+  width: 12px; height: 12px; border-radius: 50%;
+  font-family: 'Space Mono', monospace; font-size: 5px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  color: #0f0f0f; border: 1px solid rgba(255,255,255,0.2); flex-shrink: 0;
+}
+.gantt-no-plan {
+  font-size: 9px; color: var(--text3); padding-left: 6px;
+  font-style: italic; font-family: 'Space Mono', monospace;
+}
+.gantt-separator { height: 1px; background: var(--border2); margin: 4px 0 4px 0; }
+
+
+/* User check pills in modal */
+.user-check-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border2);
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text2);
+  transition: all 0.15s;
+  user-select: none;
+}
+.user-check-pill.selected {
+  border-color: var(--accent);
+  background: rgba(79,156,255,0.1);
+  color: var(--accent);
+}
+.user-check-pill .pill-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+}
+
+
+/* Multi-check pill group */
+.multi-check-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  min-height: 38px;
+}
+
+.mcp-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border2);
+  font-size: 11px;
+  font-family: 'Space Mono', monospace;
+  color: var(--text3);
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.mcp-pill:hover { border-color: var(--accent); color: var(--text2); }
+.mcp-pill.selected { background: rgba(79,156,255,0.12); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+
+/* Task detail info badges */
+.task-info-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.tib {
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-family: 'Space Mono', monospace;
+  white-space: nowrap;
+}
+
+.tib-site     { background: rgba(59,130,246,0.12); color: var(--blue); border: 1px solid rgba(59,130,246,0.25); }
+.tib-init     { background: rgba(20,184,166,0.12); color: var(--teal); border: 1px solid rgba(20,184,166,0.25); }
+.tib-product  { background: rgba(139,92,246,0.12); color: var(--purple); border: 1px solid rgba(139,92,246,0.25); }
+.tib-category-imp { background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
+.tib-category-new { background: rgba(249,115,22,0.12); color: var(--orange); border: 1px solid rgba(249,115,22,0.25); }
+
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-text">TASKFLOW</div>
+    <div class="logo-sub">Project Management</div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">Overview</div>
+    <div class="nav-item active" data-page="dashboard">
+      <span class="icon">⬛</span> Dashboard
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">Log & Input</div>
+    <div class="nav-item" data-page="log-input">
+      <span class="icon">✏️</span> Input Log Harian
+    </div>
+    <div class="nav-item" data-page="import">
+      <span class="icon">📥</span> Import Spreadsheet
+    </div>
+    <div class="nav-item" data-page="import-tasks">
+        <span class="icon">📋</span> Import Master Task
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">Analitik</div>
+    <div class="nav-item" data-page="planning">
+        <span class="icon">🗓️</span> Planning Gantt
+    </div>
+    <div class="nav-item" data-page="timeline">
+      <span class="icon">📅</span> Timeline 1 Tahun
+    </div>
+    <div class="nav-item" data-page="timeline-user">
+      <span class="icon">🔢</span> Timeline Per User
+    </div>
+    <div class="nav-item" data-page="timeline-task">
+        <span class="icon">📊</span> Timeline Per Task
+    </div>
+    <div class="nav-item" data-page="by-user">
+      <span class="icon">👤</span> By User
+    </div>
+    <div class="nav-item" data-page="by-task">
+      <span class="icon">📋</span> By Task
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">Master Data</div>
+    <div class="nav-item" data-page="users">
+      <span class="icon">👥</span> Users
+    </div>
+    <div class="nav-item" data-page="tasks">
+      <span class="icon">🗂️</span> Tasks
+    </div>
+  </div>
+
+  <div class="sidebar-bottom">
+    v1.0 — localStorage mode
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <div class="topbar">
+    <h1 id="page-title">DASHBOARD</h1>
+    <div class="topbar-actions" id="topbar-actions"></div>
+  </div>
+
+  <div class="page-content">
+
+    <!-- ===== PAGE: DASHBOARD ===== -->
+    <div class="page active" id="page-dashboard">
+      <div class="summary-row" id="summary-row"></div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Aktivitas 7 Hari Terakhir</div>
+          <div id="recent-logs-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Task Aktif (30 hari terakhir)</div>
+          <div id="active-tasks-list"></div>
+        </div>
+      </div>
+      <div class="card mt-10" style="margin-top:20px">
+        <div class="card-title">Mini Overview — Tahun Ini</div>
+        <div id="mini-year-overview"></div>
+      </div>
+    </div>
+
+    <!-- ===== PAGE: LOG INPUT ===== -->
+    <div class="page" id="page-log-input">
+      <div class="grid-2" style="align-items:start">
+        <div class="card">
+          <div class="card-title">Tambah Log Harian</div>
+          <div class="form-group">
+            <label class="form-label">User</label>
+            <select class="form-control" id="log-user"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Task</label>
+            <select class="form-control" id="log-task"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tanggal</label>
+            <input type="date" class="form-control" id="log-date">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Catatan (opsional)</label>
+            <input type="text" class="form-control" id="log-note" placeholder="Deskripsi singkat...">
+          </div>
+          <button class="btn btn-primary" id="btn-add-log" style="width:100%">+ Tambah Log</button>
+        </div>
+        <div class="card">
+          <div class="card-title">Log Terbaru</div>
+          <div id="log-recent-list" style="max-height:500px;overflow-y:auto"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PAGE: IMPORT ===== -->
+    <div class="page" id="page-import">
+      <div class="alert alert-info" style="margin-bottom:20px">
+        <span>ℹ️</span>
+        <div>
+          <strong>Format CSV yang diterima:</strong><br>
+          <code style="font-size:11px;background:rgba(0,0,0,0.2);padding:2px 6px;border-radius:3px">tanggal,user,task,catatan</code><br>
+          <span style="font-size:11px">Contoh: <code style="background:rgba(0,0,0,0.2);padding:2px 6px;border-radius:3px">2024-04-14,Budi,Task A,selesai review</code></span>
+        </div>
+      </div>
+      <div class="grid-2" style="align-items:start">
+        <div class="card">
+          <div class="card-title">Upload File CSV</div>
+          <div class="import-area" id="import-area">
+            <div class="import-icon">📂</div>
+            <p>Klik atau drag & drop file CSV di sini</p>
+            <small>Format: tanggal, user, task, catatan</small>
+            <input type="file" id="csv-file" accept=".csv" style="display:none">
+          </div>
+          <div id="import-preview" style="margin-top:16px"></div>
+          <button class="btn btn-green" id="btn-do-import" style="width:100%;margin-top:14px;display:none">
+            ✅ Proses Import
+          </button>
+        </div>
+        <div class="card">
+          <div class="card-title">Contoh Template CSV</div>
+          <div class="alert alert-warn">
+            <span>⚠️</span> User dan Task harus sudah terdaftar di master data. Nama harus persis sama (case-insensitive).
+          </div>
+          <pre style="background:var(--bg3);padding:16px;border-radius:6px;font-size:12px;color:var(--text2);overflow-x:auto">tanggal,user,task,catatan
+2024-04-14,Budi,Task A,review desain
+2024-04-14,Ani,Task B,implementasi
+2024-04-15,Budi,Task A,finalisasi
+2024-04-15,Citra,Task A,testing
+2024-04-16,Ani,Task C,dokumentasi</pre>
+          <button class="btn btn-ghost mt-10" id="btn-download-template" style="width:100%;margin-top:12px">
+            ⬇️ Download Template CSV
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PAGE: IMPORT MASTER TASK ===== -->
+<div class="page" id="page-import-tasks">
+  <div class="alert alert-info" style="margin-bottom:20px">
+    <span>ℹ️</span>
+    <div>
+      <strong>Cara import:</strong> Buka template Excel → Save As CSV (Comma delimited) → Upload di sini.<br>
+      <span style="font-size:11px">Kolom wajib: <code style="background:rgba(0,0,0,0.2);padding:2px 6px;border-radius:3px">task_name</code>. Opsional: <code style="background:rgba(0,0,0,0.2);padding:2px 6px;border-radius:3px">parent_task, site, initiated_by, product, process, category, plan_start, plan_end, assigned_users, description, order</code></span>
+    </div>
+  </div>
+
+  <div class="grid-2" style="align-items:start">
+    <div class="card">
+      <div class="card-title">Upload CSV Master Task</div>
+      <div class="import-area" id="import-tasks-area">
+        <div class="import-icon">📋</div>
+        <p>Klik atau drag & drop file CSV di sini</p>
+        <small>Dari template: File → Save As → CSV (Comma delimited)</small>
+        <input type="file" id="task-csv-file" accept=".csv" style="display:none">
+      </div>
+      <div id="import-tasks-preview" style="margin-top:16px"></div>
+      <button class="btn btn-green" id="btn-do-import-tasks" style="width:100%;margin-top:14px;display:none">
+        ✅ Proses Import Task
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Panduan Export CSV dari Excel</div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--accent);color:#0f0f0f;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+          <div style="font-size:13px;color:var(--text2)">Buka file <strong>master_task_template.xlsx</strong> di Excel</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--accent);color:#0f0f0f;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+          <div style="font-size:13px;color:var(--text2)">Pastikan sheet <strong>Master Task</strong> aktif</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--accent);color:#0f0f0f;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+          <div style="font-size:13px;color:var(--text2)">Klik <strong>File → Save As</strong></div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--accent);color:#0f0f0f;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</div>
+          <div style="font-size:13px;color:var(--text2)">Pilih format <strong>CSV (Comma delimited) (*.csv)</strong></div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--accent);color:#0f0f0f;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">5</div>
+          <div style="font-size:13px;color:var(--text2)">Klik <strong>Save</strong> → <strong>OK</strong> → upload file .csv di sini</div>
+        </div>
+      </div>
+      <div class="alert alert-warn" style="margin-top:16px">
+        <span>⚠️</span>
+        <div style="font-size:12px">Task yang sudah ada (nama sama) akan <strong>ditimpa</strong> dengan data baru dari CSV. Plan & assigned users juga akan diperbarui.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    <!-- ===== PAGE: TIMELINE ===== -->
+    <div class="page" id="page-timeline">
+      <div class="filter-row">
+        <div class="year-nav">
+          <button class="btn btn-ghost btn-sm" id="year-prev">◀</button>
+          <span id="current-year">2024</span>
+          <button class="btn btn-ghost btn-sm" id="year-next">▶</button>
+        </div>
+        <select class="form-control" id="tl-view-mode" style="width:160px">
+          <option value="user">Warnai by User</option>
+          <option value="task">Warnai by Task</option>
+        </select>
+        <select class="form-control" id="tl-filter-user" style="width:160px">
+          <option value="">Semua User</option>
+        </select>
+        <select class="form-control" id="tl-filter-task" style="width:160px">
+          <option value="">Semua Task</option>
+        </select>
+        <div class="legend" id="tl-legend"></div>
+      </div>
+      <div class="timeline-months" id="timeline-months"></div>
+    </div>
+
+    <!-- ===== PAGE: BY USER ===== -->
+    <div class="page" id="page-by-user">
+      <div class="filter-row">
+        <select class="form-control" id="bu-user" style="width:200px">
+          <option value="">-- Pilih User --</option>
+        </select>
+        <input type="month" class="form-control" id="bu-month" style="width:160px">
+        <button class="btn btn-ghost btn-sm" id="bu-clear-month">Semua Bulan</button>
+      </div>
+      <div id="by-user-content"></div>
+    </div>
+
+    <!-- ===== PAGE: BY TASK ===== -->
+    <div class="page" id="page-by-task">
+      <div class="filter-row">
+        <select class="form-control" id="bt-task" style="width:240px">
+          <option value="">-- Pilih Task --</option>
+        </select>
+        <input type="month" class="form-control" id="bt-month" style="width:160px">
+        <button class="btn btn-ghost btn-sm" id="bt-clear-month">Semua Bulan</button>
+      </div>
+      <div id="by-task-content"></div>
+    </div>
+
+    <!-- ===== PAGE: TIMELINE PER USER ===== -->
+    <div class="page" id="page-timeline-user">
+      <div class="filter-row" style="flex-wrap:wrap;gap:12px;margin-bottom:16px">
+        <div class="year-nav">
+          <button class="btn btn-ghost btn-sm" id="tlu-year-prev">◀</button>
+          <span id="tlu-current-year">2024</span>
+          <button class="btn btn-ghost btn-sm" id="tlu-year-next">▶</button>
+        </div>
+        <select class="form-control" id="tlu-filter-task" style="width:200px">
+          <option value="">Semua Task</option>
+        </select>
+        <div style="display:flex;align-items:center;gap:8px">
+          <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;white-space:nowrap">Ukuran Sel</label>
+          <select class="form-control" id="tlu-cell-size" style="width:100px">
+            <option value="compact">Kompak</option>
+            <option value="normal" selected>Normal</option>
+            <option value="large">Besar</option>
+          </select>
+        </div>
+        <div id="tlu-legend" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"></div>
+      </div>
+      <div id="tlu-container" style="overflow-x:auto;padding-bottom:20px"></div>
+    </div>
+
+    <!-- ===== PAGE: PLANNING GANTT ===== -->
+    <div class="page" id="page-planning">
+
+        <!-- Controls -->
+        <div class="filter-row" style="flex-wrap:wrap;gap:12px;margin-bottom:16px">
+            <div class="year-nav">
+            <button class="btn btn-ghost btn-sm" id="plan-year-prev">◀</button>
+            <span id="plan-current-year">2024</span>
+            <button class="btn btn-ghost btn-sm" id="plan-year-next">▶</button>
+            </div>
+            <select class="form-control" id="plan-filter-user" style="width:180px">
+            <option value="">Semua User</option>
+            </select>
+            <button class="btn btn-primary btn-sm" id="btn-open-plan-modal">+ Set Plan Task</button>
+            <div style="display:flex;gap:14px;align-items:center;margin-left:auto;font-size:11px;color:var(--text3)">
+            <span style="display:flex;align-items:center;gap:5px"><span style="width:28px;height:10px;border-radius:2px;background:var(--accent);opacity:0.35;display:inline-block"></span> Plan</span>
+            <span style="display:flex;align-items:center;gap:5px"><span style="width:28px;height:10px;border-radius:2px;background:var(--green);display:inline-block"></span> Actual</span>
+            </div>
+        </div>
+
+        <!-- Gantt area -->
+        <div class="gantt-outer" >
+            <div id="plan-gantt-wrap"></div>
+        </div>
+
+    </div>
+
+    <!-- ===== PAGE: TIMELINE PER TASK ===== -->
+    <div class="page" id="page-timeline-task">
+        <div class="filter-row" style="flex-wrap:wrap;gap:12px;margin-bottom:16px">
+            <div class="year-nav">
+            <button class="btn btn-ghost btn-sm" id="tlt-year-prev">◀</button>
+            <span id="tlt-current-year">2024</span>
+            <button class="btn btn-ghost btn-sm" id="tlt-year-next">▶</button>
+            </div>
+            <select class="form-control" id="tlt-filter-user" style="width:180px">
+            <option value="">Semua User</option>
+            </select>
+            <div style="display:flex;align-items:center;gap:8px">
+            <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;white-space:nowrap">Ukuran Sel</label>
+            <select class="form-control" id="tlt-cell-size" style="width:100px">
+                <option value="compact">Kompak</option>
+                <option value="normal" selected>Normal</option>
+                <option value="large">Besar</option>
+            </select>
+            </div>
+            <div id="tlt-legend" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"></div>
+        </div>
+        <div id="tlt-container" style="overflow-x:auto;padding-bottom:20px"></div>
+    </div>
+
+    <!-- ===== PAGE: USERS ===== -->
+    <div class="page" id="page-users">
+      <div class="grid-2" style="align-items:start">
+        <div class="card">
+          <div class="card-title">Daftar User</div>
+          <div id="users-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Tambah User</div>
+          <div class="form-group">
+            <label class="form-label">Nama User</label>
+            <input type="text" class="form-control" id="new-user-name" placeholder="Nama lengkap...">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Role / Jabatan (opsional)</label>
+            <input type="text" class="form-control" id="new-user-role" placeholder="Developer, Designer, dll...">
+          </div>
+          <button class="btn btn-primary" id="btn-add-user" style="width:100%">+ Tambah User</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PAGE: TASKS ===== -->
+    <div class="page" id="page-tasks">
+        <div class="grid-2" style="align-items:start">
+            <div class="card">
+            <div class="card-title">Struktur Task</div>
+            <div id="tasks-tree"></div>
+            </div>
+            <div class="card">
+            <div class="card-title">Tambah Task</div>
+            <div class="form-group">
+                <label class="form-label">Nama Task</label>
+                <input type="text" class="form-control" id="new-task-name" placeholder="Nama task...">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Task Induk (kosongkan jika induk baru)</label>
+                <select class="form-control" id="new-task-parent">
+                <option value="">— Tidak ada (Task Induk) —</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Process / Impacted Module</label>
+                <input type="text" class="form-control" id="new-task-desc" placeholder="Modul yang terdampak...">
+            </div>
+
+            <!-- Detail Info -->
+            <div style="border-top:1px solid var(--border);margin:16px 0 14px;padding-top:14px">
+                <div class="card-title" style="margin-bottom:12px">Detail Info</div>
+
+                <div class="form-group">
+                <label class="form-label">Site</label>
+                <div class="multi-check-group" id="new-task-site"></div>
+                </div>
+                <div class="form-group">
+                <label class="form-label">Initiated By</label>
+                <div class="multi-check-group" id="new-task-initiated"></div>
+                </div>
+                <div class="form-group">
+                <label class="form-label">Product</label>
+                <div class="multi-check-group" id="new-task-product"></div>
+                </div>
+                <div class="log-form-row">
+                <div class="form-group">
+                    <label class="form-label">Category</label>
+                    <select class="form-control" id="new-task-category">
+                    <option value="">— Pilih —</option>
+                    <option>Improvement</option>
+                    <option>New Development</option>
+                    </select>
+                </div>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" id="btn-add-task" style="width:100%">+ Tambah Task</button>
+
+            <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border)">
+                <div class="card-title">Ubah Induk Task</div>
+                <div class="form-group">
+                <label class="form-label">Task</label>
+                <select class="form-control" id="reparent-task"></select>
+                </div>
+                <div class="form-group">
+                <label class="form-label">Jadikan Induk Baru</label>
+                <select class="form-control" id="reparent-parent">
+                    <option value="">— Jadikan Task Induk —</option>
+                </select>
+                </div>
+                <button class="btn btn-ghost" id="btn-reparent" style="width:100%">🔀 Ubah Induk</button>
+            </div>
+            </div>
+        </div>
+    </div>
+
+  </div><!-- end page-content -->
+</div><!-- end main -->
+
+<!-- TOOLTIP -->
+<div class="tooltip" id="tooltip"></div>
+
+<!-- MODAL EDIT LOG -->
+<div class="modal-overlay" id="modal-edit-log">
+  <div class="modal">
+    <div class="modal-title">Edit Log</div>
+    <input type="hidden" id="edit-log-id">
+    <div class="form-group">
+      <label class="form-label">User</label>
+      <select class="form-control" id="edit-log-user"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Task</label>
+      <select class="form-control" id="edit-log-task"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Tanggal</label>
+      <input type="date" class="form-control" id="edit-log-date">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Catatan</label>
+      <input type="text" class="form-control" id="edit-log-note">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-cancel-edit-log">Batal</button>
+      <button class="btn btn-danger btn-sm" id="btn-delete-log">Hapus</button>
+      <button class="btn btn-primary" id="btn-save-edit-log">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDIT USER -->
+<div class="modal-overlay" id="modal-edit-user">
+  <div class="modal">
+    <div class="modal-title">Edit User</div>
+    <input type="hidden" id="edit-user-id">
+    <div class="form-group">
+      <label class="form-label">Nama</label>
+      <input type="text" class="form-control" id="edit-user-name">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Role</label>
+      <input type="text" class="form-control" id="edit-user-role">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-cancel-edit-user">Batal</button>
+      <button class="btn btn-danger btn-sm" id="btn-delete-user">Hapus</button>
+      <button class="btn btn-primary" id="btn-save-edit-user">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDIT TASK -->
+<div class="modal-overlay" id="modal-edit-task">
+  <div class="modal" style="width:540px">
+    <div class="modal-title">Edit Task</div>
+    <input type="hidden" id="edit-task-id">
+    <div class="form-group">
+      <label class="form-label">Nama Task</label>
+      <input type="text" class="form-control" id="edit-task-name">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Process / Impacted Module</label>
+      <input type="text" class="form-control" id="edit-task-desc">
+    </div>
+
+    <div style="border-top:1px solid var(--border);margin:16px 0 14px;padding-top:14px">
+      <div class="card-title" style="margin-bottom:12px">Detail Info</div>
+      <div class="form-group">
+        <label class="form-label">Site</label>
+        <div class="multi-check-group" id="edit-task-site"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Initiated By</label>
+        <div class="multi-check-group" id="edit-task-initiated"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Product</label>
+        <div class="multi-check-group" id="edit-task-product"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Category</label>
+        <select class="form-control" id="edit-task-category">
+          <option value="">— Pilih —</option>
+          <option>Improvement</option>
+          <option>New Development</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-cancel-edit-task">Batal</button>
+      <button class="btn btn-danger btn-sm" id="btn-delete-task">Hapus</button>
+      <button class="btn btn-primary" id="btn-save-edit-task">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: SET PLAN -->
+<div class="modal-overlay" id="modal-plan">
+  <div class="modal" style="width:520px">
+    <div class="modal-title">🗓️ Set / Edit Plan Task</div>
+    <div class="form-group">
+      <label class="form-label">Task</label>
+      <select class="form-control" id="plan-task-sel"></select>
+    </div>
+    <div class="log-form-row">
+      <div class="form-group">
+        <label class="form-label">Tanggal Mulai</label>
+        <input type="date" class="form-control" id="plan-date-start">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tanggal Selesai</label>
+        <input type="date" class="form-control" id="plan-date-end">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Assign User (boleh lebih dari satu)</label>
+      <div id="plan-user-checks" style="display:flex;flex-wrap:wrap;gap:10px;padding:10px;background:var(--bg3);border-radius:4px;border:1px solid var(--border)"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Keterangan (opsional)</label>
+      <input type="text" class="form-control" id="plan-note" placeholder="Deskripsi singkat rencana...">
+    </div>
+    <div id="plan-modal-alert" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-plan-cancel">Batal</button>
+      <button class="btn btn-danger btn-sm" id="btn-plan-delete" style="display:none">Hapus Plan</button>
+      <button class="btn btn-primary" id="btn-plan-save">Simpan Plan</button>
+    </div>
+  </div>
+</div>
+
+<!-- NOTIF -->
+<div id="notif"></div>
+
+<script>
+// ==================== DATA LAYER ====================
+
+const DB = {
+  get(key) {
+    try { return JSON.parse(localStorage.getItem('tf_' + key)) || []; }
+    catch { return []; }
+  },
+  set(key, val) {
+    localStorage.setItem('tf_' + key, JSON.stringify(val));
+  },
+  users() { return DB.get('users'); },
+  tasks() { return DB.get('tasks'); },
+  logs() { return DB.get('logs'); },
+  saveUsers(d) { DB.set('users', d); },
+  saveTasks(d) { DB.set('tasks', d); },
+  saveLogs(d) { DB.set('logs', d); },
+};
+
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+// ==================== SEED SAMPLE DATA ====================
+
+function seedData() {
+  if (DB.users().length > 0) return;
+
+  const users = [
+    { id: 'u1', name: 'Teddy Salawiska', role: 'ERP MRP Specialist' },
+    { id: 'u2', name: 'AH Muh Rojab', role: 'Digital Touchpoint Superintenden' },
+    { id: 'u3', name: 'Shella Lim', role: 'Digital Touchpoint Supervisor' },
+    { id: 'u4', name: 'Ihya Annisa', role: 'Software Engineer' },
+    { id: 'u5', name: 'Bhakti Junrio', role: 'Software Engineer' },
+    { id: 'u6', name: 'Khairul Bahri', role: 'Software Engineer' },
+    { id: 'u7', name: 'Parna Erikson Saragi', role: 'Software Engineer' },
+    { id: 'u8', name: 'Handika Hidayat', role: 'Software Engineer' },
+    { id: 'u9', name: 'Chris Jerry', role: 'Software Engineer' },
+  ];
+
+  const tasks = [
+    { id: 't1', name: 'Proyek Alpha', parentId: null, desc: 'Proyek utama' },
+    { id: 't2', name: 'Desain UI', parentId: 't1', desc: 'Sub-task desain' },
+    { id: 't3', name: 'Backend API', parentId: 't1', desc: 'Sub-task backend' },
+    { id: 't4', name: 'Testing & QA', parentId: 't1', desc: 'Sub-task testing' },
+    { id: 't5', name: 'Proyek Beta', parentId: null, desc: 'Proyek kedua' },
+    { id: 't6', name: 'Riset & Analisis', parentId: 't5', desc: '' },
+    { id: 't7', name: 'Dokumentasi', parentId: null, desc: 'Task lintas proyek' },
+  ];
+
+  // Generate logs for the current year
+  const logs = [];
+  const year = new Date().getFullYear();
+  const taskIds = ['t2','t3','t4','t6','t7'];
+  const userIds = ['u1','u2','u3','u4','u5','u6','u7','u8','u9'];
+
+  for (let m = 0; m < 12; m++) {
+    const days = new Date(year, m+1, 0).getDate();
+    for (let d = 1; d <= days; d++) {
+      const date = `${year}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const dow = new Date(date).getDay();
+      if (dow === 0 || dow === 6) continue; // skip weekends
+      // Random 1-3 logs per workday
+      const count = Math.floor(Math.random() * 3) + 1;
+      const usedPairs = new Set();
+      for (let i = 0; i < count; i++) {
+        const uid_ = userIds[Math.floor(Math.random() * userIds.length)];
+        const tid = taskIds[Math.floor(Math.random() * taskIds.length)];
+        const key = uid_ + '_' + tid;
+        if (usedPairs.has(key)) continue;
+        usedPairs.add(key);
+        logs.push({ id: uid(), userId: uid_, taskId: tid, date, note: '' });
+      }
+    }
+  }
+
+  DB.saveUsers(users);
+  DB.saveTasks(tasks);
+  DB.saveLogs(logs);
+}
+
+// ==================== COLORS ====================
+const USER_COLORS = [
+  '#3b82f6', // blue
+  '#22c55e', // green
+  '#ef4444', // red
+  '#f97316', // orange
+  '#8b5cf6', // purple
+  '#14b8a6', // teal
+  '#ec4899', // pink
+  '#6366f1', // indigo
+  '#f59e0b', // amber
+  '#06b6d4', // cyan
+  '#84cc16', // lime
+  '#e11d48', // rose
+];
+const TASK_COLORS = ['#44ccbb','#ee8844','#aa77ee','#5599ee','#f0c040','#50c878','#ee6699','#e05555'];
+
+const SITES = ['CA', 'CBM', 'CTB'];
+const PRODUCTS = ['General', 'MLP', 'WOL', 'Fitting', 'Flange', 'CRA Bend', 'CS Bend', 'API', 'ALL MFG'];
+const CATEGORIES = ['Improvement', 'New Development'];
+
+function buildMultiPills(containerId, options, selected = []) {
+  let html = '';
+  options.forEach(opt => {
+    const sel = selected.includes(opt) ? 'selected' : '';
+    html += `<span class="mcp-pill ${sel}" data-val="${opt}">${opt}</span>`;
+  });
+  $('#' + containerId).html(html);
+}
+
+function getMultiPillValues(containerId) {
+  return $('#' + containerId + ' .mcp-pill.selected').map(function() {
+    return $(this).data('val');
+  }).get();
+}
+
+$(document).on('click', '.mcp-pill', function() {
+  $(this).toggleClass('selected');
+});
+
+function getUserColor(idx) { return USER_COLORS[idx % USER_COLORS.length]; }
+function getTaskColor(idx) { return TASK_COLORS[idx % TASK_COLORS.length]; }
+function getUserColorClass(idx) { return 'uc-' + (idx % 8); }
+
+function getUserIndex(userId) {
+  const users = DB.users();
+  return users.findIndex(u => u.id === userId);
+}
+
+function getTaskIndex(taskId) {
+  const tasks = DB.tasks();
+  return tasks.findIndex(t => t.id === taskId);
+}
+
+// ==================== NOTIFICATIONS ====================
+
+function notify(msg, type = 'success') {
+  const el = $('<div class="notif-item notif-' + type + '">' + msg + '</div>');
+  $('#notif').append(el);
+  setTimeout(() => el.fadeOut(300, () => el.remove()), 2800);
+}
+
+// ==================== NAVIGATION ====================
+
+function navigate(page) {
+  $('.page').removeClass('active');
+  $('.nav-item').removeClass('active');
+  $('#page-' + page).addClass('active');
+  $('[data-page="' + page + '"]').addClass('active');
+
+  const titles = {
+    'dashboard': 'DASHBOARD',
+    'log-input': 'INPUT LOG HARIAN',
+    'import': 'IMPORT SPREADSHEET',
+    'import-tasks': 'IMPORT MASTER TASK',
+    'planning': 'PLANNING GANTT — RENCANA vs AKTUAL',
+    'timeline': 'TIMELINE 1 TAHUN',
+    'timeline-user': 'TIMELINE PER USER — KODE TASK',
+    'timeline-task': 'TIMELINE PER TASK — AKTIVITAS HARIAN',
+    'by-user': 'ANALITIK — BY USER',
+    'by-task': 'ANALITIK — BY TASK',
+    'users': 'MASTER DATA — USERS',
+    'tasks': 'MASTER DATA — TASKS',
+  };
+  $('#page-title').text(titles[page] || page.toUpperCase());
+
+  // Render
+  const renders = {
+    'dashboard': renderDashboard,
+    'log-input': renderLogInput,
+    'import': () => {},
+    'import-tasks': () => {},
+    'planning': renderPlanning,
+    'timeline': renderTimeline,
+    'timeline-user': renderTimelineUser,
+    'timeline-task': renderTimelineTask,
+    'by-user': renderByUser,
+    'by-task': renderByTask,
+    'users': renderUsers,
+    'tasks': renderTasks,
+  };
+  if (renders[page]) renders[page]();
+}
+
+$(document).on('click', '.nav-item', function() {
+  navigate($(this).data('page'));
+});
+
+// ==================== HELPERS ====================
+
+function fmtDate(d) {
+  if (!d) return '';
+  const [y, m, day] = d.split('-');
+  const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
+  return `${parseInt(day)} ${months[parseInt(m)-1]} ${y}`;
+}
+
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function getTaskName(id) {
+  const t = DB.tasks().find(x => x.id === id);
+  return t ? t.name : '?';
+}
+
+function getUserName(id) {
+  const u = DB.users().find(x => x.id === id);
+  return u ? u.name : '?';
+}
+
+function getTaskFullName(id, tasks) {
+  const t = tasks.find(x => x.id === id);
+  if (!t) return '?';
+  if (t.parentId) {
+    const parent = tasks.find(x => x.id === t.parentId);
+    return parent ? `${parent.name} › ${t.name}` : t.name;
+  }
+  return t.name;
+}
+
+
+// ==================== DASHBOARD ====================
+
+function renderDashboard() {
+  const users = DB.users();
+  const tasks = DB.tasks();
+  const logs = DB.logs();
+  const todayStr = today();
+  const yearNow = new Date().getFullYear();
+
+  // Summary stats
+  const logsThisYear = logs.filter(l => l.date.startsWith(String(yearNow)));
+  const activeUsers = new Set(logsThisYear.map(l => l.userId)).size;
+  const activeTasks = new Set(logsThisYear.map(l => l.taskId)).size;
+
+  $('#summary-row').html(`
+    <div class="stat-box">
+      <div class="stat-label">Total Users</div>
+      <div class="stat-value">${users.length}</div>
+      <div class="stat-sub">terdaftar</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Total Tasks</div>
+      <div class="stat-value">${tasks.length}</div>
+      <div class="stat-sub">${tasks.filter(t=>!t.parentId).length} induk, ${tasks.filter(t=>t.parentId).length} sub-task</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Log Tahun Ini</div>
+      <div class="stat-value">${logsThisYear.length}</div>
+      <div class="stat-sub">${activeUsers} user aktif</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Total Log</div>
+      <div class="stat-value">${logs.length}</div>
+      <div class="stat-sub">${activeTasks} task dikerjakan</div>
+    </div>
+  `);
+
+  // Recent 7 days
+  const d7ago = new Date(); d7ago.setDate(d7ago.getDate() - 7);
+  const recentLogs = logs.filter(l => l.date >= d7ago.toISOString().slice(0,10))
+    .sort((a,b) => b.date.localeCompare(a.date));
+
+  if (recentLogs.length === 0) {
+    $('#recent-logs-list').html('<div class="empty-state"><div class="empty-icon">📭</div><p>Belum ada log minggu ini</p></div>');
+  } else {
+    let html = '';
+    recentLogs.slice(0, 15).forEach(l => {
+      const uIdx = getUserIndex(l.userId);
+      const tIdx = getTaskIndex(l.taskId);
+      html += `<div class="task-detail-row">
+        <div class="task-detail-dot" style="background:${getUserColor(uIdx)}"></div>
+        <div style="flex:1">
+          <div style="font-size:13px;color:var(--text)">${getUserName(l.userId)}</div>
+          <div style="font-size:11px;color:var(--text3)">${getTaskFullName(l.taskId, tasks)}</div>
+        </div>
+        <div style="font-size:11px;color:var(--text3);font-family:'Space Mono',monospace">${fmtDate(l.date)}</div>
+      </div>`;
+    });
+    $('#recent-logs-list').html(html);
+  }
+
+  // Active tasks (30 days)
+  const d30ago = new Date(); d30ago.setDate(d30ago.getDate() - 30);
+  const logs30 = logs.filter(l => l.date >= d30ago.toISOString().slice(0,10));
+  const taskCounts = {};
+  logs30.forEach(l => { taskCounts[l.taskId] = (taskCounts[l.taskId] || 0) + 1; });
+  const sorted = Object.entries(taskCounts).sort((a,b)=>b[1]-a[1]);
+
+  if (sorted.length === 0) {
+    $('#active-tasks-list').html('<div class="empty-state"><div class="empty-icon">📋</div><p>Belum ada task aktif</p></div>');
+  } else {
+    let html = '';
+    sorted.slice(0, 10).forEach(([tid, cnt]) => {
+      const tIdx = getTaskIndex(tid);
+      const t = tasks.find(x=>x.id===tid);
+      const isChild = t && t.parentId;
+      html += `<div class="task-detail-row">
+        <div class="task-detail-dot" style="background:${getTaskColor(tIdx)}"></div>
+        <div style="flex:1">
+          <div style="font-size:13px;color:var(--text)">${isChild?'↳ ':''}${getTaskName(tid)}</div>
+          ${isChild ? `<div style="font-size:11px;color:var(--text3)">${getTaskName(t.parentId)}</div>` : ''}
+        </div>
+        <div style="font-size:12px;color:var(--text3);font-family:'Space Mono',monospace">${cnt} log</div>
+      </div>`;
+    });
+    $('#active-tasks-list').html(html);
+  }
+
+  // Mini year overview
+  renderMiniYear(yearNow, logs);
+}
+
+function renderMiniYear(year, logs) {
+  const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
+  const logDates = new Set(logs.filter(l=>l.date.startsWith(String(year))).map(l=>l.date));
+  let rows = '';
+
+  for (let chunk = 0; chunk < 2; chunk++) {
+    rows += '<div class="mini-cal-row">';
+    for (let m = chunk*6; m < chunk*6+6; m++) {
+      const daysInMonth = new Date(year, m+1, 0).getDate();
+      let cells = '';
+      for (let d = 1; d <= daysInMonth; d++) {
+        const ds = `${year}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const hasLog = logDates.has(ds);
+        cells += `<div class="mini-day ${hasLog?'active':''}" title="${ds}"></div>`;
+      }
+      // pad
+      const firstDow = new Date(year, m, 1).getDay();
+      const pad = firstDow === 0 ? 6 : firstDow - 1;
+      let padCells = '';
+      for (let i = 0; i < pad; i++) padCells += '<div class="mini-day"></div>';
+
+      rows += `<div class="mini-month">
+        <div class="mini-month-label">${months[m]}</div>
+        <div class="mini-month-grid">${padCells}${cells}</div>
+      </div>`;
+    }
+    rows += '</div>';
+  }
+  $('#mini-year-overview').html(rows);
+}
+
+// ==================== LOG INPUT ====================
+
+function renderLogInput() {
+  const users = DB.users();
+  const tasks = DB.tasks();
+
+  let uOpts = users.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+  let tOpts = tasks.map(t => {
+    const indent = t.parentId ? '  ↳ ' : '';
+    return `<option value="${t.id}">${indent}${t.name}</option>`;
+  }).join('');
+
+  $('#log-user').html(uOpts);
+  $('#log-task').html(tOpts);
+  $('#edit-log-user').html(uOpts);
+  $('#edit-log-task').html(tOpts);
+  $('#log-date').val(today());
+
+  renderLogRecent();
+}
+
+function renderLogRecent() {
+  const logs = DB.logs().sort((a,b) => b.date.localeCompare(a.date));
+  const tasks = DB.tasks();
+
+  if (logs.length === 0) {
+    $('#log-recent-list').html('<div class="empty-state"><div class="empty-icon">📭</div><p>Belum ada log</p></div>');
+    return;
+  }
+
+  let html = '';
+  logs.slice(0, 50).forEach(l => {
+    const uIdx = getUserIndex(l.userId);
+    html += `<div class="task-detail-row" style="cursor:pointer" data-edit-log="${l.id}">
+      <div class="task-detail-dot" style="background:${getUserColor(uIdx)}"></div>
+      <div style="flex:1">
+        <div style="font-size:13px;color:var(--text)">${getUserName(l.userId)}</div>
+        <div style="font-size:11px;color:var(--text3)">${getTaskFullName(l.taskId, tasks)}</div>
+        ${l.note ? `<div style="font-size:11px;color:var(--text3);font-style:italic">${l.note}</div>` : ''}
+      </div>
+      <div style="font-size:11px;color:var(--text3);font-family:'Space Mono',monospace">${fmtDate(l.date)}</div>
+    </div>`;
+  });
+  $('#log-recent-list').html(html);
+}
+
+$(document).on('click', '#btn-add-log', function() {
+  const userId = $('#log-user').val();
+  const taskId = $('#log-task').val();
+  const date = $('#log-date').val();
+  const note = $('#log-note').val().trim();
+
+  if (!userId || !taskId || !date) { notify('Lengkapi semua field!', 'error'); return; }
+
+  const logs = DB.logs();
+  // check duplicate
+  const dup = logs.find(l => l.userId === userId && l.taskId === taskId && l.date === date);
+  if (dup) { notify('Log ini sudah ada!', 'error'); return; }
+
+  logs.push({ id: uid(), userId, taskId, date, note });
+  DB.saveLogs(logs);
+  notify('Log ditambahkan ✓');
+  $('#log-note').val('');
+  renderLogRecent();
+});
+
+// Edit log modal
+$(document).on('click', '[data-edit-log]', function() {
+  const logId = $(this).data('edit-log');
+  const log = DB.logs().find(l => l.id === logId);
+  if (!log) return;
+  $('#edit-log-id').val(log.id);
+  $('#edit-log-user').val(log.userId);
+  $('#edit-log-task').val(log.taskId);
+  $('#edit-log-date').val(log.date);
+  $('#edit-log-note').val(log.note);
+  $('#modal-edit-log').addClass('open');
+});
+
+$('#btn-cancel-edit-log').on('click', () => $('#modal-edit-log').removeClass('open'));
+
+$('#btn-save-edit-log').on('click', function() {
+  const id = $('#edit-log-id').val();
+  let logs = DB.logs();
+  const idx = logs.findIndex(l => l.id === id);
+  if (idx < 0) return;
+  logs[idx] = { ...logs[idx], userId: $('#edit-log-user').val(), taskId: $('#edit-log-task').val(), date: $('#edit-log-date').val(), note: $('#edit-log-note').val() };
+  DB.saveLogs(logs);
+  $('#modal-edit-log').removeClass('open');
+  notify('Log diperbarui ✓');
+  renderLogRecent();
+});
+
+$('#btn-delete-log').on('click', function() {
+  const id = $('#edit-log-id').val();
+  DB.saveLogs(DB.logs().filter(l => l.id !== id));
+  $('#modal-edit-log').removeClass('open');
+  notify('Log dihapus');
+  renderLogRecent();
+});
+
+// ==================== IMPORT ====================
+
+$('#import-area').on('click', () => $('#csv-file').click());
+
+$('#csv-file').on('change', function() {
+  const file = this.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    parseCSVPreview(e.target.result);
+  };
+  reader.readAsText(file);
+});
+
+let importRows = [];
+
+function parseCSVPreview(text) {
+  const lines = text.trim().split('\n');
+  const header = lines[0].toLowerCase().replace(/\r/,'');
+  // Accept with or without header
+  const hasHeader = header.includes('tanggal') || header.includes('date') || header.includes('user');
+  const dataLines = hasHeader ? lines.slice(1) : lines;
+
+  const users = DB.users();
+  const tasks = DB.tasks();
+  importRows = [];
+  let errCount = 0;
+
+  dataLines.forEach((line, i) => {
+    const parts = line.replace(/\r/,'').split(',');
+    if (parts.length < 3) return;
+    const [date, userName, taskName, ...rest] = parts;
+    const note = rest.join(',').trim();
+
+    const user = users.find(u => u.name.toLowerCase() === userName.trim().toLowerCase());
+    const task = tasks.find(t => t.name.toLowerCase() === taskName.trim().toLowerCase());
+
+    importRows.push({
+      date: date.trim(), userName: userName.trim(), taskName: taskName.trim(), note,
+      userId: user?.id, taskId: task?.id,
+      valid: !!(user && task && date.trim().match(/^\d{4}-\d{2}-\d{2}$/))
+    });
+  });
+
+  const valid = importRows.filter(r => r.valid).length;
+  const invalid = importRows.filter(r => !r.valid).length;
+
+  let html = `<div class="alert ${invalid > 0 ? 'alert-warn' : 'alert-success'}">
+    <span>${invalid > 0 ? '⚠️' : '✅'}</span>
+    ${valid} baris valid, ${invalid} baris tidak valid
+  </div>
+  <div style="max-height:200px;overflow-y:auto">
+  <table><thead><tr><th>Tanggal</th><th>User</th><th>Task</th><th>Status</th></tr></thead><tbody>`;
+
+  importRows.slice(0, 20).forEach(r => {
+    html += `<tr>
+      <td>${r.date}</td>
+      <td>${r.userName}</td>
+      <td>${r.taskName}</td>
+      <td>${r.valid ? '<span style="color:var(--green)">✓ OK</span>' : '<span style="color:var(--red)">✗ Tidak valid</span>'}</td>
+    </tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  if (importRows.length > 20) html += `<div style="font-size:11px;color:var(--text3);margin-top:8px">...dan ${importRows.length-20} baris lainnya</div>`;
+
+  $('#import-preview').html(html);
+  if (valid > 0) $('#btn-do-import').show();
+  else $('#btn-do-import').hide();
+}
+
+$('#btn-do-import').on('click', function() {
+  const logs = DB.logs();
+  let added = 0, skipped = 0;
+  const validRows = importRows.filter(r => r.valid);
+
+  validRows.forEach(r => {
+    const dup = logs.find(l => l.userId === r.userId && l.taskId === r.taskId && l.date === r.date);
+    if (dup) { skipped++; return; }
+    logs.push({ id: uid(), userId: r.userId, taskId: r.taskId, date: r.date, note: r.note });
+    added++;
+  });
+
+  DB.saveLogs(logs);
+  notify(`Import selesai: ${added} ditambahkan, ${skipped} duplikat dilewati ✓`);
+  $('#import-preview').html('');
+  $('#btn-do-import').hide();
+  importRows = [];
+  $('#csv-file').val('');
+});
+
+$('#btn-download-template').on('click', function() {
+  const csv = 'tanggal,user,task,catatan\n2024-04-14,Budi Santoso,Task A,review desain\n2024-04-15,Ani Wijaya,Task B,implementasi\n';
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'template-log.csv';
+  a.click();
+});
+
+// ==================== TIMELINE ====================
+
+let currentYear = new Date().getFullYear();
+
+function renderTimeline() {
+  const users = DB.users();
+  const tasks = DB.tasks();
+
+  // Populate filters
+  let uOpts = '<option value="">Semua User</option>' + users.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+  let tOpts = '<option value="">Semua Task</option>' + tasks.map(t => `<option value="${t.id}">${t.parentId?'↳ ':''}${t.name}</option>`).join('');
+  $('#tl-filter-user').html(uOpts);
+  $('#tl-filter-task').html(tOpts);
+  $('#current-year').text(currentYear);
+
+  buildTimeline();
+}
+
+function buildTimeline() {
+  const viewMode = $('#tl-view-mode').val() || 'user';
+  const filterUser = $('#tl-filter-user').val();
+  const filterTask = $('#tl-filter-task').val();
+
+  let logs = DB.logs().filter(l => l.date.startsWith(String(currentYear)));
+  if (filterUser) logs = logs.filter(l => l.userId === filterUser);
+  if (filterTask) logs = logs.filter(l => l.taskId === filterTask);
+
+  const users = DB.users();
+  const tasks = DB.tasks();
+
+  // Build legend
+  const months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  const todayStr = today();
+
+  let legendHtml = '<span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-right:6px">Legend:</span>';
+  if (viewMode === 'user') {
+    users.forEach((u, i) => {
+      legendHtml += `<span style="display:flex;align-items:center;gap:4px;font-size:11px;margin-right:10px">
+        <span style="width:10px;height:10px;border-radius:2px;background:${getUserColor(i)};display:inline-block"></span>
+        ${u.name.split(' ')[0]}
+      </span>`;
+    });
+  } else {
+    tasks.forEach((t, i) => {
+      legendHtml += `<span style="display:flex;align-items:center;gap:4px;font-size:11px;margin-right:10px">
+        <span style="width:10px;height:10px;border-radius:2px;background:${getTaskColor(i)};display:inline-block"></span>
+        ${t.name}
+      </span>`;
+    });
+  }
+  $('#tl-legend').html(legendHtml);
+
+  // Build log index: date -> [{userId, taskId}]
+  const logIndex = {};
+  logs.forEach(l => {
+    if (!logIndex[l.date]) logIndex[l.date] = [];
+    logIndex[l.date].push(l);
+  });
+
+  let html = '';
+
+  for (let m = 0; m < 12; m++) {
+    const daysInMonth = new Date(currentYear, m+1, 0).getDate();
+    const monthStr = String(m+1).padStart(2,'0');
+
+    // Day headers
+    let dayHeaders = '<div class="row-label"></div>';
+    for (let d = 1; d <= 31; d++) {
+      if (d <= daysInMonth) {
+        dayHeaders += `<div class="day-header">${d}</div>`;
+      } else {
+        dayHeaders += `<div></div>`;
+      }
+    }
+
+    // Day cells
+    let dayCells = '<div class="row-label" style="font-size:8px">' + months[m].slice(0,3).toUpperCase() + '</div>';
+    for (let d = 1; d <= 31; d++) {
+      if (d > daysInMonth) {
+        dayCells += '<div class="day-cell empty"></div>';
+        continue;
+      }
+      const dateStr = `${currentYear}-${monthStr}-${String(d).padStart(2,'0')}`;
+      const dayLogs = logIndex[dateStr] || [];
+      const isToday = dateStr === todayStr;
+      const dow = new Date(dateStr).getDay();
+      const isWeekend = dow === 0 || dow === 6;
+
+      if (dayLogs.length === 0) {
+        dayCells += `<div class="day-cell ${isToday?'today':''}" style="${isWeekend?'background:rgba(255,255,255,0.02)':''}" data-date="${dateStr}"></div>`;
+      } else {
+        // Color segments
+        let bg = '';
+        if (dayLogs.length === 1) {
+          const l = dayLogs[0];
+          const color = viewMode === 'user' ? getUserColor(getUserIndex(l.userId)) : getTaskColor(getTaskIndex(l.taskId));
+          bg = `background:${color}`;
+        } else {
+          // Gradient for multiple
+          const colors = dayLogs.slice(0,4).map(l =>
+            viewMode === 'user' ? getUserColor(getUserIndex(l.userId)) : getTaskColor(getTaskIndex(l.taskId))
+          );
+          const step = 100 / colors.length;
+          const stops = colors.map((c,i) => `${c} ${i*step}%, ${c} ${(i+1)*step}%`).join(', ');
+          bg = `background:linear-gradient(135deg, ${stops})`;
+        }
+
+        // Build tooltip data
+        const tooltipLines = dayLogs.map(l =>
+          `${getUserName(l.userId)} — ${getTaskName(l.taskId)}${l.note ? ': '+l.note : ''}`
+        ).join('||');
+
+        dayCells += `<div class="day-cell has-log ${isToday?'today':''}" style="${bg}" data-date="${dateStr}" data-logs="${tooltipLines}"></div>`;
+      }
+    }
+
+    html += `<div class="month-block">
+      <div class="month-grid">
+        ${dayHeaders}
+        ${dayCells}
+      </div>
+    </div>`;
+  }
+
+  $('#timeline-months').html(html);
+}
+
+// Timeline events
+$('#year-prev').on('click', () => { currentYear--; $('#current-year').text(currentYear); buildTimeline(); });
+$('#year-next').on('click', () => { currentYear++; $('#current-year').text(currentYear); buildTimeline(); });
+$('#tl-view-mode, #tl-filter-user, #tl-filter-task').on('change', buildTimeline);
+
+// Tooltip on day cells
+$(document).on('mouseenter', '.day-cell.has-log', function(e) {
+  const date = $(this).data('date');
+  const logsStr = $(this).data('logs');
+  const items = logsStr.split('||');
+  const logs = DB.logs().filter(l => l.date === date);
+
+  let html = `<div class="tooltip-date">${fmtDate(date)}</div>`;
+  logs.forEach(l => {
+    const uIdx = getUserIndex(l.userId);
+    html += `<div class="tooltip-item">
+      <div class="tooltip-dot" style="background:${getUserColor(uIdx)}"></div>
+      <span>${getUserName(l.userId)} — <strong>${getTaskName(l.taskId)}</strong>${l.note ? '<br><span style="color:var(--text3);font-size:11px">'+l.note+'</span>' : ''}</span>
+    </div>`;
+  });
+
+  $('#tooltip').html(html).css({ top: e.clientY + 12, left: e.clientX + 12 }).show();
+}).on('mousemove', '.day-cell.has-log', function(e) {
+  let left = e.clientX + 12;
+  if (left + 290 > window.innerWidth) left = e.clientX - 300;
+  $('#tooltip').css({ top: e.clientY + 12, left });
+}).on('mouseleave', '.day-cell', function() {
+  $('#tooltip').hide();
+});
+
+// ==================== BY USER ====================
+
+function renderByUser() {
+  const users = DB.users();
+  let uOpts = '<option value="">-- Pilih User --</option>' + users.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+  $('#bu-user').html(uOpts);
+
+  const savedUser = $('#bu-user').val();
+  if (savedUser) buildByUser();
+}
+
+function buildByUser() {
+  const userId = $('#bu-user').val();
+  const monthFilter = $('#bu-month').val(); // YYYY-MM or empty
+
+  if (!userId) { $('#by-user-content').html('<div class="empty-state"><div class="empty-icon">👤</div><p>Pilih user terlebih dahulu</p></div>'); return; }
+
+  const tasks = DB.tasks();
+  let logs = DB.logs().filter(l => l.userId === userId);
+  if (monthFilter) logs = logs.filter(l => l.date.startsWith(monthFilter));
+  logs.sort((a,b) => b.date.localeCompare(a.date));
+
+  const user = DB.users().find(u => u.id === userId);
+  const uIdx = getUserIndex(userId);
+
+  if (logs.length === 0) {
+    $('#by-user-content').html(`<div class="empty-state"><div class="empty-icon">📭</div><p>Tidak ada log untuk ${user?.name}</p></div>`);
+    return;
+  }
+
+  // Group by date
+  const byDate = {};
+  logs.forEach(l => {
+    if (!byDate[l.date]) byDate[l.date] = [];
+    byDate[l.date].push(l);
+  });
+
+  // Task summary
+  const byTask = {};
+  logs.forEach(l => { byTask[l.taskId] = (byTask[l.taskId] || 0) + 1; });
+
+  const totalDays = Object.keys(byDate).length;
+
+  let html = `<div class="summary-row" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px">
+    <div class="stat-box">
+      <div class="stat-label">Total Log</div>
+      <div class="stat-value" style="color:${getUserColor(uIdx)}">${logs.length}</div>
+      <div class="stat-sub">entri</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Hari Aktif</div>
+      <div class="stat-value" style="color:${getUserColor(uIdx)}">${totalDays}</div>
+      <div class="stat-sub">hari</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Task Dikerjakan</div>
+      <div class="stat-value" style="color:${getUserColor(uIdx)}">${Object.keys(byTask).length}</div>
+      <div class="stat-sub">task berbeda</div>
+    </div>
+  </div>
+  <div class="grid-2" style="align-items:start">
+  <div class="card">
+    <div class="card-title">Log Harian — ${user?.name}</div>`;
+
+  Object.entries(byDate).slice(0, 60).forEach(([date, dLogs]) => {
+    html += `<div style="padding:12px 0;border-bottom:1px solid var(--border)">
+      <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--text3);margin-bottom:6px">${fmtDate(date)}</div>`;
+    dLogs.forEach(l => {
+      const tIdx = getTaskIndex(l.taskId);
+      html += `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+        <div style="width:8px;height:8px;border-radius:50%;background:${getTaskColor(tIdx)};flex-shrink:0"></div>
+        <span style="font-size:13px;color:var(--text)">${getTaskFullName(l.taskId, tasks)}</span>
+        ${l.note ? `<span style="font-size:11px;color:var(--text3)">— ${l.note}</span>` : ''}
+      </div>`;
+    });
+    html += `</div>`;
+  });
+
+  html += `</div>
+  <div class="card">
+    <div class="card-title">Ringkasan Task</div>`;
+
+  Object.entries(byTask).sort((a,b)=>b[1]-a[1]).forEach(([tid, cnt]) => {
+    const tIdx = getTaskIndex(tid);
+    const t = tasks.find(x=>x.id===tid);
+    const maxCount = Math.max(...Object.values(byTask));
+    const pct = Math.round(cnt/maxCount*100);
+    html += `<div style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:13px;color:var(--text)">${getTaskFullName(tid, tasks)}</span>
+        <span style="font-family:'Space Mono',monospace;font-size:11px;color:var(--text3)">${cnt} hari</span>
+      </div>
+      <div style="height:4px;background:var(--bg3);border-radius:2px">
+        <div style="height:100%;width:${pct}%;background:${getTaskColor(tIdx)};border-radius:2px;transition:width 0.3s"></div>
+      </div>
+    </div>`;
+  });
+
+  html += `</div></div>`;
+  $('#by-user-content').html(html);
+}
+
+$('#bu-user, #bu-month').on('change', buildByUser);
+$('#bu-clear-month').on('click', () => { $('#bu-month').val(''); buildByUser(); });
+
+// ==================== BY TASK ====================
+
+function renderByTask() {
+  const tasks = DB.tasks();
+  let tOpts = '<option value="">-- Pilih Task --</option>';
+  // Show parents first
+  const parents = tasks.filter(t => !t.parentId);
+  parents.forEach(p => {
+    tOpts += `<option value="${p.id}">${p.name}</option>`;
+    tasks.filter(t => t.parentId === p.id).forEach(child => {
+      tOpts += `<option value="${child.id}">  ↳ ${child.name}</option>`;
+    });
+  });
+  // Orphan children
+  tasks.filter(t => t.parentId && !tasks.find(p => p.id === t.parentId)).forEach(t => {
+    tOpts += `<option value="${t.id}">? ${t.name}</option>`;
+  });
+
+  $('#bt-task').html(tOpts);
+}
+
+function buildByTask() {
+  const taskId = $('#bt-task').val();
+  const monthFilter = $('#bt-month').val();
+
+  if (!taskId) { $('#by-task-content').html('<div class="empty-state"><div class="empty-icon">📋</div><p>Pilih task terlebih dahulu</p></div>'); return; }
+
+  const tasks = DB.tasks();
+  const task = tasks.find(t => t.id === taskId);
+
+  // Include sub-tasks
+  const subTasks = tasks.filter(t => t.parentId === taskId);
+  const allTaskIds = [taskId, ...subTasks.map(t => t.id)];
+
+  let logs = DB.logs().filter(l => allTaskIds.includes(l.taskId));
+  if (monthFilter) logs = logs.filter(l => l.date.startsWith(monthFilter));
+  logs.sort((a,b) => b.date.localeCompare(a.date));
+
+  const tIdx = getTaskIndex(taskId);
+
+  if (logs.length === 0) {
+    $('#by-task-content').html(`<div class="empty-state"><div class="empty-icon">📭</div><p>Tidak ada log untuk task ini</p></div>`);
+    return;
+  }
+
+  const byUser = {};
+  const byDate = {};
+  logs.forEach(l => {
+    byUser[l.userId] = (byUser[l.userId] || 0) + 1;
+    if (!byDate[l.date]) byDate[l.date] = [];
+    byDate[l.date].push(l);
+  });
+
+  const totalDays = Object.keys(byDate).length;
+  const totalUsers = Object.keys(byUser).length;
+
+  let taskBadge = '';
+  if (task?.parentId) {
+    taskBadge = `<span style="font-size:11px;color:var(--text3)">Sub-task dari: <strong>${getTaskName(task.parentId)}</strong></span>`;
+  } else if (subTasks.length > 0) {
+    taskBadge = `<span style="font-size:11px;color:var(--text3)">${subTasks.length} sub-task termasuk dalam view ini</span>`;
+  }
+
+  let html = `<div class="summary-row" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px">
+    <div class="stat-box">
+      <div class="stat-label">Total Log</div>
+      <div class="stat-value" style="color:${getTaskColor(tIdx)}">${logs.length}</div>
+      <div class="stat-sub">entri</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Hari Aktif</div>
+      <div class="stat-value" style="color:${getTaskColor(tIdx)}">${totalDays}</div>
+      <div class="stat-sub">hari</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Dikerjakan oleh</div>
+      <div class="stat-value" style="color:${getTaskColor(tIdx)}">${totalUsers}</div>
+      <div class="stat-sub">user</div>
+    </div>
+  </div>
+  ${taskBadge ? `<div style="margin-bottom:16px">${taskBadge}</div>` : ''}
+  <div class="grid-2" style="align-items:start">
+  <div class="card">
+    <div class="card-title">History Pengerjaan</div>`;
+
+  Object.entries(byDate).slice(0, 60).forEach(([date, dLogs]) => {
+    html += `<div style="padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="font-family:'Space Mono',monospace;font-size:11px;color:var(--text3);margin-bottom:6px">${fmtDate(date)}</div>`;
+    dLogs.forEach(l => {
+      const uIdx = getUserIndex(l.userId);
+      const isSubTask = l.taskId !== taskId;
+      html += `<div style="display:flex;align-items:center;gap:8px;padding:3px 0">
+        <div style="width:8px;height:8px;border-radius:50%;background:${getUserColor(uIdx)};flex-shrink:0"></div>
+        <span style="font-size:13px;color:var(--text)">${getUserName(l.userId)}</span>
+        ${isSubTask ? `<span style="font-size:10px;background:var(--bg3);border:1px solid var(--border);padding:1px 6px;border-radius:3px;color:var(--text3)">${getTaskName(l.taskId)}</span>` : ''}
+        ${l.note ? `<span style="font-size:11px;color:var(--text3)">— ${l.note}</span>` : ''}
+      </div>`;
+    });
+    html += `</div>`;
+  });
+
+  html += `</div>
+  <div>
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-title">Kontribusi per User</div>`;
+
+  Object.entries(byUser).sort((a,b)=>b[1]-a[1]).forEach(([uid_, cnt]) => {
+    const uIdx = getUserIndex(uid_);
+    const maxCount = Math.max(...Object.values(byUser));
+    const pct = Math.round(cnt/maxCount*100);
+    html += `<div style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="display:flex;align-items:center;gap:8px">
+          <span style="width:8px;height:8px;border-radius:50%;background:${getUserColor(uIdx)};display:inline-block"></span>
+          <span style="font-size:13px;color:var(--text)">${getUserName(uid_)}</span>
+        </span>
+        <span style="font-family:'Space Mono',monospace;font-size:11px;color:var(--text3)">${cnt} hari</span>
+      </div>
+      <div style="height:4px;background:var(--bg3);border-radius:2px">
+        <div style="height:100%;width:${pct}%;background:${getUserColor(uIdx)};border-radius:2px;transition:width 0.3s"></div>
+      </div>
+    </div>`;
+  });
+
+  html += `</div>`;
+
+  // Sub-tasks breakdown if parent
+  if (subTasks.length > 0) {
+    html += `<div class="card"><div class="card-title">Breakdown Sub-Task</div>`;
+    subTasks.forEach(st => {
+      const stLogs = logs.filter(l => l.taskId === st.id);
+      const stIdx = getTaskIndex(st.id);
+      html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+        <div style="width:8px;height:8px;border-radius:2px;background:${getTaskColor(stIdx)};flex-shrink:0"></div>
+        <span style="font-size:13px;color:var(--text);flex:1">${st.name}</span>
+        <span style="font-family:'Space Mono',monospace;font-size:11px;color:var(--text3)">${stLogs.length} log</span>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  html += `</div></div>`;
+  $('#by-task-content').html(html);
+}
+
+$('#bt-task, #bt-month').on('change', buildByTask);
+$('#bt-clear-month').on('click', () => { $('#bt-month').val(''); buildByTask(); });
+
+// ==================== USERS ====================
+
+function renderUsers() {
+  const users = DB.users();
+  const logs = DB.logs();
+
+  if (users.length === 0) {
+    $('#users-list').html('<div class="empty-state"><div class="empty-icon">👥</div><p>Belum ada user</p></div>');
+    return;
+  }
+
+  let html = '<div class="table-wrap"><table><thead><tr><th>#</th><th>Nama</th><th>Role</th><th>Total Log</th><th></th></tr></thead><tbody>';
+  users.forEach((u, i) => {
+    const logCount = logs.filter(l => l.userId === u.id).length;
+    html += `<tr>
+      <td><span class="badge ${getUserColorClass(i)}">${i+1}</span></td>
+      <td>${u.name}</td>
+      <td style="color:var(--text3)">${u.role || '—'}</td>
+      <td style="font-family:'Space Mono',monospace">${logCount}</td>
+      <td><button class="btn btn-ghost btn-sm" data-edit-user="${u.id}">Edit</button></td>
+    </tr>`;
+  });
+  html += '</tbody></table></div>';
+  $('#users-list').html(html);
+}
+
+$('#btn-add-user').on('click', function() {
+  const name = $('#new-user-name').val().trim();
+  const role = $('#new-user-role').val().trim();
+  if (!name) { notify('Nama tidak boleh kosong!', 'error'); return; }
+  const users = DB.users();
+  if (users.find(u => u.name.toLowerCase() === name.toLowerCase())) { notify('User sudah ada!', 'error'); return; }
+  users.push({ id: uid(), name, role });
+  DB.saveUsers(users);
+  $('#new-user-name').val(''); $('#new-user-role').val('');
+  notify('User ditambahkan ✓');
+  renderUsers();
+});
+
+$(document).on('click', '[data-edit-user]', function() {
+  const id = $(this).data('edit-user');
+  const u = DB.users().find(x => x.id === id);
+  if (!u) return;
+  $('#edit-user-id').val(u.id);
+  $('#edit-user-name').val(u.name);
+  $('#edit-user-role').val(u.role);
+  $('#modal-edit-user').addClass('open');
+});
+
+$('#btn-cancel-edit-user').on('click', () => $('#modal-edit-user').removeClass('open'));
+
+$('#btn-save-edit-user').on('click', function() {
+  const id = $('#edit-user-id').val();
+  let users = DB.users();
+  const idx = users.findIndex(u => u.id === id);
+  if (idx < 0) return;
+  users[idx] = { ...users[idx], name: $('#edit-user-name').val(), role: $('#edit-user-role').val() };
+  DB.saveUsers(users);
+  $('#modal-edit-user').removeClass('open');
+  notify('User diperbarui ✓');
+  renderUsers();
+});
+
+$('#btn-delete-user').on('click', function() {
+  const id = $('#edit-user-id').val();
+  const logCount = DB.logs().filter(l => l.userId === id).length;
+  if (logCount > 0 && !confirm(`User ini memiliki ${logCount} log. Yakin hapus?`)) return;
+  DB.saveUsers(DB.users().filter(u => u.id !== id));
+  DB.saveLogs(DB.logs().filter(l => l.userId !== id));
+  $('#modal-edit-user').removeClass('open');
+  notify('User dihapus');
+  renderUsers();
+});
+
+// ==================== TASKS ====================
+function renderTasks() {
+  const tasks = DB.tasks();
+  const parentTasks = tasks.filter(t => !t.parentId);
+  const childTasks  = tasks.filter(t =>  t.parentId);
+
+  // Populate selects
+  let pOpts = '<option value="">— Tidak ada (Task Induk) —</option>';
+  let rOpts = '';
+  parentTasks.forEach(t => { pOpts += `<option value="${t.id}">${t.name}</option>`; });
+  tasks.forEach(t => { rOpts += `<option value="${t.id}">${t.parentId?'↳ ':''}${t.name}</option>`; });
+  $('#new-task-parent').html(pOpts);
+  $('#reparent-task').html(rOpts);
+  $('#reparent-parent').html('<option value="">— Jadikan Task Induk —</option>' + pOpts);
+
+  // Build multi-pill groups for Add form
+  buildMultiPills('new-task-site',      SITES,    []);
+  buildMultiPills('new-task-initiated', SITES,    []);
+  buildMultiPills('new-task-product',   PRODUCTS, []);
+
+  // Build tree HTML
+  let html = '';
+
+  function taskBadges(t) {
+    let b = '';
+    (t.site||[]).forEach(s => { b += `<span class="tib tib-site">${s}</span>`; });
+    (t.initiatedBy||[]).forEach(s => { b += `<span class="tib tib-init">↑${s}</span>`; });
+    (t.product||[]).forEach(p => { b += `<span class="tib tib-product">${p}</span>`; });
+    if (t.category) {
+      const cls = t.category === 'Improvement' ? 'tib-category-imp' : 'tib-category-new';
+      b += `<span class="tib ${cls}">${t.category}</span>`;
+    }
+    return b ? `<div class="task-info-badges">${b}</div>` : '';
+  }
+
+  parentTasks.forEach(pt => {
+    html += `<div class="task-detail-row task-parent-row" style="cursor:pointer;flex-direction:column;align-items:flex-start" data-edit-task="${pt.id}">
+      <div style="display:flex;align-items:center;gap:8px;width:100%">
+        <div class="task-detail-dot" style="background:${getTaskColor(tasks.indexOf(pt))}"></div>
+        <div style="flex:1">
+          <div style="font-size:13px;color:var(--text);font-weight:600">${pt.name}</div>
+          ${pt.desc ? `<div style="font-size:11px;color:var(--text3)">${pt.desc}</div>` : ''}
+        </div>
+        <span style="font-size:10px;color:var(--text3)">✏️</span>
+      </div>
+      ${taskBadges(pt)}
+    </div>`;
+
+    childTasks.filter(c => c.parentId === pt.id).forEach(ct => {
+      html += `<div class="task-detail-row task-row-indent" style="cursor:pointer;flex-direction:column;align-items:flex-start" data-edit-task="${ct.id}">
+        <div style="display:flex;align-items:center;gap:8px;width:100%">
+          <div class="task-detail-dot" style="background:${getTaskColor(tasks.indexOf(ct))}"></div>
+          <div style="flex:1">
+            <div style="font-size:12px;color:var(--text2)">↳ ${ct.name}</div>
+            ${ct.desc ? `<div style="font-size:11px;color:var(--text3)">${ct.desc}</div>` : ''}
+          </div>
+          <span style="font-size:10px;color:var(--text3)">✏️</span>
+        </div>
+        ${taskBadges(ct)}
+      </div>`;
+    });
+  });
+
+  if (html === '') html = '<div class="empty-state"><div class="empty-icon">🗂️</div><p>Belum ada task</p></div>';
+  $('#tasks-tree').html(html);
+}
+
+$('#btn-add-task').on('click', function() {
+  const name = $('#new-task-name').val().trim();
+  if (!name) { notify('Nama task wajib diisi!', 'error'); return; }
+
+  const tasks = DB.tasks();
+  tasks.push({
+    id: uid(),
+    name,
+    parentId: $('#new-task-parent').val() || null,
+    desc:        $('#new-task-desc').val().trim(),
+    site:        getMultiPillValues('new-task-site'),
+    initiatedBy: getMultiPillValues('new-task-initiated'),
+    product:     getMultiPillValues('new-task-product'),
+    category:    $('#new-task-category').val(),
+  });
+
+  DB.saveTasks(tasks);
+  $('#new-task-name').val('');
+  $('#new-task-desc').val('');
+  $('#new-task-category').val('');
+  notify('Task ditambahkan ✓');
+  renderTasks();
+});
+
+$('#btn-reparent').on('click', function() {
+  const taskId = $('#reparent-task').val();
+  const newParentId = $('#reparent-parent').val() || null;
+  if (!taskId) { notify('Pilih task!', 'error'); return; }
+  if (taskId === newParentId) { notify('Task tidak bisa menjadi induk dirinya sendiri!', 'error'); return; }
+  let tasks = DB.tasks();
+  const idx = tasks.findIndex(t => t.id === taskId);
+  if (idx < 0) return;
+  tasks[idx].parentId = newParentId;
+  DB.saveTasks(tasks);
+  notify('Induk task diperbarui ✓');
+  renderTasks();
+});
+
+$(document).on('click', '[data-edit-task]', function() {
+  const taskId = $(this).data('edit-task');
+  const task = DB.tasks().find(t => t.id === taskId);
+  if (!task) return;
+
+  $('#edit-task-id').val(task.id);
+  $('#edit-task-name').val(task.name);
+  $('#edit-task-desc').val(task.desc || '');
+  $('#edit-task-category').val(task.category || '');
+
+  buildMultiPills('edit-task-site',      SITES,    task.site        || []);
+  buildMultiPills('edit-task-initiated', SITES,    task.initiatedBy || []);
+  buildMultiPills('edit-task-product',   PRODUCTS, task.product     || []);
+
+  $('#modal-edit-task').addClass('open');
+});
+
+$('#btn-cancel-edit-task').on('click', () => $('#modal-edit-task').removeClass('open'));
+
+$('#btn-save-edit-task').on('click', function() {
+  const id = $('#edit-task-id').val();
+  let tasks = DB.tasks();
+  const idx = tasks.findIndex(t => t.id === id);
+  if (idx < 0) return;
+
+  tasks[idx] = {
+    ...tasks[idx],
+    name:        $('#edit-task-name').val().trim(),
+    desc:        $('#edit-task-desc').val().trim(),
+    site:        getMultiPillValues('edit-task-site'),
+    initiatedBy: getMultiPillValues('edit-task-initiated'),
+    product:     getMultiPillValues('edit-task-product'),
+    category:    $('#edit-task-category').val(),
+  };
+
+  DB.saveTasks(tasks);
+  $('#modal-edit-task').removeClass('open');
+  notify('Task diperbarui ✓');
+  renderTasks();
+});
+
+
+
+$('#btn-delete-task').on('click', function() {
+  const id = $('#edit-task-id').val();
+  const tasks = DB.tasks();
+  const task = tasks.find(t => t.id === id);
+  const subTasks = tasks.filter(t => t.parentId === id);
+  const logCount = DB.logs().filter(l => l.taskId === id).length;
+  const msg = [];
+  if (logCount > 0) msg.push(`${logCount} log`);
+  if (subTasks.length > 0) msg.push(`${subTasks.length} sub-task akan kehilangan induk`);
+  if (msg.length > 0 && !confirm(`Task ini memiliki ${msg.join(' dan ')}. Yakin hapus?`)) return;
+
+  DB.saveTasks(tasks.filter(t => t.id !== id));
+  DB.saveLogs(DB.logs().filter(l => l.taskId !== id));
+  $('#modal-edit-task').removeClass('open');
+  notify('Task dihapus');
+  renderTasks();
+});
+
+// Close modals on overlay click
+$('.modal-overlay').on('click', function(e) {
+  if ($(e.target).hasClass('modal-overlay')) $(this).removeClass('open');
+});
+
+// ==================== TIMELINE PER USER ====================
+
+let tluYear = new Date().getFullYear();
+
+function getTaskCode(taskId, tasks) {
+  // Sequential number: position in ordered task list (1-based)
+  const idx = tasks.findIndex(t => t.id === taskId);
+  return idx >= 0 ? String(idx + 1) : '?';
+}
+
+function renderTimelineUser() {
+  const tasks = DB.tasks();
+  // Populate task filter
+  let tOpts = '<option value="">Semua Task</option>';
+  tasks.forEach((t, i) => {
+    tOpts += `<option value="${t.id}">${i+1}. ${t.parentId?'↳ ':''}${t.name}</option>`;
+  });
+  $('#tlu-filter-task').html(tOpts);
+  $('#tlu-current-year').text(tluYear);
+  buildTimelineUser();
+}
+
+function buildTimelineUser() {
+  const users = DB.users();
+  const tasks = DB.tasks();
+  const filterTask = $('#tlu-filter-task').val();
+  const cellSize = $('#tlu-cell-size').val() || 'normal';
+  const todayStr = today();
+
+  let logs = DB.logs().filter(l => l.date.startsWith(String(tluYear)));
+  if (filterTask) logs = logs.filter(l => l.taskId === filterTask);
+
+  // Build index: userId -> date -> [taskId, ...]
+  const logIndex = {};
+  users.forEach(u => { logIndex[u.id] = {}; });
+  logs.forEach(l => {
+    if (!logIndex[l.userId]) logIndex[l.userId] = {};
+    if (!logIndex[l.userId][l.date]) logIndex[l.userId][l.date] = [];
+    if (!logIndex[l.userId][l.date].includes(l.taskId))
+      logIndex[l.userId][l.date].push(l.taskId);
+  });
+
+  // Build all dates for the year
+  const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
+  const allDates = []; // { date, month(0-based), day, dow, monthStart }
+  for (let m = 0; m < 12; m++) {
+    const daysInMonth = new Date(tluYear, m+1, 0).getDate();
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = `${tluYear}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const dow = new Date(date).getDay();
+      allDates.push({ date, month: m, day: d, dow, monthStart: d === 1 });
+    }
+  }
+
+  // Cell sizes
+  const sizes = { compact: 14, normal: 20, large: 28 };
+  const cellW = sizes[cellSize];
+
+  // ---- LEGEND ----
+  let legendHtml = '<span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-right:6px;white-space:nowrap">Kode Task:</span>';
+  tasks.forEach((t, i) => {
+    const code = String(i + 1);
+    legendHtml += `
+      <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;margin-right:8px;white-space:nowrap;cursor:default"
+            title="${t.name}${t.parentId ? ' (sub-task dari '+getTaskName(t.parentId)+')' : ''}">
+        <span style="width:18px;height:14px;border-radius:2px;background:${getTaskColor(i)};display:inline-flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-size:7px;font-weight:700;color:#0f0f0f">${code}</span>
+        <span style="color:var(--text2)">${t.name}</span>
+      </span>`;
+  });
+  $('#tlu-legend').html(legendHtml);
+
+  // ---- BUILD HTML ----
+  let html = `<div class="tlu-wrap size-${cellSize}">`;
+
+  // Sticky top header
+  html += `<div class="tlu-sticky-header">`;
+
+  // Month label row
+  html += `<div class="tlu-month-headers">`;
+  let curMonth = -1, curMonthStart = 0;
+  allDates.forEach((d, i) => {
+    if (d.month !== curMonth) {
+      if (curMonth >= 0) {
+        const w = (i - curMonthStart) * cellW;
+        html += `</div>`; // close previous month header cell (placeholder; we'll just write new)
+      }
+      curMonth = d.month;
+      curMonthStart = i;
+    }
+  });
+  // Re-do month headers properly by counting days per month
+  html = html.replace(/<div class="tlu-month-headers">[\s\S]*$/, ''); // trim off broken attempt
+  html += `<div class="tlu-month-headers">`;
+  for (let m = 0; m < 12; m++) {
+    const daysInMonth = new Date(tluYear, m+1, 0).getDate();
+    const w = daysInMonth * cellW;
+    html += `<div class="tlu-month-hdr" style="width:${w}px;min-width:${w}px">${months[m]}</div>`;
+  }
+  html += `</div>`;
+
+  // Day number row
+  html += `<div class="tlu-day-headers">`;
+  allDates.forEach(d => {
+    const isWeekend = d.dow === 0 || d.dow === 6;
+    const isToday = d.date === todayStr;
+    const cls = isToday ? 'today-col' : isWeekend ? 'weekend' : '';
+    html += `<div class="tlu-day-hdr ${cls}" style="width:${cellW}px;min-width:${cellW}px">${d.day === 1 || d.day % 5 === 0 ? d.day : ''}</div>`;
+  });
+  html += `</div>`;
+  html += `</div>`; // end sticky header
+
+  // User rows
+  users.forEach((user, uIdx) => {
+    const uColor = getUserColor(uIdx);
+    const firstName = user.name.split(' ')[0];
+
+    html += `<div class="tlu-user-row">`;
+    html += `<div class="tlu-user-label">
+      <span class="tlu-user-dot" style="background:${uColor}"></span>
+      <span title="${user.name}">${firstName}</span>
+    </div>`;
+
+    allDates.forEach(d => {
+      const isWeekend = d.dow === 0 || d.dow === 6;
+      const isToday = d.date === todayStr;
+      const taskIds = logIndex[user.id]?.[d.date] || [];
+      const monthStartCls = d.monthStart ? 'month-start' : '';
+      const weekendCls = isWeekend && taskIds.length === 0 ? 'weekend' : '';
+      const todayCls = isToday ? 'today-cell' : '';
+
+      if (taskIds.length === 0) {
+        html += `<div class="tlu-cell ${monthStartCls} ${weekendCls} ${todayCls}" style="width:${cellW}px;min-width:${cellW}px" data-date="${d.date}" data-uid="${user.id}"></div>`;
+      } else {
+        // Build task code chips
+        const maxShow = cellSize === 'compact' ? 2 : cellSize === 'large' ? 4 : 3;
+        let chips = '';
+        taskIds.slice(0, maxShow).forEach(tid => {
+          const tIdx = tasks.findIndex(t => t.id === tid);
+          const code = tIdx >= 0 ? String(tIdx + 1) : '?';
+          const tColor = getTaskColor(tIdx);
+          chips += `<div class="tlu-code" style="background:${tColor};color:#0f0f0f">${code}</div>`;
+        });
+        if (taskIds.length > maxShow) {
+          chips += `<div class="tlu-code" style="background:var(--bg4);color:var(--text3);font-size:6px">+${taskIds.length - maxShow}</div>`;
+        }
+
+        // Tooltip data
+        const tooltipData = taskIds.map(tid => {
+          const tIdx = tasks.findIndex(t => t.id === tid);
+          return `${tIdx+1}|${getTaskName(tid)}`;
+        }).join('::');
+
+        html += `<div class="tlu-cell has-log ${monthStartCls} ${todayCls}" 
+          style="width:${cellW}px;min-width:${cellW}px;background:var(--bg3)"
+          data-date="${d.date}" data-uid="${user.id}" data-tasks="${tooltipData}"
+          data-username="${user.name}">${chips}</div>`;
+      }
+    });
+
+    html += `</div>`; // end user-row
+
+    // Separator between users
+    if (uIdx < users.length - 1) {
+      html += `<div class="tlu-user-separator"></div>`;
+    }
+  });
+
+  html += `</div>`; // end tlu-wrap
+  $('#tlu-container').html(html);
+}
+
+// Timeline-User events
+$('#tlu-year-prev').on('click', () => { tluYear--; $('#tlu-current-year').text(tluYear); buildTimelineUser(); });
+$('#tlu-year-next').on('click', () => { tluYear++; $('#tlu-current-year').text(tluYear); buildTimelineUser(); });
+$('#tlu-filter-task, #tlu-cell-size').on('change', buildTimelineUser);
+
+// Tooltip for tlu cells
+$(document).on('mouseenter', '#tlu-container .tlu-cell.has-log', function(e) {
+  const date = $(this).data('date');
+  const username = $(this).data('username');
+  const tasksData = $(this).data('tasks');
+  const tasks = DB.tasks();
+
+  let html = `<div class="tooltip-date">${username} — ${fmtDate(date)}</div>`;
+
+  // Also show which OTHER users worked on same tasks this day
+  const logs = DB.logs();
+  const dayLogs = logs.filter(l => l.date === date);
+  const myTaskIds = (String(tasksData)).split('::').map(s => s.split('|')[0]);
+
+  // My tasks
+  myTaskIds.forEach(codeAndName => {
+    const parts = String(codeAndName).split('|');
+    const code = parts[0];
+    const tIdx = parseInt(code) - 1;
+    if (tIdx < 0 || tIdx >= tasks.length) return;
+    const t = tasks[tIdx];
+    if (!t) return;
+    const tColor = getTaskColor(tIdx);
+
+    // Who else worked on this task today?
+    const uid_ = $(this).data('uid');
+    const others = dayLogs
+      .filter(l => l.taskId === t.id && l.userId !== uid_)
+      .map(l => getUserName(l.userId));
+
+    html += `<div class="tooltip-item" style="margin-bottom:4px">
+      <div class="tooltip-dot" style="background:${tColor}"></div>
+      <div>
+        <strong>[${code}] ${t.name}</strong>
+        ${others.length > 0 ? `<div style="font-size:10px;color:var(--text3);margin-top:2px">Juga: ${others.join(', ')}</div>` : ''}
+      </div>
+    </div>`;
+  });
+
+  $('#tooltip').html(html).css({ top: e.clientY + 12, left: e.clientX + 12 }).show();
+}).on('mousemove', '#tlu-container .tlu-cell', function(e) {
+  let left = e.clientX + 12;
+  if (left + 300 > window.innerWidth) left = e.clientX - 310;
+  $('#tooltip').css({ top: e.clientY + 12, left });
+}).on('mouseleave', '#tlu-container .tlu-cell', function() {
+  $('#tooltip').hide();
+});
+
+// ==================== TIMELINE PER TASK ====================
+
+let tltYear = new Date().getFullYear();
+
+function renderTimelineTask() {
+  const users = DB.users();
+  let uOpts = '<option value="">Semua User</option>';
+  users.forEach(u => {
+    uOpts += `<option value="${u.id}">${u.name}</option>`;
+  });
+  $('#tlt-filter-user').html(uOpts);
+  $('#tlt-current-year').text(tltYear);
+  buildTimelineTask();
+}
+
+function buildTimelineTask() {
+  const users = DB.users();
+  const tasks = DB.tasks();
+  const filterUser = $('#tlt-filter-user').val();
+  const cellSize = $('#tlt-cell-size').val() || 'normal';
+  const todayStr = today();
+
+  let logs = DB.logs().filter(l => l.date.startsWith(String(tltYear)));
+  if (filterUser) logs = logs.filter(l => l.userId === filterUser);
+
+  // Build index: taskId -> date -> [userId, ...]
+  const logIndex = {};
+  tasks.forEach(t => { logIndex[t.id] = {}; });
+  logs.forEach(l => {
+    if (!logIndex[l.taskId]) logIndex[l.taskId] = {};
+    if (!logIndex[l.taskId][l.date]) logIndex[l.taskId][l.date] = [];
+    if (!logIndex[l.taskId][l.date].includes(l.userId))
+      logIndex[l.taskId][l.date].push(l.userId);
+  });
+
+  // Build all dates for the year
+  const monthNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
+  const allDates = [];
+  for (let m = 0; m < 12; m++) {
+    const daysInMonth = new Date(tltYear, m+1, 0).getDate();
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = `${tltYear}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const dow = new Date(date).getDay();
+      allDates.push({ date, month: m, day: d, dow, monthStart: d === 1 });
+    }
+  }
+
+  // Cell sizes
+  const sizes = { compact: 14, normal: 20, large: 28 };
+  const cellW = sizes[cellSize];
+
+  // ---- LEGEND (by user) ----
+  let legendHtml = '<span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-right:6px;white-space:nowrap">User:</span>';
+  users.forEach((u, i) => {
+    legendHtml += `
+      <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;margin-right:8px;white-space:nowrap">
+        <span style="width:10px;height:10px;border-radius:2px;background:${getUserColor(i)};display:inline-block"></span>
+        <span style="color:var(--text2)">${u.name.split(' ')[0]}</span>
+      </span>`;
+  });
+  $('#tlt-legend').html(legendHtml);
+
+  // ---- BUILD HTML ----
+  let html = `<div class="tlu-wrap size-${cellSize}">`;
+
+  // Sticky top header
+  html += `<div class="tlu-sticky-header" style="margin-left:140px">`;
+
+  // Month label row
+  html += `<div class="tlu-month-headers">`;
+  for (let m = 0; m < 12; m++) {
+    const daysInMonth = new Date(tltYear, m+1, 0).getDate();
+    const w = daysInMonth * cellW;
+    html += `<div class="tlu-month-hdr" style="width:${w}px;min-width:${w}px">${monthNames[m]}</div>`;
+  }
+  html += `</div>`;
+
+  // Day number row
+  html += `<div class="tlu-day-headers">`;
+  allDates.forEach(d => {
+    const isWeekend = d.dow === 0 || d.dow === 6;
+    const isToday = d.date === todayStr;
+    const cls = isToday ? 'today-col' : isWeekend ? 'weekend' : '';
+    html += `<div class="tlu-day-hdr ${cls}" style="width:${cellW}px;min-width:${cellW}px">${d.day === 1 || d.day % 5 === 0 ? d.day : ''}</div>`;
+  });
+  html += `</div>`;
+  html += `</div>`; // end sticky header
+
+  // Separate parent tasks and subtasks for grouping
+  const parentTasks = tasks.filter(t => !t.parentId);
+  const childTasks = tasks.filter(t => t.parentId);
+
+  function renderTaskRow(task, tIdx, isChild) {
+    const labelStyle = isChild
+      ? 'padding-left:18px;font-size:11px;color:var(--text3)'
+      : 'font-size:12px;font-weight:600;color:var(--text)';
+    const prefix = isChild ? '↳ ' : '';
+
+    let rowHtml = `<div class="tlu-user-row">`;
+    rowHtml += `<div class="tlu-user-label" style="width:140px;min-width:140px;${labelStyle}" title="${task.name}">
+      ${prefix}${task.name.length > 16 ? task.name.slice(0,15)+'…' : task.name}
+    </div>`;
+
+    allDates.forEach(d => {
+      const isWeekend = d.dow === 0 || d.dow === 6;
+      const isToday = d.date === todayStr;
+      const userIds = logIndex[task.id]?.[d.date] || [];
+      const monthStartCls = d.monthStart ? 'month-start' : '';
+      const weekendCls = isWeekend && userIds.length === 0 ? 'weekend' : '';
+      const todayCls = isToday ? 'today-cell' : '';
+
+      if (userIds.length === 0) {
+        rowHtml += `<div class="tlu-cell ${monthStartCls} ${weekendCls} ${todayCls}" style="width:${cellW}px;min-width:${cellW}px" data-date="${d.date}" data-tid="${task.id}"></div>`;
+      } else {
+        // Color: if single user, solid; if multiple, gradient chips
+        let bgStyle = '';
+        if (userIds.length === 1) {
+          const uIdx = getUserIndex(userIds[0]);
+          bgStyle = `background:${getUserColor(uIdx)}`;
+        } else {
+          const colors = userIds.slice(0, 4).map(uid => getUserColor(getUserIndex(uid)));
+          const step = 100 / colors.length;
+          const stops = colors.map((c, i) => `${c} ${i*step}%, ${c} ${(i+1)*step}%`).join(', ');
+          bgStyle = `background:linear-gradient(135deg,${stops})`;
+        }
+
+        const tooltipData = userIds.map(uid => {
+          const uIdx = getUserIndex(uid);
+          return `${uIdx}|${getUserName(uid)}`;
+        }).join('::');
+
+        rowHtml += `<div class="tlu-cell has-log ${monthStartCls} ${todayCls}"
+          style="width:${cellW}px;min-width:${cellW}px;${bgStyle}"
+          data-date="${d.date}" data-tid="${task.id}" data-users="${tooltipData}"
+          data-taskname="${task.name}"></div>`;
+      }
+    });
+
+    rowHtml += `</div>`;
+    return rowHtml;
+  }
+
+  // Render: parent rows, then their children
+  parentTasks.forEach((pt, ptIdx) => {
+    const ptGlobalIdx = tasks.findIndex(t => t.id === pt.id);
+    html += renderTaskRow(pt, ptGlobalIdx, false);
+
+    const children = childTasks.filter(c => c.parentId === pt.id);
+    children.forEach(ct => {
+      const ctGlobalIdx = tasks.findIndex(t => t.id === ct.id);
+      html += renderTaskRow(ct, ctGlobalIdx, true);
+    });
+
+    html += `<div class="tlu-user-separator"></div>`;
+  });
+
+  // Orphan children (if any parent is missing)
+  childTasks.filter(c => !tasks.find(t => t.id === c.parentId)).forEach(ct => {
+    const ctGlobalIdx = tasks.findIndex(t => t.id === ct.id);
+    html += renderTaskRow(ct, ctGlobalIdx, true);
+  });
+
+  html += `</div>`; // end tlu-wrap
+  $('#tlt-container').html(html);
+}
+
+// Timeline-Task events
+$('#tlt-year-prev').on('click', () => { tltYear--; $('#tlt-current-year').text(tltYear); buildTimelineTask(); });
+$('#tlt-year-next').on('click', () => { tltYear++; $('#tlt-current-year').text(tltYear); buildTimelineTask(); });
+$('#tlt-filter-user, #tlt-cell-size').on('change', buildTimelineTask);
+
+// Tooltip for tlt cells
+$(document).on('mouseenter', '#tlt-container .tlu-cell.has-log', function(e) {
+  const date = $(this).data('date');
+  const taskname = $(this).data('taskname');
+  const usersData = $(this).data('users');
+
+  let html = `<div class="tooltip-date">${taskname} — ${fmtDate(date)}</div>`;
+
+  String(usersData).split('::').forEach(entry => {
+    const parts = entry.split('|');
+    const uIdx = parseInt(parts[0]);
+    const uName = parts[1];
+    html += `<div class="tooltip-item">
+      <div class="tooltip-dot" style="background:${getUserColor(uIdx)}"></div>
+      <span>${uName}</span>
+    </div>`;
+  });
+
+  $('#tooltip').html(html).css({ top: e.clientY + 12, left: e.clientX + 12 }).show();
+}).on('mousemove', '#tlt-container .tlu-cell', function(e) {
+  let left = e.clientX + 12;
+  if (left + 300 > window.innerWidth) left = e.clientX - 310;
+  $('#tooltip').css({ top: e.clientY + 12, left });
+}).on('mouseleave', '#tlt-container .tlu-cell', function() {
+  $('#tooltip').hide();
+});
+
+// ==================== PLANNING GANTT ====================
+
+let planYear = new Date().getFullYear();
+
+// DB helpers for plans
+const PlanDB = {
+  all() { try { return JSON.parse(localStorage.getItem('tf_plans')) || []; } catch { return []; } },
+  save(d) { localStorage.setItem('tf_plans', JSON.stringify(d)); },
+  forTask(taskId) { return PlanDB.all().find(p => p.taskId === taskId) || null; },
+};
+
+function renderPlanning() {
+  const users = DB.users();
+  let uOpts = '<option value="">Semua User</option>';
+  users.forEach(u => { uOpts += `<option value="${u.id}">${u.name}</option>`; });
+  $('#plan-filter-user').html(uOpts);
+  $('#plan-current-year').text(planYear);
+  buildPlanningGantt();
+}
+
+function buildPlanningGantt() {
+  const tasks = DB.tasks();
+  const users = DB.users();
+  const logs = DB.logs().filter(l => l.date.startsWith(String(planYear)));
+  const plans = PlanDB.all();
+  const filterUser = $('#plan-filter-user').val();
+  const todayStr = today();
+  const DAY_W = 14; // px per day
+
+  // All dates in year
+  const monthNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
+  const allDates = [];
+  for (let m = 0; m < 12; m++) {
+    const dim = new Date(planYear, m+1, 0).getDate();
+    for (let d = 1; d <= dim; d++) {
+      const date = `${planYear}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const dow = new Date(date).getDay();
+      allDates.push({ date, month: m, day: d, dow, monthStart: d === 1 });
+    }
+  }
+  const totalDays = allDates.length;
+  const dateIndex = {}; // date -> position index
+  allDates.forEach((d, i) => { dateIndex[d.date] = i; });
+
+  // Build actual log index: taskId -> Set of dates (filtered by user)
+  const actualIndex = {};
+  tasks.forEach(t => { actualIndex[t.id] = new Set(); });
+  logs.forEach(l => {
+    if (filterUser && l.userId !== filterUser) return;
+    if (!actualIndex[l.taskId]) actualIndex[l.taskId] = new Set();
+    actualIndex[l.taskId].add(l.date);
+  });
+
+  // Helper: compute contiguous actual ranges for a task
+  function getActualRanges(taskId) {
+    const dates = Array.from(actualIndex[taskId] || []).sort();
+    const ranges = [];
+    let start = null, prev = null;
+    dates.forEach(d => {
+      if (!start) { start = d; prev = d; return; }
+      const prevDt = new Date(prev), curDt = new Date(d);
+      const diff = (curDt - prevDt) / 86400000;
+      if (diff <= 3) { prev = d; } // allow weekend gaps up to 3 days
+      else { ranges.push({ start, end: prev }); start = d; prev = d; }
+    });
+    if (start) ranges.push({ start, end: prev });
+    return ranges;
+  }
+
+  // ---- Build HTML ----
+  let html = `<div class="gantt-wrap">`;
+
+  // === HEADER: month labels ===
+  html += `<div class="gantt-header-row">`;
+  html += `<div class="gantt-task-col" style="border-right:1px solid var(--border);padding:6px 12px">
+    <span style="font-family:'Space Mono',monospace;font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px">Task</span>
+  </div>`;
+  html += `<div style="display:flex;flex-direction:column;flex:1">`;
+
+  // Month row
+  html += `<div style="display:flex">`;
+  for (let m = 0; m < 12; m++) {
+    const dim = new Date(planYear, m+1, 0).getDate();
+    html += `<div class="gantt-month-hdr" style="width:${dim * DAY_W}px;min-width:${dim * DAY_W}px">${monthNames[m]}</div>`;
+  }
+  html += `</div>`;
+
+  // Day number row
+  html += `<div style="display:flex">`;
+  allDates.forEach(d => {
+    const isWeekend = d.dow === 0 || d.dow === 6;
+    const isToday = d.date === todayStr;
+    const cls = isToday ? 'today-col' : isWeekend ? 'weekend' : '';
+    html += `<div class="gantt-day-hdr ${cls}" style="width:${DAY_W}px;min-width:${DAY_W}px;padding:2px 0">${d.day % 5 === 0 || d.day === 1 ? d.day : ''}</div>`;
+  });
+  html += `</div>`;
+
+  html += `</div>`; // end dates col header
+  html += `</div>`; // end header row
+
+  // === TASK ROWS ===
+  const parentTasks = tasks.filter(t => !t.parentId);
+  const childTasks = tasks.filter(t => t.parentId);
+
+  function renderGanttRow(task, isChild) {
+    const plan = plans.find(p => p.taskId === task.id) || null;
+    const assignedUsers = plan ? (plan.userIds || []) : [];
+    const actualRanges = getActualRanges(task.id);
+
+    // Filter: if filterUser set, only show rows where user is assigned or has actual logs
+    if (filterUser) {
+      const hasActual = actualIndex[task.id] && actualIndex[task.id].size > 0;
+      const hasAssigned = assignedUsers.includes(filterUser);
+      if (!hasActual && !hasAssigned) return '';
+    }
+
+    let rowHtml = `<div class="gantt-row ${isChild ? 'is-child' : 'is-parent'}" style="min-height:48px">`;
+
+    // Label col
+    const planStatus = plan
+      ? `<span style="font-size:9px;color:var(--text3);font-family:'Space Mono',monospace">${fmtDate(plan.startDate)} – ${fmtDate(plan.endDate)}</span>`
+      : `<span class="gantt-edit-hint">+ klik untuk set plan</span>`;
+
+    const assignedDotsHtml = assignedUsers.length > 0
+      ? `<div class="assigned-dots">${assignedUsers.map(uid => {
+          const uIdx = getUserIndex(uid);
+          return `<div class="assigned-dot" style="background:${getUserColor(uIdx)}" title="${getUserName(uid)}"></div>`;
+        }).join('')}</div>`
+      : '';
+
+    const prefix = isChild ? '↳ ' : '';
+    const planDateStr = plan ? `${fmtDate(plan.startDate)}–${fmtDate(plan.endDate)}` : 'belum ada plan';
+
+    rowHtml += `<div class="gantt-row-label" data-plan-task="${task.id}" title="${task.name}${plan ? ' | '+planDateStr : ''}">
+      <div class="label-name">${prefix}${task.name}</div>
+      <div class="label-dates">${planDateStr}</div>
+      ${assignedDotsHtml}
+      <div class="gantt-edit-hint">✏️ edit plan</div>
+    </div>`;
+
+    // Track
+    rowHtml += `<div class="gantt-track" style="width:${totalDays * DAY_W}px;position:relative">`;
+
+    // Day bg stripes
+    allDates.forEach((d, i) => {
+      const isWeekend = d.dow === 0 || d.dow === 6;
+      const isToday = d.date === todayStr;
+      const cls = isToday ? 'today-bg' : isWeekend ? 'weekend' : '';
+      const monthCls = d.monthStart ? 'month-start' : '';
+      rowHtml += `<div class="gantt-day-bg ${cls} ${monthCls}" style="left:${i * DAY_W}px;width:${DAY_W}px"></div>`;
+    });
+
+    // Plan bar
+    if (plan && plan.startDate && plan.endDate) {
+      const startIdx = dateIndex[plan.startDate];
+      const endIdx = dateIndex[plan.endDate];
+      if (startIdx !== undefined && endIdx !== undefined && endIdx >= startIdx) {
+        const barLeft = startIdx * DAY_W;
+        const barW = (endIdx - startIdx + 1) * DAY_W;
+        rowHtml += `<div class="gantt-bar-plan" style="left:${barLeft}px;width:${barW}px" title="Plan: ${fmtDate(plan.startDate)} – ${fmtDate(plan.endDate)}${plan.note ? ' | '+plan.note : ''}"></div>`;
+
+        // User avatars on the plan bar
+        if (assignedUsers.length > 0) {
+          rowHtml += `<div class="gantt-bar-users" style="left:${barLeft + 4}px">`;
+          assignedUsers.slice(0, 6).forEach(uid => {
+            const uIdx = getUserIndex(uid);
+            const initials = getUserName(uid).split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+            rowHtml += `<div class="gantt-avatar" style="background:${getUserColor(uIdx)}" title="${getUserName(uid)}">${initials}</div>`;
+          });
+          rowHtml += `</div>`;
+        }
+      }
+    } else if (!plan) {
+      rowHtml += `<div class="gantt-no-plan">belum ada plan</div>`;
+    }
+
+    // Actual bars (colored by first assigned user or task color)
+    actualRanges.forEach(range => {
+      const startIdx = dateIndex[range.start];
+      const endIdx = dateIndex[range.end];
+      if (startIdx === undefined || endIdx === undefined) return;
+      const barLeft = startIdx * DAY_W;
+      const barW = Math.max((endIdx - startIdx + 1) * DAY_W, DAY_W);
+      // Get users who actually worked in this range
+      const rangeUsers = [];
+      Array.from(actualIndex[task.id] || []).forEach(d => {
+        if (d >= range.start && d <= range.end) {
+          logs.forEach(l => {
+            if (l.taskId === task.id && l.date === d && !rangeUsers.includes(l.userId))
+              rangeUsers.push(l.userId);
+          });
+        }
+      });
+
+      let actualBg = '';
+      if (rangeUsers.length === 1) {
+        actualBg = getUserColor(getUserIndex(rangeUsers[0]));
+      } else if (rangeUsers.length > 1) {
+        const colors = rangeUsers.slice(0, 4).map(uid => getUserColor(getUserIndex(uid)));
+        const step = 100 / colors.length;
+        const stops = colors.map((c, i) => `${c} ${i*step}%, ${c} ${(i+1)*step}%`).join(', ');
+        actualBg = `linear-gradient(90deg, ${stops})`;
+      } else {
+        actualBg = getTaskColor(tasks.findIndex(t => t.id === task.id));
+      }
+
+      rowHtml += `<div class="gantt-bar-actual" style="left:${barLeft}px;width:${barW}px;background:${actualBg}" title="Actual: ${fmtDate(range.start)} – ${fmtDate(range.end)}"></div>`;
+      
+    });
+
+    rowHtml += `</div>`; // end track
+    rowHtml += `</div>`; // end row
+    return rowHtml;
+  }
+
+  parentTasks.forEach(pt => {
+    html += renderGanttRow(pt, false);
+    const children = childTasks.filter(c => c.parentId === pt.id);
+    children.forEach(ct => { html += renderGanttRow(ct, true); });
+    html += `<div class="gantt-separator"></div>`;
+  });
+
+  // Orphan children
+  childTasks.filter(c => !tasks.find(t => t.id === c.parentId)).forEach(ct => {
+    html += renderGanttRow(ct, true);
+  });
+
+  html += `</div>`; // end gantt-wrap
+  $('#plan-gantt-wrap').html(html);
+}
+
+// Open plan modal from row label click
+$(document).on('click', '[data-plan-task]', function() {
+  const taskId = $(this).data('plan-task');
+  openPlanModal(taskId);
+});
+
+$('#btn-open-plan-modal').on('click', () => openPlanModal(null));
+
+function openPlanModal(taskId) {
+  const tasks = DB.tasks();
+  const users = DB.users();
+
+  // Populate task dropdown
+  let tOpts = '';
+  tasks.forEach((t, i) => {
+    tOpts += `<option value="${t.id}">${i+1}. ${t.parentId ? '↳ ' : ''}${t.name}</option>`;
+  });
+  $('#plan-task-sel').html(tOpts);
+
+  // Populate user checkboxes
+  let uHtml = '';
+  users.forEach((u, i) => {
+    uHtml += `<div class="user-check-pill" data-uid="${u.id}">
+      <div class="pill-dot" style="background:${getUserColor(i)}"></div>
+      ${u.name.split(' ')[0]}
+    </div>`;
+  });
+  $('#plan-user-checks').html(uHtml);
+
+  if (taskId) {
+    $('#plan-task-sel').val(taskId).trigger('change');
+  } else {
+    loadPlanForSelectedTask();
+  }
+
+  $('#modal-plan').addClass('open');
+}
+
+function loadPlanForSelectedTask() {
+  const taskId = $('#plan-task-sel').val();
+  const plan = PlanDB.forTask(taskId);
+
+  // Reset
+  $('#plan-date-start').val('');
+  $('#plan-date-end').val('');
+  $('#plan-note').val('');
+  $('.user-check-pill').removeClass('selected');
+  $('#btn-plan-delete').hide();
+  $('#plan-modal-alert').hide();
+
+  if (plan) {
+    $('#plan-date-start').val(plan.startDate);
+    $('#plan-date-end').val(plan.endDate);
+    $('#plan-note').val(plan.note || '');
+    (plan.userIds || []).forEach(uid => {
+      $(`.user-check-pill[data-uid="${uid}"]`).addClass('selected');
+    });
+    $('#btn-plan-delete').show();
+  }
+}
+
+$('#plan-task-sel').on('change', loadPlanForSelectedTask);
+
+$(document).on('click', '.user-check-pill', function() {
+  $(this).toggleClass('selected');
+});
+
+$('#btn-plan-cancel').on('click', () => $('#modal-plan').removeClass('open'));
+
+$('#btn-plan-save').on('click', function() {
+  const taskId = $('#plan-task-sel').val();
+  const startDate = $('#plan-date-start').val();
+  const endDate = $('#plan-date-end').val();
+  const note = $('#plan-note').val().trim();
+  const userIds = $('.user-check-pill.selected').map(function() { return $(this).data('uid'); }).get();
+
+  if (!taskId || !startDate || !endDate) {
+    $('#plan-modal-alert').html('<div class="alert alert-warn"><span>⚠️</span> Task, tanggal mulai, dan tanggal selesai wajib diisi.</div>').show();
+    return;
+  }
+  if (endDate < startDate) {
+    $('#plan-modal-alert').html('<div class="alert alert-warn"><span>⚠️</span> Tanggal selesai tidak boleh sebelum tanggal mulai.</div>').show();
+    return;
+  }
+
+  let plans = PlanDB.all().filter(p => p.taskId !== taskId);
+  plans.push({ taskId, startDate, endDate, note, userIds });
+  PlanDB.save(plans);
+
+  $('#modal-plan').removeClass('open');
+  notify('Plan disimpan ✓');
+  buildPlanningGantt();
+});
+
+$('#btn-plan-delete').on('click', function() {
+  const taskId = $('#plan-task-sel').val();
+  PlanDB.save(PlanDB.all().filter(p => p.taskId !== taskId));
+  $('#modal-plan').removeClass('open');
+  notify('Plan dihapus');
+  buildPlanningGantt();
+});
+
+// Year nav
+$('#plan-year-prev').on('click', () => { planYear--; $('#plan-current-year').text(planYear); buildPlanningGantt(); });
+$('#plan-year-next').on('click', () => { planYear++; $('#plan-current-year').text(planYear); buildPlanningGantt(); });
+$('#plan-filter-user').on('change', buildPlanningGantt);
+
+
+// ==================== IMPORT MASTER TASK ====================
+
+$('#import-tasks-area').on('click', () => $('#task-csv-file').click());
+
+// Drag & drop support
+$('#import-tasks-area').on('dragover', function(e) {
+  e.preventDefault();
+  $(this).css('border-color', 'var(--accent)');
+}).on('dragleave', function() {
+  $(this).css('border-color', '');
+}).on('drop', function(e) {
+  e.preventDefault();
+  $(this).css('border-color', '');
+  const file = e.originalEvent.dataTransfer.files[0];
+  if (file) parseTaskCSV(file);
+});
+
+$('#task-csv-file').on('change', function() {
+  const file = this.files[0];
+  if (file) parseTaskCSV(file);
+});
+
+let importTaskRows = [];
+
+function parseTaskCSV(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result;
+    processTaskCSV(text);
+  };
+  reader.readAsText(file);
+}
+
+function processTaskCSV(text) {
+  const lines = text.trim().split('\n').map(l => l.replace(/\r$/, ''));
+  if (lines.length < 2) {
+    $('#import-tasks-preview').html('<div class="alert alert-warn"><span>⚠️</span> File kosong atau tidak valid.</div>');
+    return;
+  }
+
+  // Parse header row - find column indices
+  const rawHeader = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\s+/g,'_').replace(/[^a-z_]/g,''));
+
+  const col = (name) => rawHeader.indexOf(name);
+
+  const COL = {
+    task_name:      col('task_name'),
+    parent_task:    col('parent_task'),
+    site:           col('site'),
+    initiated_by:   col('initiated_by'),
+    product:        col('product'),
+    process:        col('process'),
+    category:       col('category'),
+    plan_start:     col('plan_start'),
+    plan_end:       col('plan_end'),
+    assigned_users: col('assigned_users'),
+    description:    col('description'),
+    order:          col('order'),
+  };
+
+  if (COL.task_name < 0) {
+    $('#import-tasks-preview').html('<div class="alert alert-warn"><span>⚠️</span> Kolom <strong>task_name</strong> tidak ditemukan. Pastikan baris pertama adalah header.</div>');
+    return;
+  }
+
+  // Helper to get cell value safely
+  function getCell(cells, idx) {
+    if (idx < 0 || idx >= cells.length) return '';
+    return cells[idx].trim().replace(/^"|"$/g, ''); // strip surrounding quotes
+  }
+
+  // Helper to parse semicolon-separated multi-values
+  function multiVal(str) {
+    if (!str) return [];
+    return str.split(';').map(s => s.trim()).filter(Boolean);
+  }
+
+  const existingTasks = DB.tasks();
+  importTaskRows = [];
+
+  // Skip header + skip row 2 (instructions row if present - detect by checking if task_name cell looks like instructions)
+  let dataStart = 1;
+  const firstDataCell = lines[1] ? lines[1].split(',')[COL.task_name]?.trim().replace(/^"|"$/g,'') : '';
+  if (firstDataCell && firstDataCell.toLowerCase().includes('fill in')) dataStart = 2;
+
+  for (let i = dataStart; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+
+    // Handle quoted fields with commas inside
+    const cells = parseCSVLine(lines[i]);
+
+    const taskName = getCell(cells, COL.task_name);
+    if (!taskName) continue;
+
+    const parentName   = getCell(cells, COL.parent_task);
+    const site         = multiVal(getCell(cells, COL.site));
+    const initiatedBy  = multiVal(getCell(cells, COL.initiated_by));
+    const product      = multiVal(getCell(cells, COL.product));
+    const process      = getCell(cells, COL.process);
+    const category     = getCell(cells, COL.category);
+    const planStart    = getCell(cells, COL.plan_start);
+    const planEnd      = getCell(cells, COL.plan_end);
+    const assignedRaw  = getCell(cells, COL.assigned_users);
+    const description  = getCell(cells, COL.description);
+    const order        = parseInt(getCell(cells, COL.order)) || i;
+
+    const assignedUsers = multiVal(assignedRaw);
+
+    // Validate category
+    const validCats = ['Improvement', 'New Development', ''];
+    const catValid = validCats.some(c => c.toLowerCase() === category.toLowerCase()) || !category;
+
+    // Validate dates
+    const dateRx = /^\d{4}-\d{2}-\d{2}$/;
+    const dateValid = (!planStart || dateRx.test(planStart)) && (!planEnd || dateRx.test(planEnd));
+    const dateOrder = !planStart || !planEnd || planEnd >= planStart;
+
+    // Check if task already exists
+    const existing = existingTasks.find(t => t.name.toLowerCase() === taskName.toLowerCase());
+
+    importTaskRows.push({
+      taskName, parentName, site, initiatedBy, product,
+      process, category, planStart, planEnd, assignedUsers,
+      description, order,
+      isOverwrite: !!existing,
+      existingId: existing?.id || null,
+      valid: catValid && dateValid && dateOrder,
+      errors: [
+        !catValid ? `Category tidak valid: "${category}"` : null,
+        !dateValid ? 'Format tanggal harus YYYY-MM-DD' : null,
+        !dateOrder ? 'Plan end < plan start' : null,
+      ].filter(Boolean),
+    });
+  }
+
+  // Build preview table
+  const valid   = importTaskRows.filter(r => r.valid);
+  const invalid = importTaskRows.filter(r => !r.valid);
+  const overwrites = valid.filter(r => r.isOverwrite);
+  const newTasks   = valid.filter(r => !r.isOverwrite);
+
+  let html = `<div class="alert ${invalid.length > 0 ? 'alert-warn' : 'alert-success'}">
+    <span>${invalid.length > 0 ? '⚠️' : '✅'}</span>
+    <div>
+      <strong>${valid.length} baris valid</strong> (${newTasks.length} task baru, ${overwrites.length} akan ditimpa)
+      ${invalid.length > 0 ? `, <strong style="color:var(--red)">${invalid.length} baris tidak valid</strong>` : ''}
+    </div>
+  </div>`;
+
+  html += `<div style="max-height:280px;overflow-y:auto">
+  <table><thead><tr>
+    <th>Task Name</th><th>Parent</th><th>Category</th><th>Plan</th><th>Users</th><th>Status</th>
+  </tr></thead><tbody>`;
+
+  importTaskRows.slice(0, 30).forEach(r => {
+    const statusHtml = r.valid
+      ? (r.isOverwrite
+          ? `<span style="color:var(--orange);font-size:10px">🔄 timpa</span>`
+          : `<span style="color:var(--green);font-size:10px">✓ baru</span>`)
+      : `<span style="color:var(--red);font-size:10px" title="${r.errors.join(', ')}">✗ error</span>`;
+
+    const planStr = r.planStart ? `${r.planStart}` : '—';
+    const usersStr = r.assignedUsers.length > 0 ? r.assignedUsers.map(u => u.split(' ')[0]).join(', ') : '—';
+
+    html += `<tr>
+      <td style="${!r.valid?'color:var(--red)':''}">${r.taskName}</td>
+      <td style="color:var(--text3)">${r.parentName || '—'}</td>
+      <td style="color:var(--text3)">${r.category || '—'}</td>
+      <td style="color:var(--text3);font-size:11px">${planStr}</td>
+      <td style="color:var(--text3);font-size:11px">${usersStr}</td>
+      <td>${statusHtml}</td>
+    </tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  if (importTaskRows.length > 30) {
+    html += `<div style="font-size:11px;color:var(--text3);margin-top:6px">...dan ${importTaskRows.length - 30} baris lainnya</div>`;
+  }
+
+  $('#import-tasks-preview').html(html);
+
+  if (valid.length > 0) $('#btn-do-import-tasks').show();
+  else $('#btn-do-import-tasks').hide();
+}
+
+// Proper CSV line parser (handles quoted fields with commas)
+function parseCSVLine(line) {
+  const result = [];
+  let cur = '', inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuote && line[i+1] === '"') { cur += '"'; i++; }
+      else inQuote = !inQuote;
+    } else if (ch === ',' && !inQuote) {
+      result.push(cur); cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  result.push(cur);
+  return result;
+}
+
+$('#btn-do-import-tasks').on('click', function() {
+  const validRows = importTaskRows.filter(r => r.valid);
+  if (validRows.length === 0) return;
+
+  let tasks  = DB.tasks();
+  let plans  = PlanDB.all();
+  const users = DB.users();
+
+  let addedCount    = 0;
+  let overwriteCount = 0;
+
+  // Sort: parents first (rows without parentName), then children
+  const parents  = validRows.filter(r => !r.parentName);
+  const children = validRows.filter(r =>  r.parentName);
+  const sorted   = [...parents, ...children];
+
+  sorted.forEach(r => {
+    // Resolve parent ID
+    let parentId = null;
+    if (r.parentName) {
+      const parentTask = tasks.find(t => t.name.toLowerCase() === r.parentName.toLowerCase());
+      parentId = parentTask?.id || null;
+    }
+
+    // Normalise category capitalisation
+    let category = r.category;
+    if (category.toLowerCase() === 'improvement')     category = 'Improvement';
+    if (category.toLowerCase() === 'new development') category = 'New Development';
+
+    if (r.isOverwrite && r.existingId) {
+      // Update existing task
+      const idx = tasks.findIndex(t => t.id === r.existingId);
+      if (idx >= 0) {
+        tasks[idx] = {
+          ...tasks[idx],
+          name:        r.taskName,
+          parentId,
+          desc:        r.process || r.description,
+          site:        r.site,
+          initiatedBy: r.initiatedBy,
+          product:     r.product,
+          category,
+        };
+      }
+      overwriteCount++;
+
+      // Update plan
+      if (r.planStart && r.planEnd) {
+        const userIds = r.assignedUsers
+          .map(name => users.find(u => u.name.toLowerCase() === name.toLowerCase())?.id)
+          .filter(Boolean);
+        plans = plans.filter(p => p.taskId !== r.existingId);
+        plans.push({ taskId: r.existingId, startDate: r.planStart, endDate: r.planEnd, note: r.description, userIds });
+      }
+
+    } else {
+      // Add new task
+      const newId = uid();
+      tasks.push({
+        id: newId,
+        name:        r.taskName,
+        parentId,
+        desc:        r.process || r.description,
+        site:        r.site,
+        initiatedBy: r.initiatedBy,
+        product:     r.product,
+        category,
+      });
+
+      // Add plan
+      if (r.planStart && r.planEnd) {
+        const userIds = r.assignedUsers
+          .map(name => users.find(u => u.name.toLowerCase() === name.toLowerCase())?.id)
+          .filter(Boolean);
+        plans.push({ taskId: newId, startDate: r.planStart, endDate: r.planEnd, note: r.description, userIds });
+      }
+
+      addedCount++;
+    }
+  });
+
+  // Re-sort tasks by order field
+  const orderMap = {};
+  validRows.forEach(r => { orderMap[r.taskName.toLowerCase()] = r.order; });
+  tasks.sort((a, b) => {
+    const oa = orderMap[a.name.toLowerCase()] ?? 9999;
+    const ob = orderMap[b.name.toLowerCase()] ?? 9999;
+    return oa - ob;
+  });
+
+  DB.saveTasks(tasks);
+  PlanDB.save(plans);
+
+  notify(`Import selesai: ${addedCount} task baru, ${overwriteCount} ditimpa ✓`);
+  $('#import-tasks-preview').html('');
+  $('#btn-do-import-tasks').hide();
+  $('#task-csv-file').val('');
+  importTaskRows = [];
+});
+// ==================== INIT ====================
+
+$(document).ready(function() {
+  seedData();
+  navigate('dashboard');
+});
+
+</script>
+</body>
+</html>
