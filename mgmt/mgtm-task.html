@@ -176,6 +176,37 @@
   text-transform: uppercase;
   letter-spacing: 1px;
 }
+  /* ===== GRUP BADGES ===== */
+.grup-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-family: 'Space Mono', monospace;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.grup-A { background: rgba(85,153,238,0.15); color: #5599ee; border: 1px solid rgba(85,153,238,0.3); }
+.grup-B { background: rgba(80,200,120,0.15); color: #50c878; border: 1px solid rgba(80,200,120,0.3); }
+.grup-C { background: rgba(160,160,160,0.1); color: #a0a0a0; border: 1px solid rgba(160,160,160,0.2); }
+
+.multi-check-group { display: flex; flex-wrap: wrap; gap: 6px; }
+.check-pill {
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border2);
+  background: var(--bg3);
+  color: var(--text2);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+.check-pill:hover { border-color: var(--accent); color: var(--accent); }
+.check-pill.selected { background: rgba(240,192,64,0.1); border-color: var(--accent); color: var(--accent); }
+
   .page-content {
     height: calc(100vh - 53px); /* 53px = tinggi topbar */
     overflow-y: auto;
@@ -1652,6 +1683,17 @@
           <button class="btn btn-ghost btn-sm" id="tlt-year-next">▶</button>
         </div>
 
+        <!-- Filter Grup -->
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <label style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Space Mono',monospace">Grup</label>
+          <select class="form-control" id="tlt-filter-grup" style="width:160px">
+            <option value="">Semua Grup</option>
+            <option value="A">CladtekConnect</option>
+            <option value="B">Epicor</option>
+            <option value="C">CladSmart</option>
+          </select>
+        </div>
+
         <!-- Filter: tampilkan hanya log user ini -->
         <div style="display:flex;flex-direction:column;gap:3px">
           <label style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Space Mono',monospace">Filter User</label>
@@ -1713,78 +1755,93 @@
         </div>
       </div>
     </div>
-
     <!-- ===== PAGE: TASKS ===== -->
     <div class="page" id="page-tasks">
-        <div class="grid-2" style="align-items:start">
-            <div class="card">
-            <div class="card-title">Struktur Task</div>
-            <div id="tasks-tree"></div>
-            </div>
-            <div class="card">
-            <button class="btn btn-ghost" id="btn-open-import-tasks" style="width:100%;margin-top:10px">📥 Import Tasks dari CSV</button>
-            <div class="card-title">Tambah Task</div>
-            <div class="form-group">
-                <label class="form-label">Nama Task</label>
-                <input type="text" class="form-control" id="new-task-name" placeholder="Nama task...">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Task Induk (kosongkan jika induk baru)</label>
-                <select class="form-control" id="new-task-parent">
-                <option value="">— Tidak ada (Task Induk) —</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Process / Impacted Module</label>
-                <input type="text" class="form-control" id="new-task-desc" placeholder="Modul yang terdampak...">
-            </div>
-
-            <!-- Detail Info -->
-            <div style="border-top:1px solid var(--border);margin:16px 0 14px;padding-top:14px">
-                <div class="card-title" style="margin-bottom:12px">Detail Info</div>
-
-                <div class="form-group">
-                <label class="form-label">Site</label>
-                <div class="multi-check-group" id="new-task-site"></div>
-                </div>
-                <div class="form-group">
-                <label class="form-label">Initiated By</label>
-                <div class="multi-check-group" id="new-task-initiated"></div>
-                </div>
-                <div class="form-group">
-                <label class="form-label">Product</label>
-                <div class="multi-check-group" id="new-task-product"></div>
-                </div>
-                <div class="log-form-row">
-                <div class="form-group">
-                    <label class="form-label">Category</label>
-                    <select class="form-control" id="new-task-category">
-                    <option value="">— Pilih —</option>
-                    <option>Improvement</option>
-                    <option>New Development</option>
-                    </select>
-                </div>
-                </div>
-            </div>
-
-            <button class="btn btn-primary" id="btn-add-task" style="width:100%">+ Tambah Task</button>
-
-            <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border)">
-                <div class="card-title">Ubah Induk Task</div>
-                <div class="form-group">
-                <label class="form-label">Task</label>
-                <select class="form-control" id="reparent-task"></select>
-                </div>
-                <div class="form-group">
-                <label class="form-label">Jadikan Induk Baru</label>
-                <select class="form-control" id="reparent-parent">
-                    <option value="">— Jadikan Task Induk —</option>
-                </select>
-                </div>
-                <button class="btn btn-ghost" id="btn-reparent" style="width:100%">🔀 Ubah Induk</button>
-            </div>
-            </div>
+      <div class="grid-2" style="align-items:start">
+        <div class="card">
+          <div class="card-title">Struktur Task</div>
+          <div id="tasks-tree"></div>
         </div>
+        <div class="card">
+          <button class="btn btn-ghost" id="btn-open-import-tasks" style="width:100%;margin-bottom:14px">📥 Import Tasks dari CSV</button>
+
+          <div class="card-title">Tambah Task</div>
+
+          <div class="form-group">
+            <label class="form-label">Nama Task</label>
+            <input type="text" class="form-control" id="new-task-name" placeholder="Nama task...">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Task Induk (kosongkan jika induk baru)</label>
+            <select class="form-control" id="new-task-parent">
+              <option value="">— Tidak ada (Task Induk) —</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Process / Impacted Module</label>
+            <input type="text" class="form-control" id="new-task-desc" placeholder="Modul yang terdampak...">
+          </div>
+
+          <!-- Grup — hanya relevan untuk task induk -->
+          <div class="form-group" id="new-task-grup-wrap">
+            <label class="form-label">Grup</label>
+            <select class="form-control" id="new-task-grup">
+              <option value="C">CladSmart (default)</option>
+              <option value="A">CladtekConnect</option>
+              <option value="B">Epicor</option>
+            </select>
+            <div style="font-size:11px;color:var(--text3);margin-top:4px">
+              Sub-task akan mengikuti grup induknya otomatis.
+            </div>
+          </div>
+
+          <!-- Sub grup — muncul kalau grup punya subs -->
+          <div class="form-group" id="new-task-grup-subs-wrap" style="display:none">
+            <label class="form-label" id="new-task-grup-subs-label">Detail</label>
+            <div class="multi-check-group" id="new-task-grup-subs"></div>
+          </div>
+
+          <!-- Detail Info -->
+          <div style="border-top:1px solid var(--border);margin:16px 0 14px;padding-top:14px">
+            <div class="card-title" style="margin-bottom:12px">Detail Info</div>
+            <div class="form-group">
+              <label class="form-label">Site</label>
+              <div class="multi-check-group" id="new-task-site"></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Initiated By</label>
+              <div class="multi-check-group" id="new-task-initiated"></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Category</label>
+              <select class="form-control" id="new-task-category">
+                <option value="">— Pilih —</option>
+                <option>Improvement</option>
+                <option>New Development</option>
+              </select>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" id="btn-add-task" style="width:100%">+ Tambah Task</button>
+
+          <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border)">
+            <div class="card-title">Ubah Induk Task</div>
+            <div class="form-group">
+              <label class="form-label">Task</label>
+              <select class="form-control" id="reparent-task"></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Jadikan Induk Baru</label>
+              <select class="form-control" id="reparent-parent">
+                <option value="">— Jadikan Task Induk —</option>
+              </select>
+            </div>
+            <button class="btn btn-ghost" id="btn-reparent" style="width:100%">🔀 Ubah Induk</button>
+          </div>
+        </div>
+      </div>
     </div>
 
   </div><!-- end page-content -->
@@ -1848,6 +1905,7 @@
   <div class="modal" style="width:540px">
     <div class="modal-title">Edit Task</div>
     <input type="hidden" id="edit-task-id">
+
     <div class="form-group">
       <label class="form-label">Nama Task</label>
       <input type="text" class="form-control" id="edit-task-name">
@@ -1855,6 +1913,25 @@
     <div class="form-group">
       <label class="form-label">Process / Impacted Module</label>
       <input type="text" class="form-control" id="edit-task-desc">
+    </div>
+
+    <!-- Grup — hanya tampil untuk task induk -->
+    <div class="form-group" id="edit-task-grup-wrap">
+      <label class="form-label">Grup</label>
+      <select class="form-control" id="edit-task-grup">
+        <option value="C">CladSmart (default)</option>
+        <option value="A">CladtekConnect</option>
+        <option value="B">Epicor</option>
+      </select>
+      <div style="font-size:11px;color:var(--text3);margin-top:4px">
+        Sub-task mengikuti grup induknya otomatis.
+      </div>
+    </div>
+
+    <!-- Sub grup — muncul kalau grup punya subs -->
+    <div class="form-group" id="edit-task-grup-subs-wrap" style="display:none">
+      <label class="form-label" id="edit-task-grup-subs-label">Detail</label>
+      <div class="multi-check-group" id="edit-task-grup-subs"></div>
     </div>
 
     <div style="border-top:1px solid var(--border);margin:16px 0 14px;padding-top:14px">
@@ -1866,10 +1943,6 @@
       <div class="form-group">
         <label class="form-label">Initiated By</label>
         <div class="multi-check-group" id="edit-task-initiated"></div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Product</label>
-        <div class="multi-check-group" id="edit-task-product"></div>
       </div>
       <div class="form-group">
         <label class="form-label">Category</label>
@@ -2074,6 +2147,8 @@ function seedData() {
   DB.saveLogs(logs);
 }
 
+var importTaskRows = [];
+
 function initSelect2() {
   $('select').each(function() {
     // destroy dulu kalau sudah diinit sebelumnya
@@ -2107,6 +2182,64 @@ const TASK_COLORS = ['#44ccbb','#ee8844','#aa77ee','#5599ee','#f0c040','#50c878'
 const SITES = ['CA', 'CBM', 'CTB'];
 const PRODUCTS = ['General', 'MLP', 'WOL', 'Fitting', 'Flange', 'CRA Bend', 'CS Bend', 'API', 'ALL MFG'];
 const CATEGORIES = ['Improvement', 'New Development'];
+
+const GRUPS = [
+  {
+    id: 'A',
+    name: 'CladtekConnect',
+    color: '#5599ee',
+    subs: ['ECR', 'LMS']
+  },
+  {
+    id: 'B',
+    name: 'Epicor',
+    color: '#50c878',
+    subs: []
+  },
+  {
+    id: 'C',
+    name: 'CladSmart',
+    color: '#ff0000',
+    subs: ['General', 'MLP', 'WOL', 'Fitting', 'Flange', 'CRA Bend', 'CS Bend', 'API', 'ALL MFG']
+  },
+];
+
+function getGrup(grupId) {
+  return GRUPS.find(g => g.id === grupId) || GRUPS[2];
+}
+
+function getTaskGrupId(taskId) {
+  const tasks = DB.tasks();
+  const task  = tasks.find(t => t.id === taskId);
+  if (!task) return 'C';
+  if (task.parentId) {
+    const parent = tasks.find(t => t.id === task.parentId);
+    return parent?.grupId || 'C';
+  }
+  return task.grupId || 'C';
+}
+
+function grupBadgeHtml(grupId, subValue) {
+  const g = getGrup(grupId);
+  let html = `<span class="grup-badge grup-${g.id}">${g.name}</span>`;
+  if (subValue) {
+    html += ` <span style="font-size:10px;color:var(--text3);font-family:'Space Mono',monospace">/ ${subValue}</span>`;
+  }
+  return html;
+}
+
+// Toggle sub-pills berdasarkan grup yang dipilih
+function toggleGrupSubs(grupId, selected) {
+  const grup = getGrup(grupId);
+  if (grup.subs && grup.subs.length > 0) {
+    $('#edit-task-grup-subs-label').text(grup.name + ' — Detail');
+    buildMultiPills('edit-task-grup-subs', grup.subs, selected);
+    $('#edit-task-grup-subs-wrap').show();
+  } else {
+    $('#edit-task-grup-subs-wrap').hide();
+    $('#edit-task-grup-subs').html('');
+  }
+}
 
 function buildMultiPills(containerId, options, selected = []) {
   let html = '';
@@ -2425,11 +2558,15 @@ $(document).on('click', '[data-edit-log]', function() {
   const logId = $(this).data('edit-log');
   const log = DB.logs().find(l => l.id === logId);
   if (!log) return;
+
   $('#edit-log-id').val(log.id);
-  $('#edit-log-user').val(log.userId);
-  $('#edit-log-task').val(log.taskId);
   $('#edit-log-date').val(log.date);
-  $('#edit-log-note').val(log.note);
+  $('#edit-log-note').val(log.note || '');
+
+  // Select2 perlu trigger change setelah set val
+  $('#edit-log-user').val(log.userId).trigger('change');
+  $('#edit-log-task').val(log.taskId).trigger('change');
+
   $('#modal-edit-log').addClass('open');
 });
 
@@ -3105,28 +3242,93 @@ function renderTasks() {
 
   if (html === '') html = '<div class="empty-state"><div class="empty-icon">🗂️</div><p>Belum ada task</p></div>';
   $('#tasks-tree').html(html);
+  initNewTaskForm(); 
 }
 
+// Inisialisasi pills saat halaman tasks dirender
+function initNewTaskForm() {
+  buildMultiPills('new-task-site',      SITES,      []);
+  buildMultiPills('new-task-initiated', SITES,      []); // pakai SITES juga
+  // Reset grup
+  $('#new-task-grup').val('C');
+  toggleNewTaskGrupSubs('C');
+}
+
+// Toggle sub grup di form tambah
+function toggleNewTaskGrupSubs(grupId) {
+  const grup = getGrup(grupId);
+  if (grup.subs && grup.subs.length > 0) {
+    $('#new-task-grup-subs-label').text(grup.name + ' — Detail');
+    buildMultiPills('new-task-grup-subs', grup.subs, []);
+    $('#new-task-grup-subs-wrap').show();
+  } else {
+    $('#new-task-grup-subs-wrap').hide();
+    $('#new-task-grup-subs').html('');
+  }
+}
+
+// Saat parent dipilih — sembunyikan grup kalau sub-task
+$('#new-task-parent').on('change', function() {
+  if ($(this).val()) {
+    // Sub-task — sembunyikan grup & subs
+    $('#new-task-grup-wrap').hide();
+    $('#new-task-grup-subs-wrap').hide();
+  } else {
+    // Task induk — tampilkan grup
+    $('#new-task-grup-wrap').show();
+    toggleNewTaskGrupSubs($('#new-task-grup').val());
+  }
+});
+
+// Saat dropdown grup berubah di form tambah
+$('#new-task-grup').on('change', function() {
+  toggleNewTaskGrupSubs($(this).val());
+});
+
+// Tambah task
 $('#btn-add-task').on('click', function() {
-  const name = $('#new-task-name').val().trim();
-  if (!name) { notify('Nama task wajib diisi!', 'error'); return; }
+  const name     = $('#new-task-name').val().trim();
+  const parentId = $('#new-task-parent').val() || null;
+  const desc     = $('#new-task-desc').val().trim();
+  const category = $('#new-task-category').val();
+  const site     = getCheckedPills('new-task-site');
+  const initiatedBy = getCheckedPills('new-task-initiated');
+
+  if (!name) { notify('Nama task tidak boleh kosong!', 'error'); return; }
 
   const tasks = DB.tasks();
+  if (tasks.find(t => t.name.toLowerCase() === name.toLowerCase())) {
+    notify('Task sudah ada!', 'error'); return;
+  }
+
+  const isChild = !!parentId;
+  const grupId  = isChild ? null : ($('#new-task-grup').val() || 'C');
+  const grup    = grupId ? getGrup(grupId) : null;
+  const hasSubs = grup && grup.subs && grup.subs.length > 0;
+  const grupSubs = (!isChild && hasSubs) ? getCheckedPills('new-task-grup-subs') : [];
+
   tasks.push({
     id: uid(),
     name,
-    parentId: $('#new-task-parent').val() || null,
-    desc:        $('#new-task-desc').val().trim(),
-    site:        getMultiPillValues('new-task-site'),
-    initiatedBy: getMultiPillValues('new-task-initiated'),
-    product:     getMultiPillValues('new-task-product'),
-    category:    $('#new-task-category').val(),
+    parentId,
+    desc,
+    category,
+    site,
+    initiatedBy,
+    grupId:   isChild ? null : grupId,
+    grupSubs,
   });
 
   DB.saveTasks(tasks);
+
+  // Reset form
   $('#new-task-name').val('');
   $('#new-task-desc').val('');
   $('#new-task-category').val('');
+  $('#new-task-parent').val('');
+  $('#new-task-grup').val('C');
+  initNewTaskForm();
+
   notify('Task ditambahkan ✓');
   renderTasks();
 });
@@ -3147,37 +3349,67 @@ $('#btn-reparent').on('click', function() {
 
 $(document).on('click', '[data-edit-task]', function() {
   const taskId = $(this).data('edit-task');
-  const task = DB.tasks().find(t => t.id === taskId);
+  const task   = DB.tasks().find(t => t.id === taskId);
   if (!task) return;
+
+  const tasks   = DB.tasks();
+  const isChild = !!task.parentId;
+  const efectiveGrupId = isChild
+    ? (tasks.find(t => t.id === task.parentId)?.grupId || 'C')
+    : (task.grupId || 'C');
 
   $('#edit-task-id').val(task.id);
   $('#edit-task-name').val(task.name);
   $('#edit-task-desc').val(task.desc || '');
   $('#edit-task-category').val(task.category || '');
 
-  buildMultiPills('edit-task-site',      SITES,    task.site        || []);
-  buildMultiPills('edit-task-initiated', SITES,    task.initiatedBy || []);
-  buildMultiPills('edit-task-product',   PRODUCTS, task.product     || []);
+  // Grup selector
+  if (isChild) {
+    $('#edit-task-grup-wrap').hide();
+    $('#edit-task-grup-subs-wrap').hide();
+  } else {
+    $('#edit-task-grup-wrap').show();
+    $('#edit-task-grup').val(task.grupId || 'C');
+    toggleGrupSubs(task.grupId || 'C', task.grupSubs || []);
+  }
+
+  // Multi pills
+  buildMultiPills('edit-task-site',      SITES,      task.site        || []);
+  buildMultiPills('edit-task-initiated', SITES, task.initiatedBy || []);
 
   $('#modal-edit-task').addClass('open');
+  initSelect2();
+});
+
+// Saat dropdown grup berubah
+$('#edit-task-grup').on('change', function() {
+  toggleGrupSubs($(this).val(), []);
 });
 
 $('#btn-cancel-edit-task').on('click', () => $('#modal-edit-task').removeClass('open'));
 
 $('#btn-save-edit-task').on('click', function() {
-  const id = $('#edit-task-id').val();
+  const id  = $('#edit-task-id').val();
   let tasks = DB.tasks();
   const idx = tasks.findIndex(t => t.id === id);
   if (idx < 0) return;
+
+  const isChild  = !!tasks[idx].parentId;
+  const grupId   = isChild ? (tasks[idx].grupId || 'C') : ($('#edit-task-grup').val() || 'C');
+  const grup     = getGrup(grupId);
+  const hasSubs  = grup.subs && grup.subs.length > 0;
 
   tasks[idx] = {
     ...tasks[idx],
     name:        $('#edit-task-name').val().trim(),
     desc:        $('#edit-task-desc').val().trim(),
-    site:        getMultiPillValues('edit-task-site'),
-    initiatedBy: getMultiPillValues('edit-task-initiated'),
-    product:     getMultiPillValues('edit-task-product'),
     category:    $('#edit-task-category').val(),
+    site:        getCheckedPills('edit-task-site'),
+    initiatedBy: getCheckedPills('edit-task-initiated'),
+    grupId:      isChild ? tasks[idx].grupId : grupId,
+    grupSubs:    (!isChild && hasSubs)
+                   ? getCheckedPills('edit-task-grup-subs')
+                   : (tasks[idx].grupSubs || []),
   };
 
   DB.saveTasks(tasks);
@@ -3186,7 +3418,74 @@ $('#btn-save-edit-task').on('click', function() {
   renderTasks();
 });
 
+$('#btn-delete-task').on('click', function() {
+  const id    = $('#edit-task-id').val();
+  const tasks = DB.tasks();
+  const subTasks = tasks.filter(t => t.parentId === id);
+  const logCount = DB.logs().filter(l => l.taskId === id).length;
+  const msg = [];
+  if (logCount > 0) msg.push(`${logCount} log`);
+  if (subTasks.length > 0) msg.push(`${subTasks.length} sub-task akan kehilangan induk`);
+  if (msg.length > 0 && !confirm(`Task ini memiliki ${msg.join(' dan ')}. Yakin hapus?`)) return;
+  DB.saveTasks(tasks.filter(t => t.id !== id));
+  DB.saveLogs(DB.logs().filter(l => l.taskId !== id));
+  $('#modal-edit-task').removeClass('open');
+  notify('Task dihapus');
+  renderTasks();
+});
 
+// Fungsi toggle CladSmart product section
+function toggleCladSmartProduct(grupId, selected) {
+  if (grupId === 'C') {
+    buildMultiPills('edit-task-cladsmart-product', PRODUCTS, selected);
+    $('#edit-task-cladsmart-wrap').show();
+  } else {
+    $('#edit-task-cladsmart-wrap').hide();
+    $('#edit-task-cladsmart-product').html('');
+  }
+}
+
+// Saat dropdown grup berubah — toggle product section
+$('#edit-task-grup').on('change', function() {
+  toggleCladSmartProduct($(this).val(), []);
+});
+
+$('#btn-cancel-edit-task').on('click', () => $('#modal-edit-task').removeClass('open'));
+
+$('#btn-save-edit-task').on('click', function() {
+  const id    = $('#edit-task-id').val();
+  let tasks   = DB.tasks();
+  const idx   = tasks.findIndex(t => t.id === id);
+  if (idx < 0) return;
+
+  const isChild = !!tasks[idx].parentId;
+
+  tasks[idx] = {
+    ...tasks[idx],
+    name:             $('#edit-task-name').val().trim(),
+    desc:             $('#edit-task-desc').val().trim(),
+    category:         $('#edit-task-category').val(),
+    site:             getCheckedPills('edit-task-site'),
+    initiatedBy:      getCheckedPills('edit-task-initiated'),
+    // Grup hanya disimpan di induk
+    grupId:           isChild ? tasks[idx].grupId : ($('#edit-task-grup').val() || 'C'),
+    // CladSmart product hanya relevan kalau grup C
+    cladsmartProduct: (!isChild && $('#edit-task-grup').val() === 'C')
+                        ? getCheckedPills('edit-task-cladsmart-product')
+                        : (tasks[idx].cladsmartProduct || []),
+  };
+
+  DB.saveTasks(tasks);
+  $('#modal-edit-task').removeClass('open');
+  notify('Task diperbarui ✓');
+  renderTasks();
+});
+
+function getCheckedPills(containerId) {
+  return $('#' + containerId + ' .mcp-pill.selected')
+    .map(function() { return $(this).data('val'); })
+    .get();
+}
 
 $('#btn-delete-task').on('click', function() {
   const id = $('#edit-task-id').val();
@@ -3457,6 +3756,8 @@ function populateTltHighlight() {
   $('#tlt-highlight-user').html(hOpts);
 }
 
+$('#tlt-filter-grup').on('change', buildTimelineTask);
+
 // Highlight user handler
 $('#tlt-highlight-user').on('change', function() {
   const userId = $(this).val();
@@ -3494,12 +3795,14 @@ $('#tlt-highlight-user').on('change', function() {
 function buildTimelineTask() {
   const users = DB.users();
   const tasks = DB.tasks();
-  const filterUser = $('#tlt-filter-user').val();
-  const cellSize = $('#tlt-cell-size').val() || 'normal';
-  const todayStr = today();
+  const filterUser    = $('#tlt-filter-user').val();
+  const filterGrup    = $('#tlt-filter-grup').val();
+  const cellSize      = $('#tlt-cell-size').val() || 'normal';
+  const todayStr      = today();
 
   let logs = DB.logs().filter(l => l.date.startsWith(String(tltYear)));
   if (filterUser) logs = logs.filter(l => l.userId === filterUser);
+  if (filterGrup) logs = logs.filter(l => getTaskGrupId(l.taskId) === filterGrup);
 
   // Build index: taskId -> date -> [userId, ...]
   const logIndex = {};
@@ -3511,107 +3814,100 @@ function buildTimelineTask() {
       logIndex[l.taskId][l.date].push(l.userId);
   });
 
-  // Build all dates for the year
+  // Build all dates
   const monthNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
   const allDates = [];
   for (let m = 0; m < 12; m++) {
     const daysInMonth = new Date(tltYear, m+1, 0).getDate();
     for (let d = 1; d <= daysInMonth; d++) {
       const date = `${tltYear}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-      const dow = new Date(date).getDay();
+      const dow  = new Date(date).getDay();
       allDates.push({ date, month: m, day: d, dow, monthStart: d === 1 });
     }
   }
 
-  // Cell sizes
   const sizes = { compact: 14, normal: 20, large: 28 };
   const cellW = sizes[cellSize];
 
-  // ---- LEGEND (by user) ----
+  // Legend
   let legendHtml = '<span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-right:6px;white-space:nowrap">User:</span>';
   users.forEach((u, i) => {
-    legendHtml += `
-      <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;margin-right:8px;white-space:nowrap">
-        <span style="width:10px;height:10px;border-radius:2px;background:${getUserColor(i)};display:inline-block"></span>
-        <span style="color:var(--text2)">${u.name.split(' ')[0]}</span>
-      </span>`;
+    legendHtml += `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;margin-right:8px;white-space:nowrap">
+      <span style="width:10px;height:10px;border-radius:2px;background:${getUserColor(i)};display:inline-block"></span>
+      <span style="color:var(--text2)">${u.name.split(' ')[0]}</span>
+    </span>`;
   });
   $('#tlt-legend').html(legendHtml);
 
   // ---- BUILD HTML ----
   let html = `<div class="tlu-wrap size-${cellSize}">`;
 
-  // Sticky top header
+  // Sticky header
   html += `<div class="tlt-sticky-header">`;
   html += `<div class="tlt-corner"></div>`;
+  html += `<div style="display:flex;flex-direction:column;flex:1">`;
 
-  // Month label row
   html += `<div class="tlu-month-headers">`;
   for (let m = 0; m < 12; m++) {
-    const daysInMonth = new Date(tltYear, m+1, 0).getDate();
-    const w = daysInMonth * cellW;
+    const w = new Date(tltYear, m+1, 0).getDate() * cellW;
     html += `<div class="tlu-month-hdr" style="width:${w}px;min-width:${w}px">${monthNames[m]}</div>`;
   }
   html += `</div>`;
 
-  // Day number row
   html += `<div class="tlu-day-headers">`;
   allDates.forEach(d => {
     const isWeekend = d.dow === 0 || d.dow === 6;
-    const isToday = d.date === todayStr;
+    const isToday   = d.date === todayStr;
     const cls = isToday ? 'today-col' : isWeekend ? 'weekend' : '';
     html += `<div class="tlu-day-hdr ${cls}" style="width:${cellW}px;min-width:${cellW}px">${d.day === 1 || d.day % 5 === 0 ? d.day : ''}</div>`;
   });
   html += `</div>`;
+  html += `</div>`; // end flex col
   html += `</div>`; // end sticky header
 
-  // Separate parent tasks and subtasks for grouping
-  const parentTasks = tasks.filter(t => !t.parentId);
-  const childTasks = tasks.filter(t => t.parentId);
-
-  function renderTaskRow(task, tIdx, isChild) {
+  // ---- RENDER TASK ROW ----
+  function renderTaskRow(task, isChild) {
+    const tIdx       = tasks.findIndex(t => t.id === task.id);
     const labelStyle = isChild
-      ? 'padding-left:18px;font-size:11px;color:var(--text3)'
+      ? 'padding-left:22px;font-size:11px;color:var(--text3)'
       : 'font-size:12px;font-weight:600;color:var(--text)';
     const prefix = isChild ? '↳ ' : '';
+    const label  = task.name.length > 46 ? task.name.slice(0,45)+'…' : task.name;
 
     let rowHtml = `<div class="tlu-user-row">`;
     rowHtml += `<div class="tlu-user-label" style="width:350px;min-width:350px;${labelStyle}" title="${task.name}">
-      ${prefix}${task.name.length > 46 ? task.name.slice(0,45)+'…' : task.name}
+      ${prefix}${label}
     </div>`;
 
     allDates.forEach(d => {
-      const isWeekend = d.dow === 0 || d.dow === 6;
-      const isToday = d.date === todayStr;
-      const userIds = logIndex[task.id]?.[d.date] || [];
+      const isWeekend    = d.dow === 0 || d.dow === 6;
+      const isToday      = d.date === todayStr;
+      const userIds      = logIndex[task.id]?.[d.date] || [];
       const monthStartCls = d.monthStart ? 'month-start' : '';
-      const weekendCls = isWeekend && userIds.length === 0 ? 'weekend' : '';
-      const todayCls = isToday ? 'today-cell' : '';
+      const weekendCls   = isWeekend && userIds.length === 0 ? 'weekend' : '';
+      const todayCls     = isToday ? 'today-cell' : '';
 
       if (userIds.length === 0) {
-        rowHtml += `<div class="tlu-cell ${monthStartCls} ${weekendCls} ${todayCls}" style="width:${cellW}px;min-width:${cellW}px" data-date="${d.date}" data-tid="${task.id}"></div>`;
+        rowHtml += `<div class="tlu-cell ${monthStartCls} ${weekendCls} ${todayCls}"
+          style="width:${cellW}px;min-width:${cellW}px"
+          data-date="${d.date}" data-tid="${task.id}"></div>`;
       } else {
-        // Color: if single user, solid; if multiple, gradient chips
         let bgStyle = '';
         if (userIds.length === 1) {
-          const uIdx = getUserIndex(userIds[0]);
-          bgStyle = `background:${getUserColor(uIdx)}`;
+          bgStyle = `background:${getUserColor(getUserIndex(userIds[0]))}`;
         } else {
-          const colors = userIds.slice(0, 4).map(uid => getUserColor(getUserIndex(uid)));
-          const step = 100 / colors.length;
-          const stops = colors.map((c, i) => `${c} ${i*step}%, ${c} ${(i+1)*step}%`).join(', ');
+          const colors = userIds.slice(0,4).map(uid => getUserColor(getUserIndex(uid)));
+          const step   = 100 / colors.length;
+          const stops  = colors.map((c,i) => `${c} ${i*step}%, ${c} ${(i+1)*step}%`).join(', ');
           bgStyle = `background:linear-gradient(135deg,${stops})`;
         }
 
-        const tooltipData = userIds.map(uid => {
-          const uIdx = getUserIndex(uid);
-          return `${uIdx}|${getUserName(uid)}`;
-        }).join('::');
+        const tooltipData = userIds.map(uid => `${getUserIndex(uid)}|${getUserName(uid)}`).join('::');
 
         rowHtml += `<div class="tlu-cell has-log ${monthStartCls} ${todayCls}"
           style="width:${cellW}px;min-width:${cellW}px;${bgStyle}"
-          data-date="${d.date}" data-tid="${task.id}" data-users="${tooltipData}"
-          data-taskname="${task.name}"></div>`;
+          data-date="${d.date}" data-tid="${task.id}"
+          data-users="${tooltipData}" data-taskname="${task.name}"></div>`;
       }
     });
 
@@ -3619,29 +3915,79 @@ function buildTimelineTask() {
     return rowHtml;
   }
 
-  // Render: parent rows, then their children
-  parentTasks.forEach((pt, ptIdx) => {
-    const ptGlobalIdx = tasks.findIndex(t => t.id === pt.id);
-    html += renderTaskRow(pt, ptGlobalIdx, false);
+  // ---- RENDER GRUP HEADER ----
+  function renderGrupHeader(grup) {
+    return `<div style="
+      display:flex;
+      align-items:center;
+      position:sticky;
+      left:0;
+      margin:0;
+      padding:6px 12px;
+      background:var(--bg2);
+      border-top:1px solid var(--border);
+      border-bottom:1px solid var(--border);
+      z-index:15;
+      min-width:100%;
+      box-sizing:border-box;
+    ">
+      <span style="
+        width:8px;height:8px;border-radius:2px;
+        background:${grup.color};
+        display:inline-block;margin-right:8px;flex-shrink:0
+      "></span>
+      <span style="
+        font-family:'Space Mono',monospace;
+        font-size:10px;font-weight:700;
+        text-transform:uppercase;letter-spacing:2px;
+        color:${grup.color}
+      ">${grup.name}</span>
+    </div>`;
+  }
 
-    const children = childTasks.filter(c => c.parentId === pt.id);
-    children.forEach(ct => {
-      const ctGlobalIdx = tasks.findIndex(t => t.id === ct.id);
-      html += renderTaskRow(ct, ctGlobalIdx, true);
+  // ---- GROUP TASKS BY GRUP ----
+  const parentTasks = tasks.filter(t => !t.parentId);
+  const childTasks  = tasks.filter(t =>  t.parentId);
+
+  // Tentukan grup mana yang perlu ditampilkan
+  const visibleGrups = filterGrup
+    ? GRUPS.filter(g => g.id === filterGrup)
+    : GRUPS;
+
+  visibleGrups.forEach(grup => {
+    // Task induk yang masuk grup ini
+    const grupParents = parentTasks.filter(t => (t.grupId || 'C') === grup.id);
+
+    // Skip grup kalau tidak ada task (dan tidak ada filter)
+    if (grupParents.length === 0) return;
+
+    // Grup header
+    html += renderGrupHeader(grup);
+
+    // Render tiap task induk + children-nya
+    grupParents.forEach(pt => {
+      html += renderTaskRow(pt, false);
+
+      childTasks.filter(c => c.parentId === pt.id).forEach(ct => {
+        html += renderTaskRow(ct, true);
+      });
+
+      // Separator antar task induk dalam 1 grup
+      html += `<div class="tlu-user-separator"></div>`;
     });
-
-    html += `<div class="tlu-user-separator"></div>`;
   });
 
-  // Orphan children (if any parent is missing)
-  childTasks.filter(c => !tasks.find(t => t.id === c.parentId)).forEach(ct => {
-    const ctGlobalIdx = tasks.findIndex(t => t.id === ct.id);
-    html += renderTaskRow(ct, ctGlobalIdx, true);
-  });
+  // Orphan children
+  const orphans = childTasks.filter(c => !tasks.find(t => t.id === c.parentId));
+  if (orphans.length > 0) {
+    html += renderGrupHeader({ id: '?', name: 'Tidak Berkategori', color: 'var(--text3)' });
+    orphans.forEach(ct => { html += renderTaskRow(ct, true); });
+  }
 
   html += `</div>`; // end tlu-wrap
   $('#tlt-container').html(html);
 }
+
 
 // Timeline-Task events
 $('#tlt-year-prev').on('click', () => { tltYear--; $('#tlt-current-year').text(tltYear); buildTimelineTask(); });
@@ -3826,11 +4172,14 @@ function buildPlanningGantt() {
       const monthCls = d.monthStart ? 'month-start' : '';
       rowHtml += `<div class="gantt-day-bg ${cls} ${monthCls}" style="left:${i * DAY_W}px;width:${DAY_W}px"></div>`;
     });
-
+    console.log(plan && plan.startDate && plan.endDate)
     // Plan bar
     if (plan && plan.startDate && plan.endDate) {
       const startIdx = dateIndex[plan.startDate];
       const endIdx = dateIndex[plan.endDate];
+      console.log("start")
+      console.log(dateIndex)
+      console.log(plan.startDate)
       if (startIdx !== undefined && endIdx !== undefined && endIdx >= startIdx) {
         const barLeft = startIdx * DAY_W;
         const barW = (endIdx - startIdx + 1) * DAY_W;
@@ -4036,7 +4385,7 @@ $('#task-csv-file').on('change', function() {
   if (file) parseTaskCSV(file);
 });
 
-let importTaskRows = [];
+importTaskRows = [];
 
 function parseTaskCSV(file) {
   const reader = new FileReader();
@@ -4734,7 +5083,6 @@ $('#csv-tasks-file').on('change', function() {
   if (file) readTasksCSV(file);
 });
  
-let importTaskRows = [];
 
 
 function readTasksCSV(file) {
