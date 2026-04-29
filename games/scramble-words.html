@@ -1,0 +1,221 @@
+<!DOCTYPE html><html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bible Scramble Words</title>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }body {
+  min-height: 100vh;
+  display: grid;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  background: linear-gradient(rgba(255,255,255,0.88), rgba(255,255,255,0.88)),
+    url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1600&q=80');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.card {
+  width: 100%;
+  max-width: 1200px;
+  background: rgba(255,255,255,0.92);
+  border-radius: 24px;
+  padding: 40px 28px;
+  text-align: center;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+  backdrop-filter: blur(8px);
+}
+
+h1 {
+  font-size: 2rem;
+  margin-bottom: 10px;
+  color: #1f3c88;
+}
+
+.subtitle {
+  color: #555;
+  margin-bottom: 30px;
+  font-size: 1rem;
+}
+
+.word-box {
+  background: #f5f9ff;
+  border-radius: 18px;
+  padding: 30px 20px;
+  margin-bottom: 30px;
+  border: 2px dashed #c8dfff;
+}
+
+#scrambleWord {
+  font-size: 3.2rem;
+  font-weight: bold;
+  letter-spacing: 6px;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+button {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 14px 28px;
+  border-radius: 14px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+button:hover {
+  background: #1d4ed8;
+}
+
+.info {
+  margin-top: 18px;
+  color: #666;
+  font-size: 0.95rem;
+}
+
+@media (max-width: 600px) {
+  h1 {
+    font-size: 1.6rem;
+  }
+
+  #scrambleWord {
+    font-size: 1.5rem;
+    letter-spacing: 4px;
+  }
+
+  .card {
+    padding: 30px 20px;
+  }
+}
+
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Scramble Words Alkitab</h1>
+    <div class="subtitle">Icebreaker Edition 🧩📖</div>
+    <div class="word-box" style="background: linear-gradient(rgba(255,255,255,0.35), rgba(255,255,255,0.35)), 
+    url('https://marketplace.canva.com/upTFI/MAHGQiupTFI/1/tl/canva-wooden-cross-MAHGQiupTFI.jpg'); 
+    background-size: cover; background-position: center; min-height: 420px;width:800px; display: flex; align-items: center; justify-content: center;">
+  <div id="scrambleWord">Klik Next Word</div>
+</div>
+
+</div>
+
+<div style="margin-top: 80px; display:flex; gap:18px; justify-content:center; flex-wrap:wrap;">
+  <button id="nextBtn">Next Word</button>
+  <button id="showAnswerBtn">Lihat Jawaban</button>
+  <button id="changeBgBtn">Ganti Background</button>
+</div>
+<div style="margin-top:20px;">
+  <div id="answerText" style="display:none; margin-top:15px; font-weight:bold; color:#1f3c88;"></div>
+</div>
+<div class="info">Refresh halaman untuk mengulang semua kata</div>
+
+  </div>  <script>
+    const backgrounds = [
+      'https://png.pngtree.com/thumb_back/fh260/background/20240731/pngtree-mountain-cross-symbolizes-jesuss-resurrection-easter-image_16120142.jpg',
+      'https://images.unsplash.com/photo-1493246507139-91e8fad9978e?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1439066615861-d1af74d74000?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1472396961693-142e6e269027?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1472214103451-9374bd1c798e?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1426604966848-d7adac402bff?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1433086966358-54859d0ed716?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=1200&q=80'
+    ];
+
+    const words = [
+      "YESUS","MOSES","DAUD","SALOMO","ABRAHAM","ISHAK","YAKUB","YUSUF",
+      "DANIEL","ELIA","ELISA","PAULUS","PETRUS","YOHANES","MATIUS","MARKUS",
+      "LUKAS","RUT","ESTER","MARIA","BETHLEHEM","YERUSALEM","NAZARET","GALILEA",
+      "MESIR","EDEN","SINAI","YORDAN","KANAAN","GENESIS","KELUARAN","MAZMUR",
+      "AMSAL","YESAYA","MATIUSKITAB","WAHYU","MANA","BAHtera","PELANGI","LAZARUS"
+    ];
+
+    function shuffleWord(word) {
+      let arr = word.split('');
+      for (let i = arr.length - 1; i > 0; i--) {
+        let j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr.join('');
+    }
+
+    function resetWords() {
+      localStorage.removeItem('usedBibleWords');
+    }
+
+    function getUsedWords() {
+      return JSON.parse(localStorage.getItem('usedBibleWords')) || [];
+    }
+
+    function saveUsedWords(data) {
+      localStorage.setItem('usedBibleWords', JSON.stringify(data));
+    }
+
+    function changeBackground() {
+      let randomBg = backgrounds[Math.floor(Math.random() * backgrounds.length)];
+      $('.word-box').css('background', `linear-gradient(rgba(255,255,255,0.35), rgba(255,255,255,0.35)), url('${randomBg}') center/cover no-repeat`);
+    }
+
+    function showNextWord() {
+      let usedWords = getUsedWords();
+      let availableWords = words.filter(word => !usedWords.includes(word));
+
+      if (availableWords.length === 0) {
+        $('#scrambleWord').text('Semua kata sudah tampil 🎉');
+        return;
+      }
+
+      let randomWord = availableWords[Math.floor(Math.random() * availableWords.length)];
+      let scrambled = shuffleWord(randomWord);
+
+      while (scrambled === randomWord && randomWord.length > 3) {
+        scrambled = shuffleWord(randomWord);
+      }
+
+      $('#scrambleWord').text(scrambled.split('').join(' - '));
+      $('#answerText').text('Jawaban: ' + randomWord);
+
+      usedWords.push(randomWord);
+      saveUsedWords(usedWords);
+    }
+
+    $(document).ready(function () {
+      $('#changeBgBtn').on('click', function () {
+        changeBackground();
+      });
+
+      $('#showAnswerBtn').on('click', function () {
+        $('#answerText').toggle();
+      });
+      resetWords();
+
+      $('#nextBtn').on('click', function () {
+        showNextWord();
+      });
+    });
+  </script></body>
+</html>
