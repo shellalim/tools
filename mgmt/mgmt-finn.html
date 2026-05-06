@@ -17,69 +17,6 @@
   --card-r:16px;
   --ff:'DM Sans',sans-serif;--ff2:'Space Grotesk',sans-serif;
 }
-
-  /* LOGIN */
-  #login-page {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--primary);
-  }
-
-  .login-box {
-    background: var(--surface);
-    border-radius: 20px;
-    padding: 48px 40px;
-    width: 360px;
-    text-align: center;
-    box-shadow: 0 24px 60px rgba(0,0,0,0.2);
-  }
-
-  .login-box .icon { font-size: 48px; margin-bottom: 16px; }
-
-  .login-box h1 {
-    font-family: 'DM Serif Display', serif;
-    font-size: 26px;
-    color: var(--primary);
-    margin-bottom: 6px;
-  }
-
-  .login-box p { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
-
-  .login-box input {
-    width: 100%;
-    padding: 12px 16px;
-    border: 2px solid var(--border);
-    border-radius: 10px;
-    font-size: 15px;
-    font-family: 'DM Sans', sans-serif;
-    outline: none;
-    transition: border 0.2s;
-    margin-bottom: 12px;
-    background: var(--bg);
-  }
-
-  .login-box input:focus { border-color: var(--primary); }
-
-  .btn-login {
-    width: 100%;
-    padding: 13px;
-    background: var(--primary);
-    color: white;
-    border: none;
-    border-radius: 10px;
-    font-size: 15px;
-    font-family: 'DM Sans', sans-serif;
-    font-weight: 600;
-    cursor: pointer;
-    transition: opacity 0.2s;
-  }
-
-  .btn-login:hover { opacity: 0.85; }
-  .login-error { color: var(--danger); font-size: 13px; margin-top: 10px; display: none; }
-
-#main-page { display: none; }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{background:var(--bg);color:var(--text);font-family:var(--ff);font-size:14px;min-height:100vh;overflow-x:hidden}
@@ -254,9 +191,74 @@ main{overflow-y:auto;height:100vh}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}
 /* RESPONSIVE TOPBAR */
 .export-section{display:flex;gap:8px}
+
+
+  /* LOGIN */
+  #login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary);
+  }
+
+  .login-box {
+    background: var(--surface);
+    border-radius: 20px;
+    padding: 48px 40px;
+    width: 360px;
+    text-align: center;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.2);
+  }
+
+  .login-box .icon { font-size: 48px; margin-bottom: 16px; }
+
+  .login-box h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 26px;
+    color: var(--primary);
+    margin-bottom: 6px;
+  }
+
+  .login-box p { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+
+  .login-box input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    font-size: 15px;
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+    transition: border 0.2s;
+    margin-bottom: 12px;
+    background: var(--bg);
+  }
+
+  .login-box input:focus { border-color: var(--primary); }
+
+  .btn-login {
+    width: 100%;
+    padding: 13px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .btn-login:hover { opacity: 0.85; }
+  .login-error { color: var(--danger); font-size: 13px; margin-top: 10px; display: none; }
 </style>
 </head>
 <body>
+
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 
 <!-- LOGIN -->
 <div id="login-page">
@@ -272,8 +274,7 @@ main{overflow-y:auto;height:100vh}
   </div>
 </div>
 
-<div class="layout" id="main-page"></div>
-  
+<div class="layout" id="main-page">
 <!-- SIDEBAR -->
 <aside class="sidebar">
   <div class="logo">
@@ -334,7 +335,7 @@ main{overflow-y:auto;height:100vh}
       <button class="month-btn" onclick="changeMonth(1)">›</button>
     </div>
     <div class="export-section">
-      <button class="btn-logout btn-ghost" id="btn-logout">Keluar</button>
+      <button class="btn-logout btn btn-ghost" id="btn-logout">Keluar</button>
       <button class="btn btn-ghost" onclick="exportCSV()">⬇ CSV</button>
       <button class="btn btn-success" onclick="exportXLSX()">⬇ Excel</button>
     </div>
@@ -551,29 +552,25 @@ main{overflow-y:auto;height:100vh}
 </div>
 </div>
 
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 <script>
+
 // ─── STATE ───────────────────────────────────────────────────
 const API_URL = 'https://script.google.com/macros/s/AKfycbyGqMSalc2cB2lhWLmwAFGZESGW-FoqlmLx_uY2WM7ZXArybjVZCPG35MPxFzvF8MCb/exec';
-
 
 // LOGIN
 $('#btn-login').on('click keypress', function(e) {
   if (e.type === 'click' || e.which === 13) {
     const pass = $('#password-input').val();
-    showLoading()
     $.get(API_URL, { action: 'login', password: pass })
       .done(function(res) {
         if (res.status === 'ok') {
           $('#login-page').hide();
           $('#main-page').show();
-          loadItems();
         } else {
           $('#login-error').show();
         }
       })
       .fail(function() { $('#login-error').text('Gagal koneksi ke server.').show();  });
-      hideLoading()
   }
 });
 
@@ -581,10 +578,9 @@ $('#btn-logout').click(function() {
   $('#main-page').hide();
   $('#login-page').show();
   $('#password-input').val('');
-  allItems = [];
 });
 
-
+// ─── STATE ───────────────────────────────────────────────────
 let DATA = {transactions:[],accounts:[],budgets:[],bills:[],goals:[]};
 let currentMonth = 5, currentYear = 2026;
 let selectedAkun = null;
