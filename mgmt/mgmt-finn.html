@@ -1,0 +1,1338 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FinanKu — Manajemen Keuangan Pribadi</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0B0F1A;--bg2:#111827;--bg3:#1C2333;--bg4:#242D42;
+  --border:#2A3450;--border2:#3A4560;
+  --text:#E8ECF5;--text2:#8A96B4;--text3:#5A6480;
+  --gold:#F5A623;--blue:#4F8EF7;--green:#30D158;--red:#FF453A;--purple:#BF5AF2;--teal:#5AC8FA;
+  --accent:#4F8EF7;
+  --card-r:16px;
+  --ff:'DM Sans',sans-serif;--ff2:'Space Grotesk',sans-serif;
+}
+
+  /* LOGIN */
+  #login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary);
+  }
+
+  .login-box {
+    background: var(--surface);
+    border-radius: 20px;
+    padding: 48px 40px;
+    width: 360px;
+    text-align: center;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.2);
+  }
+
+  .login-box .icon { font-size: 48px; margin-bottom: 16px; }
+
+  .login-box h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 26px;
+    color: var(--primary);
+    margin-bottom: 6px;
+  }
+
+  .login-box p { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+
+  .login-box input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    font-size: 15px;
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+    transition: border 0.2s;
+    margin-bottom: 12px;
+    background: var(--bg);
+  }
+
+  .login-box input:focus { border-color: var(--primary); }
+
+  .btn-login {
+    width: 100%;
+    padding: 13px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .btn-login:hover { opacity: 0.85; }
+  .login-error { color: var(--danger); font-size: 13px; margin-top: 10px; display: none; }
+
+#main-page { display: none; }
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--ff);font-size:14px;min-height:100vh;overflow-x:hidden}
+/* LAYOUT */
+.layout{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+/* SIDEBAR */
+.sidebar{background:var(--bg2);border-right:1px solid var(--border);padding:0;position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column}
+.logo{padding:28px 24px 24px;border-bottom:1px solid var(--border)}
+.logo-mark{font-family:var(--ff2);font-size:22px;font-weight:700;color:var(--text);letter-spacing:-0.5px}
+.logo-mark span{color:var(--blue)}
+.logo-sub{font-size:11px;color:var(--text3);margin-top:2px;font-weight:400}
+nav{padding:16px 12px;flex:1}
+.nav-section{font-size:10px;font-weight:600;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;padding:8px 12px 6px;margin-top:8px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;cursor:pointer;color:var(--text2);font-size:13.5px;font-weight:500;transition:all .15s;border:none;background:none;width:100%;text-align:left;margin-bottom:2px}
+.nav-item svg{width:17px;height:17px;flex-shrink:0}
+.nav-item:hover{background:var(--bg3);color:var(--text)}
+.nav-item.active{background:linear-gradient(135deg,rgba(79,142,247,.18),rgba(79,142,247,.08));color:var(--blue);border:1px solid rgba(79,142,247,.2)}
+.nav-item .badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px}
+.sidebar-bottom{padding:16px 12px;border-top:1px solid var(--border)}
+.upload-area{border:1.5px dashed var(--border2);border-radius:12px;padding:14px;text-align:center;cursor:pointer;transition:all .2s}
+.upload-area:hover{border-color:var(--blue);background:rgba(79,142,247,.05)}
+.upload-area input{display:none}
+.upload-title{font-size:12px;font-weight:600;color:var(--text2);margin-top:6px}
+.upload-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.upload-icon{font-size:24px}
+.file-loaded{font-size:11px;color:var(--green);margin-top:6px;font-weight:600}
+/* MAIN */
+main{overflow-y:auto;height:100vh}
+.page{display:none;padding:32px 36px;min-height:100vh;animation:fadeIn .2s ease}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.page-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px}
+.page-title{font-family:var(--ff2);font-size:26px;font-weight:700;color:var(--text);letter-spacing:-0.5px}
+.page-sub{font-size:13px;color:var(--text3);margin-top:4px}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;font-family:var(--ff)}
+.btn-primary{background:var(--blue);color:#fff}
+.btn-primary:hover{opacity:.88}
+.btn-ghost{background:var(--bg3);color:var(--text2);border:1px solid var(--border)}
+.btn-ghost:hover{color:var(--text);border-color:var(--border2)}
+.btn-success{background:rgba(48,209,88,.15);color:var(--green);border:1px solid rgba(48,209,88,.25)}
+/* METRICS ROW */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.metric-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--card-r);padding:20px;position:relative;overflow:hidden}
+.metric-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.metric-card.m-blue::before{background:var(--blue)}
+.metric-card.m-green::before{background:var(--green)}
+.metric-card.m-red::before{background:var(--red)}
+.metric-card.m-gold::before{background:var(--gold)}
+.metric-label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.metric-value{font-family:var(--ff2);font-size:24px;font-weight:700;color:var(--text);letter-spacing:-0.5px}
+.metric-sub{font-size:12px;color:var(--text3);margin-top:6px;display:flex;align-items:center;gap:5px}
+.metric-sub.up{color:var(--green)}
+.metric-sub.down{color:var(--red)}
+/* CARDS */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--card-r);padding:22px}
+.card-title{font-family:var(--ff2);font-size:15px;font-weight:600;color:var(--text);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.card-title svg{width:16px;height:16px;color:var(--text3)}
+/* GRID LAYOUTS */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
+.grid-13{display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-bottom:16px}
+.grid-31{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px}
+/* ACCOUNT SWITCHER */
+.account-tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
+.account-tab{padding:8px 14px;border-radius:20px;border:1px solid var(--border);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;color:var(--text2);background:var(--bg2)}
+.account-tab.active,.account-tab:hover{color:#fff;border-color:transparent}
+/* TRANSACTIONS */
+.tx-list{display:flex;flex-direction:column;gap:2px}
+.tx-item{display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:10px;cursor:pointer;transition:background .12s}
+.tx-item:hover{background:var(--bg3)}
+.tx-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.tx-info{flex:1;min-width:0}
+.tx-name{font-size:13.5px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tx-meta{font-size:11.5px;color:var(--text3);margin-top:2px}
+.tx-amount{font-size:13.5px;font-weight:700;white-space:nowrap}
+.tx-amount.out{color:var(--red)}
+.tx-amount.in{color:var(--green)}
+.tx-amount.tf{color:var(--teal)}
+.tx-type{font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;margin-left:8px;white-space:nowrap}
+.type-out{background:rgba(255,69,58,.1);color:var(--red)}
+.type-in{background:rgba(48,209,88,.1);color:var(--green)}
+.type-tf{background:rgba(90,200,250,.1);color:var(--teal)}
+/* BUDGET BARS */
+.budget-item{margin-bottom:14px}
+.budget-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.budget-cat{font-size:13px;font-weight:500;color:var(--text);display:flex;align-items:center;gap:8px}
+.budget-nums{font-size:12px;color:var(--text3)}
+.budget-pct{font-size:11px;font-weight:700;padding:2px 7px;border-radius:20px}
+.bar-bg{height:7px;background:var(--bg3);border-radius:99px;overflow:hidden}
+.bar-fill{height:100%;border-radius:99px;transition:width .5s ease}
+/* BILLS */
+.bill-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+.bill-item:last-child{border-bottom:none}
+.bill-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.bill-info{flex:1}
+.bill-name{font-size:13.5px;font-weight:500;color:var(--text)}
+.bill-meta{font-size:11.5px;color:var(--text3);margin-top:2px}
+.bill-right{text-align:right}
+.bill-amount{font-size:13.5px;font-weight:700;color:var(--red)}
+.bill-freq{font-size:11px;padding:2px 8px;border-radius:20px;background:rgba(79,142,247,.1);color:var(--blue);font-weight:600;margin-top:3px;display:inline-block}
+/* GOALS */
+.goal-item{display:flex;align-items:center;gap:14px;padding:16px 0;border-bottom:1px solid var(--border)}
+.goal-item:last-child{border-bottom:none}
+.goal-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.goal-info{flex:1}
+.goal-name{font-size:13.5px;font-weight:600;color:var(--text)}
+.goal-meta{font-size:12px;color:var(--text3);margin-top:2px}
+.goal-bar-wrap{margin-top:8px}
+.goal-bar-bg{height:6px;background:var(--bg3);border-radius:99px;overflow:hidden}
+.goal-fill{height:100%;border-radius:99px}
+.goal-nums{display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-top:4px}
+.goal-pct{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;margin-left:12px}
+/* CHARTS */
+.chart-wrap{position:relative;height:240px}
+.chart-wrap.tall{height:300px}
+/* FILTERS */
+.filter-row{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+.filter-select{background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:10px;font-size:13px;font-family:var(--ff);cursor:pointer}
+.filter-select:focus{outline:2px solid var(--blue);outline-offset:2px}
+.search-input{flex:1;min-width:200px;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:10px;font-size:13px;font-family:var(--ff)}
+.search-input:focus{outline:2px solid var(--blue);outline-offset:2px}
+.search-input::placeholder{color:var(--text3)}
+/* LOADING/EMPTY */
+.empty-state{text-align:center;padding:60px 20px;color:var(--text3)}
+.empty-state .emoji{font-size:48px;margin-bottom:12px}
+.empty-state h3{font-size:16px;font-weight:600;color:var(--text2);margin-bottom:6px}
+.empty-state p{font-size:13px;line-height:1.6}
+/* SUMMARY TABLE */
+.sum-table{width:100%;border-collapse:collapse;font-size:13px}
+.sum-table th{padding:10px 14px;text-align:left;font-weight:600;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid var(--border)}
+.sum-table th:not(:first-child){text-align:right}
+.sum-table td{padding:12px 14px;border-bottom:1px solid rgba(42,52,80,.5);color:var(--text)}
+.sum-table td:not(:first-child){text-align:right}
+.sum-table tr:hover td{background:rgba(255,255,255,.02)}
+.sum-table .total-row td{font-weight:700;color:var(--blue);border-top:2px solid var(--border2)}
+/* INSIGHT CARDS */
+.insight-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.insight-card{border-radius:12px;padding:14px;border:1px solid}
+.insight-card.warn{background:rgba(245,166,35,.07);border-color:rgba(245,166,35,.25);color:var(--gold)}
+.insight-card.good{background:rgba(48,209,88,.07);border-color:rgba(48,209,88,.25);color:var(--green)}
+.insight-card.info{background:rgba(79,142,247,.07);border-color:rgba(79,142,247,.25);color:var(--blue)}
+.insight-card.danger{background:rgba(255,69,58,.07);border-color:rgba(255,69,58,.25);color:var(--red)}
+.insight-label{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;margin-bottom:6px;opacity:.8}
+.insight-text{font-size:12.5px;line-height:1.5;opacity:.9;color:var(--text)}
+/* AKUN CARDS */
+.akun-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px}
+.akun-card{border-radius:14px;padding:20px;border:1px solid var(--border);position:relative;overflow:hidden;cursor:pointer;transition:transform .15s,border-color .15s}
+.akun-card:hover{transform:translateY(-2px);border-color:var(--border2)}
+.akun-card-name{font-size:13px;font-weight:600;color:rgba(255,255,255,.75);margin-bottom:6px}
+.akun-card-type{font-size:11px;opacity:.5;margin-bottom:16px}
+.akun-card-saldo{font-family:var(--ff2);font-size:20px;font-weight:700;color:#fff}
+.akun-card-sub{font-size:11px;opacity:.6;margin-top:4px}
+.akun-card-chip{position:absolute;top:16px;right:16px;font-size:22px;opacity:.5}
+/* TOP HEADER BAR */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 36px;border-bottom:1px solid var(--border);background:var(--bg2);position:sticky;top:0;z-index:10}
+.topbar-title{font-family:var(--ff2);font-size:15px;font-weight:600;color:var(--text)}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.month-selector{display:flex;align-items:center;gap:6px}
+.month-btn{width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all .12s}
+.month-btn:hover{border-color:var(--blue);color:var(--blue)}
+.month-label{font-size:13px;font-weight:600;color:var(--text);min-width:100px;text-align:center}
+.tag{font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;background:rgba(48,209,88,.12);color:var(--green);border:1px solid rgba(48,209,88,.2)}
+/* TAG BERULANG MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:20px;padding:28px;width:520px;max-height:80vh;overflow-y:auto}
+.modal-title{font-family:var(--ff2);font-size:18px;font-weight:700;color:var(--text);margin-bottom:20px}
+.modal-close{float:right;background:var(--bg3);border:1px solid var(--border);color:var(--text2);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center}
+/* SCROLLBAR */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}
+/* RESPONSIVE TOPBAR */
+.export-section{display:flex;gap:8px}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-page">
+  <div class="login-box">
+    <div class="icon">
+      <img  src="https://shellalim.github.io/tools/images/logo-sl-1-b.png" style="height: 150px;width: 150px;object-fit:contain;border-radius:8px;">
+    </div>
+    <h1>Inventaris Rumah</h1>
+    <p>Masukkan password untuk melanjutkan</p>
+    <input type="password" id="password-input" placeholder="Password..." />
+    <button class="btn-login" id="btn-login">Masuk</button>
+    <div class="login-error" id="login-error">Password salah, coba lagi.</div>
+  </div>
+</div>
+
+<div class="layout" id="main-page"></div>
+  
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-mark">Finan<span>Ku</span></div>
+    <div class="logo-sub">Manajemen Keuangan Pribadi</div>
+  </div>
+  <nav>
+    <div class="nav-section">Menu Utama</div>
+    <button class="nav-item active" onclick="showPage('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Dashboard
+    </button>
+    <button class="nav-item" onclick="showPage('transaksi')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Transaksi
+    </button>
+    <button class="nav-item" onclick="showPage('akun')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+      Multi-Akun
+    </button>
+    <button class="nav-item" onclick="showPage('budget')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+      Budget
+    </button>
+    <div class="nav-section">Perencanaan</div>
+    <button class="nav-item" onclick="showPage('tagihan')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+      Tagihan Berulang <span class="badge" id="badge-tagihan">12</span>
+    </button>
+    <button class="nav-item" onclick="showPage('goals')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+      Target Tabungan
+    </button>
+    <button class="nav-item" onclick="showPage('laporan')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      Laporan & Tren
+    </button>
+  </nav>
+  <div class="sidebar-bottom">
+    <label class="upload-area" for="fileUpload">
+      <input type="file" id="fileUpload" accept=".xlsx,.xls" onchange="loadExcel(event)">
+      <div class="upload-icon">📂</div>
+      <div class="upload-title">Upload Spreadsheet</div>
+      <div class="upload-sub">Format: .xlsx dari template</div>
+    </label>
+    <div class="file-loaded" id="fileStatus"></div>
+  </div>
+</aside>
+
+<!-- MAIN CONTENT -->
+<div style="display:flex;flex-direction:column;overflow:hidden;height:100vh">
+<div class="topbar">
+  <span class="topbar-title" id="topbarTitle">Dashboard</span>
+  <div class="topbar-right">
+    <div class="month-selector">
+      <button class="month-btn" onclick="changeMonth(-1)">‹</button>
+      <span class="month-label" id="monthLabel">Mei 2026</span>
+      <button class="month-btn" onclick="changeMonth(1)">›</button>
+    </div>
+    <div class="export-section">
+      <button class="btn-logout btn-ghost" id="btn-logout">Keluar</button>
+      <button class="btn btn-ghost" onclick="exportCSV()">⬇ CSV</button>
+      <button class="btn btn-success" onclick="exportXLSX()">⬇ Excel</button>
+    </div>
+  </div>
+</div>
+
+<main>
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━ DASHBOARD ━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="page active" id="page-dashboard">
+  <div class="metrics" id="dash-metrics">
+    <div class="metric-card m-blue">
+      <div class="metric-label">💰 Total Pemasukan</div>
+      <div class="metric-value" id="m-income">Rp 0</div>
+      <div class="metric-sub" id="m-income-sub">Bulan ini</div>
+    </div>
+    <div class="metric-card m-red">
+      <div class="metric-label">💸 Total Pengeluaran</div>
+      <div class="metric-value" id="m-expense">Rp 0</div>
+      <div class="metric-sub" id="m-expense-sub">Bulan ini</div>
+    </div>
+    <div class="metric-card m-green">
+      <div class="metric-label">💎 Arus Kas Bersih</div>
+      <div class="metric-value" id="m-cashflow">Rp 0</div>
+      <div class="metric-sub" id="m-cf-sub">Surplus bulan ini</div>
+    </div>
+    <div class="metric-card m-gold">
+      <div class="metric-label">🏦 Total Saldo Semua Akun</div>
+      <div class="metric-value" id="m-balance">Rp 0</div>
+      <div class="metric-sub">6 akun aktif</div>
+    </div>
+  </div>
+
+  <div class="insight-grid" id="insight-grid"></div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">📊 Pengeluaran per Kategori</div>
+      <div class="chart-wrap"><canvas id="chart-kategori"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📈 Tren 3 Bulan</div>
+      <div class="chart-wrap"><canvas id="chart-tren"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">🕐 Transaksi Terbaru</div>
+      <div class="tx-list" id="dash-tx-list"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🏦 Saldo per Akun</div>
+      <div class="chart-wrap"><canvas id="chart-akun"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━ TRANSAKSI ━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="page" id="page-transaksi">
+  <div class="filter-row">
+    <input class="search-input" type="text" id="tx-search" placeholder="🔍  Cari transaksi..." oninput="filterTransaksi()">
+    <select class="filter-select" id="tx-filter-type" onchange="filterTransaksi()">
+      <option value="">Semua Tipe</option>
+      <option value="Keluar">Keluar</option>
+      <option value="Masuk">Masuk</option>
+      <option value="Transfer">Transfer</option>
+    </select>
+    <select class="filter-select" id="tx-filter-kat" onchange="filterTransaksi()">
+      <option value="">Semua Kategori</option>
+    </select>
+    <select class="filter-select" id="tx-filter-akun" onchange="filterTransaksi()">
+      <option value="">Semua Akun</option>
+    </select>
+  </div>
+  <div class="card">
+    <div class="tx-list" id="all-tx-list"></div>
+  </div>
+  <div style="padding:12px 0;font-size:12px;color:var(--text3)" id="tx-count"></div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━ MULTI-AKUN ━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="page" id="page-akun">
+  <div class="akun-grid" id="akun-grid"></div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">📊 Distribusi Saldo</div>
+      <div class="chart-wrap"><canvas id="chart-akun-pie"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📋 Transaksi per Akun (Bulan Ini)</div>
+      <div class="chart-wrap"><canvas id="chart-akun-bar"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">💳 Detail Transaksi per Akun</div>
+    <div class="account-tabs" id="akun-tabs"></div>
+    <div class="tx-list" id="akun-tx-list"></div>
+  </div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━ BUDGET ━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="page" id="page-budget">
+  <div class="metrics" style="grid-template-columns:repeat(3,1fr)" id="budget-metrics"></div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">📊 Budget vs Realisasi</div>
+      <div id="budget-list"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🍩 Komposisi Pengeluaran</div>
+      <div class="chart-wrap tall"><canvas id="chart-budget-donut"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━ TAGIHAN ━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="page" id="page-tagihan">
+  <div class="metrics" style="grid-template-columns:repeat(3,1fr)">
+    <div class="metric-card m-red">
+      <div class="metric-label">🔁 Total Bulanan</div>
+      <div class="metric-value" id="tag-total-monthly">Rp 0</div>
+      <div class="metric-sub">Tagihan + Cicilan</div>
+    </div>
+    <div class="metric-card m-blue">
+      <div class="metric-label">📅 Total Tahunan</div>
+      <div class="metric-value" id="tag-total-yearly">Rp 0</div>
+      <div class="metric-sub">Termasuk prorate</div>
+    </div>
+    <div class="metric-card m-gold">
+      <div class="metric-label">📌 Jumlah Tagihan</div>
+      <div class="metric-value" id="tag-count">0</div>
+      <div class="metric-sub">Aktif</div>
+    </div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">🔁 Tagihan Bulanan</div>
+      <div id="tag-list-monthly"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📅 Tagihan Tahunan & Cicilan Besar</div>
+      <div id="tag-list-yearly"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">📊 Breakdown Tagihan</div>
+    <div class="chart-wrap"><canvas id="chart-tagihan"></canvas></div>
+  </div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━ GOALS ━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="page" id="page-goals">
+  <div class="metrics" style="grid-template-columns:repeat(3,1fr)">
+    <div class="metric-card m-green">
+      <div class="metric-label">🎯 Total Target</div>
+      <div class="metric-value" id="goal-total-target">Rp 0</div>
+    </div>
+    <div class="metric-card m-blue">
+      <div class="metric-label">💰 Total Terkumpul</div>
+      <div class="metric-value" id="goal-total-saved">Rp 0</div>
+    </div>
+    <div class="metric-card m-gold">
+      <div class="metric-label">📊 Progress Keseluruhan</div>
+      <div class="metric-value" id="goal-overall-pct">0%</div>
+    </div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">🎯 Semua Goal</div>
+      <div id="goal-list"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📊 Proyeksi Pencapaian</div>
+      <div class="chart-wrap tall"><canvas id="chart-goals"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━ LAPORAN ━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="page" id="page-laporan">
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">📈 Tren Pemasukan vs Pengeluaran</div>
+      <div class="chart-wrap tall"><canvas id="chart-laporan-main"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">💹 Tren Tabungan Bersih</div>
+      <div class="chart-wrap tall"><canvas id="chart-laporan-save"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">📋 Ringkasan Bulanan</div>
+    <table class="sum-table" id="summary-table">
+      <thead>
+        <tr>
+          <th>Keterangan</th>
+          <th>Maret 2026</th>
+          <th>April 2026</th>
+          <th>Mei 2026</th>
+          <th>Total</th>
+          <th>Rata-rata</th>
+        </tr>
+      </thead>
+      <tbody id="summary-tbody"></tbody>
+    </table>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <div class="card-title">🏆 Top 10 Pengeluaran Terbesar</div>
+    <div class="tx-list" id="top-expenses-list"></div>
+  </div>
+</div>
+
+</main>
+</div>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────
+const API_URL = 'https://script.google.com/macros/s/AKfycbyGqMSalc2cB2lhWLmwAFGZESGW-FoqlmLx_uY2WM7ZXArybjVZCPG35MPxFzvF8MCb/exec';
+
+
+// LOGIN
+$('#btn-login').on('click keypress', function(e) {
+  if (e.type === 'click' || e.which === 13) {
+    const pass = $('#password-input').val();
+    showLoading()
+    $.get(API_URL, { action: 'login', password: pass })
+      .done(function(res) {
+        if (res.status === 'ok') {
+          $('#login-page').hide();
+          $('#main-page').show();
+          loadItems();
+        } else {
+          $('#login-error').show();
+        }
+      })
+      .fail(function() { $('#login-error').text('Gagal koneksi ke server.').show();  });
+      hideLoading()
+  }
+});
+
+$('#btn-logout').click(function() {
+  $('#main-page').hide();
+  $('#login-page').show();
+  $('#password-input').val('');
+  allItems = [];
+});
+
+
+let DATA = {transactions:[],accounts:[],budgets:[],bills:[],goals:[]};
+let currentMonth = 5, currentYear = 2026;
+let selectedAkun = null;
+let charts = {};
+
+const MONTHS_ID = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+const FULL_MONTHS = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+const CAT_ICONS = {
+  'Makan & Minum':'🍜','Transportasi':'🚗','Tagihan':'📱','Belanja':'🛍️',
+  'Hiburan':'🎬','Kesehatan':'💊','Investasi':'📈','Lain-lain':'📦',
+  'Pemasukan':'💰','Transfer':'🔄','Cicilan':'🏠','Asuransi':'🛡️'
+};
+const CAT_COLORS = {
+  'Makan & Minum':'#30D158','Transportasi':'#4F8EF7','Tagihan':'#BF5AF2',
+  'Belanja':'#FF9F0A','Hiburan':'#FF453A','Kesehatan':'#5AC8FA',
+  'Investasi':'#64D2FF','Lain-lain':'#8A96B4','Asuransi':'#FF6B6B','Cicilan':'#FF9F0A'
+};
+const AKUN_COLORS = {
+  'BCA001':'#1565C0','PRM001':'#6A1B9A','UOB001':'#0277BD',
+  'SEA001':'#00838F','MAY001':'#E65100','GPY001':'#00C853'
+};
+const AKUN_BG = {
+  'BCA001':'linear-gradient(135deg,#1565C0,#1976D2)',
+  'PRM001':'linear-gradient(135deg,#6A1B9A,#8E24AA)',
+  'UOB001':'linear-gradient(135deg,#0277BD,#039BE5)',
+  'SEA001':'linear-gradient(135deg,#00838F,#00ACC1)',
+  'MAY001':'linear-gradient(135deg,#E65100,#F57C00)',
+  'GPY001':'linear-gradient(135deg,#1B5E20,#2E7D32)'
+};
+
+// ─── LOAD EXCEL ──────────────────────────────────────────────
+function loadExcel(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  document.getElementById('fileStatus').textContent = '⏳ Memuat...';
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(e.target.result, {type:'array',cellDates:true});
+      
+      // Transactions
+      const txSheet = wb.Sheets['Transaksi'];
+      if(txSheet){
+        const rows = XLSX.utils.sheet_to_json(txSheet, {header:1,range:2});
+        DATA.transactions = rows.slice(1).filter(r=>r[1]&&r[2]).map(r=>({
+          id:r[1]||'', date:parseDate(r[2]), name:r[3]||'', kategori:r[4]||'',
+          subkat:r[5]||'', akun:r[6]||'', amount:parseNum(r[7]),
+          type:r[8]||'', note:r[9]||''
+        }));
+      }
+      
+      // Accounts
+      const akSheet = wb.Sheets['Akun'];
+      if(akSheet){
+        const rows = XLSX.utils.sheet_to_json(akSheet, {header:1,range:2});
+        DATA.accounts = rows.slice(1).filter(r=>r[1]).map(r=>({
+          id:r[1]||'', name:r[2]||'', type:r[3]||'',
+          saldo_awal:parseNum(r[4]), color:r[5]||'#4F8EF7', active:r[6]||'Ya'
+        }));
+      }
+      
+      // Budgets
+      const budSheet = wb.Sheets['Budget'];
+      if(budSheet){
+        const rows = XLSX.utils.sheet_to_json(budSheet, {header:1,range:2});
+        DATA.budgets = rows.slice(1).filter(r=>r[1]).map(r=>({
+          id:r[1]||'', kategori:r[2]||'', subkat:r[3]||'',
+          limit:parseNum(r[4]), icon:r[5]||'📦', color:r[6]||'#4F8EF7', tipe:r[7]||''
+        }));
+      }
+      
+      // Bills
+      const tagSheet = wb.Sheets['Tagihan Berulang'];
+      if(tagSheet){
+        const rows = XLSX.utils.sheet_to_json(tagSheet, {header:1,range:2});
+        DATA.bills = rows.slice(1).filter(r=>r[1]&&r[4]).map(r=>({
+          name:r[1]||'', kategori:r[2]||'', akun:r[3]||'',
+          amount:parseNum(r[4]), freq:r[5]||'', tgl:r[6]||'',
+          start:r[7]||'', end:r[8]||'', status:r[9]||''
+        }));
+      }
+      
+      // Goals
+      const goalSheet = wb.Sheets['Target Tabungan'];
+      if(goalSheet){
+        const rows = XLSX.utils.sheet_to_json(goalSheet, {header:1,range:2});
+        DATA.goals = rows.slice(1).filter(r=>r[1]).map(r=>({
+          name:r[1]||'', target:parseNum(r[2]), saved:parseNum(r[3]),
+          deadline:r[6]||'', per_month:parseNum(r[7]), selesai:r[8]||'', status:r[9]||''
+        }));
+      }
+      
+      document.getElementById('fileStatus').textContent = '✅ '+file.name+' dimuat';
+      renderAll();
+    } catch(err){
+      document.getElementById('fileStatus').textContent = '❌ Gagal membaca file';
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function parseDate(v){
+  if(!v) return null;
+  if(v instanceof Date) return v;
+  if(typeof v === 'string'){
+    const d = new Date(v);
+    return isNaN(d)?null:d;
+  }
+  return null;
+}
+
+function parseNum(v){
+  if(v===null||v===undefined||v==='') return 0;
+  if(typeof v === 'number') return Math.round(v);
+  return parseInt(String(v).replace(/[^0-9]/g,''))||0;
+}
+
+// ─── FORMAT ──────────────────────────────────────────────────
+function fmtRp(n,compact=false){
+  if(compact){
+    if(n>=1000000000) return 'Rp '+(n/1000000000).toFixed(1)+' M';
+    if(n>=1000000) return 'Rp '+(n/1000000).toFixed(1)+' jt';
+    if(n>=1000) return 'Rp '+(n/1000).toFixed(0)+' rb';
+  }
+  return 'Rp '+n.toLocaleString('id-ID');
+}
+
+function fmtDate(d){
+  if(!d) return '';
+  return d.getDate()+' '+MONTHS_ID[d.getMonth()]+' '+d.getFullYear();
+}
+
+// ─── DATA HELPERS ─────────────────────────────────────────────
+function getTx(month, year, akunId=null){
+  return DATA.transactions.filter(t=>{
+    if(!t.date) return false;
+    const ok = t.date.getMonth()+1===month && t.date.getFullYear()===year;
+    if(akunId) return ok && t.akun===akunId;
+    return ok;
+  });
+}
+
+function getSpending(txList){
+  return txList.filter(t=>t.type==='Keluar').reduce((s,t)=>s+t.amount,0);
+}
+function getIncome(txList){
+  return txList.filter(t=>t.type==='Masuk').reduce((s,t)=>s+t.amount,0);
+}
+
+function getCurrentSaldo(akunId){
+  const acct = DATA.accounts.find(a=>a.id===akunId);
+  const saldo_awal = acct ? acct.saldo_awal : 0;
+  let delta = 0;
+  DATA.transactions.forEach(t=>{
+    if(t.akun !== akunId) return;
+    if(t.type==='Masuk') delta += t.amount;
+    else if(t.type==='Keluar') delta -= t.amount;
+  });
+  return saldo_awal + delta;
+}
+
+function getSpendingByKat(txList){
+  const map = {};
+  txList.filter(t=>t.type==='Keluar').forEach(t=>{
+    map[t.kategori] = (map[t.kategori]||0)+t.amount;
+  });
+  return map;
+}
+
+// ─── PAGE NAV ─────────────────────────────────────────────────
+const PAGE_TITLES = {
+  dashboard:'Dashboard',transaksi:'Transaksi',akun:'Multi-Akun',
+  budget:'Budget',tagihan:'Tagihan Berulang',goals:'Target Tabungan',laporan:'Laporan & Tren'
+};
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  event.currentTarget.classList.add('active');
+  document.getElementById('topbarTitle').textContent = PAGE_TITLES[id]||id;
+  if(id==='laporan') renderLaporan();
+  if(id==='akun') renderAkun();
+}
+
+function changeMonth(dir){
+  currentMonth += dir;
+  if(currentMonth>12){currentMonth=1;currentYear++;}
+  if(currentMonth<1){currentMonth=12;currentYear--;}
+  document.getElementById('monthLabel').textContent = FULL_MONTHS[currentMonth-1]+' '+currentYear;
+  renderAll();
+}
+
+// ─── CHARTS HELPER ────────────────────────────────────────────
+function mkChart(id, cfg){
+  if(charts[id]) charts[id].destroy();
+  const ctx = document.getElementById(id);
+  if(!ctx) return;
+  charts[id] = new Chart(ctx.getContext('2d'), cfg);
+  return charts[id];
+}
+
+const chartDefaults = {
+  color:'#8A96B4',
+  plugins:{legend:{labels:{color:'#8A96B4',font:{family:'DM Sans',size:11}}}},
+  scales:{x:{ticks:{color:'#5A6480',font:{size:11}},grid:{color:'rgba(42,52,80,.5)'}},
+          y:{ticks:{color:'#5A6480',font:{size:11}},grid:{color:'rgba(42,52,80,.5)'}}}
+};
+
+// ─── RENDER ALL ───────────────────────────────────────────────
+function renderAll(){
+  renderDashboard();
+  renderTransaksi();
+  renderBudget();
+  renderTagihan();
+  renderGoals();
+}
+
+// ─── DASHBOARD ────────────────────────────────────────────────
+function renderDashboard(){
+  const txMonth = getTx(currentMonth, currentYear);
+  const income = getIncome(txMonth);
+  const expense = getSpending(txMonth);
+  const cf = income - expense;
+  const totalSaldo = DATA.accounts.reduce((s,a)=>s+getCurrentSaldo(a.id),0);
+
+  document.getElementById('m-income').textContent = fmtRp(income);
+  document.getElementById('m-expense').textContent = fmtRp(expense);
+  document.getElementById('m-cashflow').textContent = fmtRp(Math.abs(cf));
+  document.getElementById('m-cashflow').style.color = cf>=0?'var(--green)':'var(--red)';
+  document.getElementById('m-cf-sub').textContent = cf>=0?'Surplus bulan ini':'Defisit bulan ini';
+  document.getElementById('m-balance').textContent = fmtRp(totalSaldo,true);
+
+  // Insights
+  const insights = [];
+  const katSpend = getSpendingByKat(txMonth);
+  const overBudget = [];
+  DATA.budgets.forEach(b=>{
+    const spent = DATA.transactions.filter(t=>t.date&&t.date.getMonth()+1===currentMonth&&t.date.getFullYear()===currentYear&&t.kategori===b.kategori&&t.type==='Keluar').reduce((s,t)=>s+t.amount,0);
+    const totalLimit = DATA.budgets.filter(bb=>bb.kategori===b.kategori).reduce((s,bb)=>s+bb.limit,0);
+    if(spent>totalLimit && !overBudget.includes(b.kategori)){
+      overBudget.push(b.kategori);
+    }
+  });
+  if(overBudget.length>0) insights.push({type:'danger',label:'⚠️ Over Budget',text:'Kategori '+overBudget.join(', ')+' melebihi batas budget!'});
+  if(cf>0) insights.push({type:'good',label:'✅ Arus Kas Positif',text:'Surplus '+fmtRp(cf,true)+' – pertahankan kebiasaan ini!'});
+  const savePct = income>0?Math.round((cf/income)*100):0;
+  if(savePct>=20) insights.push({type:'good',label:'💎 Rasio Tabungan Bagus',text:'Kamu menabung '+savePct+'% dari pemasukan. Target aman!'});
+  else if(savePct<10 && income>0) insights.push({type:'warn',label:'⚡ Rasio Tabungan Rendah',text:'Hanya '+savePct+'% dari pemasukan yang tersimpan.'});
+  const monthlyBills = DATA.bills.filter(b=>b.freq==='Bulanan'&&b.status==='Aktif').reduce((s,b)=>s+b.amount,0);
+  insights.push({type:'info',label:'📌 Tagihan Rutin',text:'Total tagihan bulanan: '+fmtRp(monthlyBills,true)});
+  
+  const ig = document.getElementById('insight-grid');
+  ig.innerHTML = insights.slice(0,3).map(i=>`<div class="insight-card ${i.type}"><div class="insight-label">${i.label}</div><div class="insight-text">${i.text}</div></div>`).join('');
+
+  // Kategori Chart
+  const katSpendFiltered = {};
+  Object.entries(katSpend).filter(([k])=>k!=='Transfer'&&k!=='Cicilan'&&k!=='Asuransi').forEach(([k,v])=>katSpendFiltered[k]=v);
+  mkChart('chart-kategori',{type:'doughnut',data:{labels:Object.keys(katSpendFiltered),datasets:[{data:Object.values(katSpendFiltered),backgroundColor:Object.keys(katSpendFiltered).map(k=>CAT_COLORS[k]||'#8A96B4'),borderWidth:2,borderColor:'#111827'}]},options:{plugins:{legend:{position:'right',labels:{color:'#8A96B4',font:{size:11},padding:12}},tooltip:{callbacks:{label:(c)=>c.label+': '+fmtRp(c.raw,true)}}},cutout:'60%'}});
+
+  // Tren Chart (3 months)
+  const months3 = [[3,2026,'Mar'],[4,2026,'Apr'],[5,2026,'Mei']];
+  const incomes3 = months3.map(([m,y])=>getIncome(getTx(m,y)));
+  const expenses3 = months3.map(([m,y])=>getSpending(getTx(m,y)));
+  mkChart('chart-tren',{type:'bar',data:{labels:months3.map(m=>m[2]),datasets:[{label:'Pemasukan',data:incomes3,backgroundColor:'rgba(79,142,247,.6)',borderRadius:6},{label:'Pengeluaran',data:expenses3,backgroundColor:'rgba(255,69,58,.6)',borderRadius:6}]},options:{...chartDefaults,plugins:{...chartDefaults.plugins,tooltip:{callbacks:{label:(c)=>c.dataset.label+': '+fmtRp(c.raw,true)}}},scales:{x:{...chartDefaults.scales.x},y:{...chartDefaults.scales.y,ticks:{...chartDefaults.scales.y.ticks,callback:(v)=>fmtRp(v,true)}}}}});
+
+  // Akun saldo chart
+  const akunLabels = DATA.accounts.map(a=>a.name.split(' - ')[0]||a.name);
+  const akunSaldos = DATA.accounts.map(a=>getCurrentSaldo(a.id));
+  mkChart('chart-akun',{type:'bar',data:{labels:akunLabels,datasets:[{label:'Saldo',data:akunSaldos,backgroundColor:DATA.accounts.map(a=>AKUN_COLORS[a.id]||'#4F8EF7'),borderRadius:6}]},options:{...chartDefaults,indexAxis:'y',plugins:{...chartDefaults.plugins,legend:{display:false},tooltip:{callbacks:{label:(c)=>'Saldo: '+fmtRp(c.raw,true)}}},scales:{x:{...chartDefaults.scales.x,ticks:{...chartDefaults.scales.x.ticks,callback:(v)=>fmtRp(v,true)}},y:{...chartDefaults.scales.y}}}});
+
+  // Recent TX
+  const recent = [...txMonth].sort((a,b)=>b.date-a.date).slice(0,8);
+  document.getElementById('dash-tx-list').innerHTML = renderTxItems(recent);
+}
+
+// ─── TRANSACTIONS ─────────────────────────────────────────────
+function renderTransaksi(){
+  // Populate filters
+  const kats = [...new Set(DATA.transactions.map(t=>t.kategori))].sort();
+  const katSel = document.getElementById('tx-filter-kat');
+  katSel.innerHTML = '<option value="">Semua Kategori</option>'+kats.map(k=>`<option value="${k}">${k}</option>`).join('');
+  const akunSel = document.getElementById('tx-filter-akun');
+  akunSel.innerHTML = '<option value="">Semua Akun</option>'+DATA.accounts.map(a=>`<option value="${a.id}">${a.name.split(' - ')[0]||a.name}</option>`).join('');
+  filterTransaksi();
+}
+
+function filterTransaksi(){
+  const search = document.getElementById('tx-search').value.toLowerCase();
+  const typeF = document.getElementById('tx-filter-type').value;
+  const katF = document.getElementById('tx-filter-kat').value;
+  const akunF = document.getElementById('tx-filter-akun').value;
+  
+  let filtered = DATA.transactions.filter(t=>{
+    if(search && !t.name.toLowerCase().includes(search) && !t.kategori.toLowerCase().includes(search)) return false;
+    if(typeF && t.type!==typeF) return false;
+    if(katF && t.kategori!==katF) return false;
+    if(akunF && t.akun!==akunF) return false;
+    return true;
+  }).sort((a,b)=>b.date-a.date);
+  
+  document.getElementById('all-tx-list').innerHTML = renderTxItems(filtered.slice(0,100));
+  document.getElementById('tx-count').textContent = filtered.length+' transaksi ditemukan';
+}
+
+function renderTxItems(txList){
+  if(!txList.length) return '<div class="empty-state"><div class="emoji">📭</div><h3>Tidak ada transaksi</h3><p>Belum ada data transaksi yang dimuat</p></div>';
+  const akun = {};
+  DATA.accounts.forEach(a=>akun[a.id]=a);
+  return txList.map(t=>{
+    const icon = CAT_ICONS[t.kategori]||'📦';
+    const akunName = akun[t.akun]?akun[t.akun].name.split(' - ')[0]:t.akun;
+    const amtClass = t.type==='Masuk'?'in':t.type==='Transfer'?'tf':'out';
+    const amtSign = t.type==='Masuk'?'+':t.type==='Transfer'?'⇄':'-';
+    const typeClass = t.type==='Masuk'?'type-in':t.type==='Transfer'?'type-tf':'type-out';
+    return `<div class="tx-item">
+      <div class="tx-icon" style="background:${(CAT_COLORS[t.kategori]||'#4F8EF7')}22">${icon}</div>
+      <div class="tx-info">
+        <div class="tx-name">${t.name}</div>
+        <div class="tx-meta">${fmtDate(t.date)} · ${akunName} · ${t.kategori}</div>
+      </div>
+      <div>
+        <div class="tx-amount ${amtClass}">${amtSign}${fmtRp(t.amount)}</div>
+      </div>
+      <span class="tx-type ${typeClass}">${t.type}</span>
+    </div>`;
+  }).join('');
+}
+
+// ─── AKUN ─────────────────────────────────────────────────────
+function renderAkun(){
+  const grid = document.getElementById('akun-grid');
+  grid.innerHTML = DATA.accounts.map(a=>{
+    const saldo = getCurrentSaldo(a.id);
+    const bg = AKUN_BG[a.id]||'linear-gradient(135deg,#1565C0,#1976D2)';
+    const shortName = a.name.split(' - ')[0];
+    return `<div class="akun-card" style="background:${bg}" onclick="filterByAkun('${a.id}')">
+      <div class="akun-card-chip">${a.type==='E-Wallet'?'💚':'💳'}</div>
+      <div class="akun-card-name">${a.name}</div>
+      <div class="akun-card-type">${a.type}</div>
+      <div class="akun-card-saldo">${fmtRp(saldo,true)}</div>
+      <div class="akun-card-sub">${fmtRp(saldo)}</div>
+    </div>`;
+  }).join('');
+
+  // Pie chart
+  const labels = DATA.accounts.map(a=>a.name.split(' - ')[0]);
+  const saldos = DATA.accounts.map(a=>getCurrentSaldo(a.id));
+  mkChart('chart-akun-pie',{type:'doughnut',data:{labels,datasets:[{data:saldos,backgroundColor:DATA.accounts.map(a=>AKUN_COLORS[a.id]||'#4F8EF7'),borderWidth:2,borderColor:'#111827'}]},options:{plugins:{legend:{position:'right',labels:{color:'#8A96B4',font:{size:11}}},tooltip:{callbacks:{label:(c)=>c.label+': '+fmtRp(c.raw,true)}}},cutout:'55%'}});
+
+  // Bar chart per akun (bulan ini)
+  const txMonth = getTx(currentMonth, currentYear);
+  const spendPerAkun = DATA.accounts.map(a=>txMonth.filter(t=>t.akun===a.id&&t.type==='Keluar').reduce((s,t)=>s+t.amount,0));
+  mkChart('chart-akun-bar',{type:'bar',data:{labels,datasets:[{label:'Pengeluaran',data:spendPerAkun,backgroundColor:DATA.accounts.map(a=>AKUN_COLORS[a.id]||'#4F8EF7'),borderRadius:6}]},options:{...chartDefaults,plugins:{...chartDefaults.plugins,legend:{display:false}},scales:{x:{...chartDefaults.scales.x},y:{...chartDefaults.scales.y,ticks:{...chartDefaults.scales.y.ticks,callback:(v)=>fmtRp(v,true)}}}}});
+
+  // Tabs
+  const tabs = document.getElementById('akun-tabs');
+  tabs.innerHTML = `<div class="account-tab active" style="background:#4F8EF7;border-color:#4F8EF7;color:#fff" onclick="filterByAkun(null)">Semua</div>`+
+    DATA.accounts.map(a=>{
+      const col = AKUN_COLORS[a.id]||'#4F8EF7';
+      return `<div class="account-tab" style="--c:${col}" onclick="filterByAkun('${a.id}',this)">${a.name.split(' - ')[0]}</div>`;
+    }).join('');
+  filterByAkun(null);
+}
+
+function filterByAkun(akunId, el){
+  selectedAkun = akunId;
+  document.querySelectorAll('#akun-tabs .account-tab').forEach(t=>{t.classList.remove('active');t.style.background='';t.style.borderColor='';t.style.color='';});
+  if(el){
+    el.classList.add('active');
+    const col = AKUN_COLORS[akunId]||'#4F8EF7';
+    el.style.background=col;el.style.borderColor=col;el.style.color='#fff';
+  } else {
+    const first = document.querySelector('#akun-tabs .account-tab');
+    if(first){first.classList.add('active');first.style.background='#4F8EF7';first.style.borderColor='#4F8EF7';first.style.color='#fff';}
+  }
+  const tx = [...DATA.transactions].filter(t=>!akunId||t.akun===akunId).sort((a,b)=>b.date-a.date).slice(0,50);
+  document.getElementById('akun-tx-list').innerHTML = renderTxItems(tx);
+}
+
+// ─── BUDGET ───────────────────────────────────────────────────
+function renderBudget(){
+  const txMonth = getTx(currentMonth, currentYear);
+  
+  // Group budgets by kategori
+  const katMap = {};
+  DATA.budgets.forEach(b=>{
+    if(!katMap[b.kategori]) katMap[b.kategori]={limit:0,icon:b.icon,color:b.color};
+    katMap[b.kategori].limit += b.limit;
+  });
+  
+  const totalBudget = Object.values(katMap).reduce((s,b)=>s+b.limit,0);
+  const totalSpend = getSpending(txMonth);
+  const remaining = totalBudget - totalSpend;
+  
+  document.getElementById('budget-metrics').innerHTML = `
+    <div class="metric-card m-blue"><div class="metric-label">📊 Total Budget</div><div class="metric-value">${fmtRp(totalBudget,true)}</div><div class="metric-sub">Bulan ${FULL_MONTHS[currentMonth-1]}</div></div>
+    <div class="metric-card m-red"><div class="metric-label">💸 Realisasi</div><div class="metric-value">${fmtRp(totalSpend,true)}</div><div class="metric-sub">${Math.round(totalSpend/totalBudget*100)||0}% dari budget</div></div>
+    <div class="metric-card ${remaining>=0?'m-green':'m-red'}"><div class="metric-label">💰 Sisa Budget</div><div class="metric-value" style="color:${remaining>=0?'var(--green)':'var(--red)'}">${fmtRp(Math.abs(remaining),true)}</div><div class="metric-sub">${remaining>=0?'Masih aman':'Over budget!'}</div></div>`;
+
+  const list = document.getElementById('budget-list');
+  list.innerHTML = Object.entries(katMap).map(([kat,b])=>{
+    const spent = txMonth.filter(t=>t.type==='Keluar'&&t.kategori===kat).reduce((s,t)=>s+t.amount,0);
+    const pct = Math.min(Math.round(spent/b.limit*100)||0,100);
+    const over = spent>b.limit;
+    const color = over?'var(--red)':pct>80?'var(--gold)':'var(--green)';
+    const badgeBg = over?'rgba(255,69,58,.15)':pct>80?'rgba(245,166,35,.15)':'rgba(48,209,88,.15)';
+    const icon = CAT_ICONS[kat]||b.icon;
+    return `<div class="budget-item">
+      <div class="budget-row">
+        <span class="budget-cat">${icon} ${kat}</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="budget-pct" style="background:${badgeBg};color:${color}">${pct}%</span>
+          <span class="budget-nums">${fmtRp(spent,true)} / ${fmtRp(b.limit,true)}</span>
+        </div>
+      </div>
+      <div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>
+    </div>`;
+  }).join('');
+
+  // Donut chart
+  const katLabels = Object.keys(katMap);
+  const katSpent = katLabels.map(k=>txMonth.filter(t=>t.type==='Keluar'&&t.kategori===k).reduce((s,t)=>s+t.amount,0));
+  mkChart('chart-budget-donut',{type:'doughnut',data:{labels:katLabels,datasets:[{data:katSpent,backgroundColor:katLabels.map(k=>CAT_COLORS[k]||'#8A96B4'),borderWidth:2,borderColor:'#111827'}]},options:{plugins:{legend:{position:'bottom',labels:{color:'#8A96B4',font:{size:11},padding:10}},tooltip:{callbacks:{label:(c)=>c.label+': '+fmtRp(c.raw,true)}}},cutout:'55%',maintainAspectRatio:false}});
+}
+
+// ─── TAGIHAN ──────────────────────────────────────────────────
+function renderTagihan(){
+  const bills = DATA.bills.filter(b=>b.status==='Aktif');
+  const monthly = bills.filter(b=>b.freq==='Bulanan');
+  const yearly = bills.filter(b=>b.freq==='Tahunan');
+  
+  const totalMonthly = monthly.reduce((s,b)=>s+b.amount,0);
+  const totalYearly = yearly.reduce((s,b)=>s+b.amount,0);
+  const totalAnnual = totalMonthly*12 + totalYearly;
+  
+  document.getElementById('tag-total-monthly').textContent = fmtRp(totalMonthly,true);
+  document.getElementById('tag-total-yearly').textContent = fmtRp(totalAnnual,true);
+  document.getElementById('tag-count').textContent = bills.length;
+  document.getElementById('badge-tagihan').textContent = bills.length;
+
+  const billIcon = (name)=>{
+    if(name.includes('PLN')||name.includes('Listrik')) return '⚡';
+    if(name.includes('Air')||name.includes('PDAM')) return '💧';
+    if(name.includes('Internet')||name.includes('IndiHome')) return '📶';
+    if(name.includes('Netflix')) return '🎬';
+    if(name.includes('Spotify')) return '🎵';
+    if(name.includes('KPR')||name.includes('Rumah')) return '🏠';
+    if(name.includes('Mobil')) return '🚗';
+    if(name.includes('Asuransi')) return '🛡️';
+    if(name.includes('PayLater')) return '💳';
+    return '📋';
+  };
+
+  const renderBill = (b)=>`<div class="bill-item">
+    <div class="bill-icon" style="background:rgba(79,142,247,.1)">${billIcon(b.name)}</div>
+    <div class="bill-info">
+      <div class="bill-name">${b.name}</div>
+      <div class="bill-meta">Bayar tgl ${b.tgl} · ${b.akun} · ${b.kategori}</div>
+    </div>
+    <div class="bill-right">
+      <div class="bill-amount">${fmtRp(b.amount)}</div>
+      <div class="bill-freq">${b.freq}</div>
+    </div>
+  </div>`;
+
+  document.getElementById('tag-list-monthly').innerHTML = monthly.map(renderBill).join('');
+  document.getElementById('tag-list-yearly').innerHTML = yearly.map(renderBill).join('');
+
+  // Bar chart tagihan
+  const tagGroups = {};
+  bills.forEach(b=>{
+    const cat = b.kategori||'Lain-lain';
+    tagGroups[cat]=(tagGroups[cat]||0)+(b.freq==='Bulanan'?b.amount:b.amount/12);
+  });
+  mkChart('chart-tagihan',{type:'bar',data:{labels:Object.keys(tagGroups),datasets:[{label:'Per bulan (estimasi)',data:Object.values(tagGroups),backgroundColor:Object.keys(tagGroups).map((_,i)=>['#4F8EF7','#FF453A','#30D158','#BF5AF2','#FF9F0A','#5AC8FA'][i%6]),borderRadius:6}]},options:{...chartDefaults,plugins:{...chartDefaults.plugins,legend:{display:false}},scales:{x:{...chartDefaults.scales.x},y:{...chartDefaults.scales.y,ticks:{...chartDefaults.scales.y.ticks,callback:(v)=>fmtRp(v,true)}}}}});
+}
+
+// ─── GOALS ────────────────────────────────────────────────────
+function renderGoals(){
+  const goals = DATA.goals;
+  const totalTarget = goals.reduce((s,g)=>s+g.target,0);
+  const totalSaved = goals.reduce((s,g)=>s+g.saved,0);
+  const overallPct = totalTarget>0?Math.round(totalSaved/totalTarget*100):0;
+  
+  document.getElementById('goal-total-target').textContent = fmtRp(totalTarget,true);
+  document.getElementById('goal-total-saved').textContent = fmtRp(totalSaved,true);
+  document.getElementById('goal-overall-pct').textContent = overallPct+'%';
+
+  const goalIcons = ['✈️','💻','🏠','🔧','🎓'];
+  const goalColors = ['#4F8EF7','#30D158','#BF5AF2','#FF9F0A','#FF453A'];
+
+  document.getElementById('goal-list').innerHTML = goals.map((g,i)=>{
+    const pct = Math.min(Math.round(g.saved/g.target*100)||0,100);
+    const color = goalColors[i%goalColors.length];
+    return `<div class="goal-item">
+      <div class="goal-icon" style="background:${color}22">${goalIcons[i%goalIcons.length]}</div>
+      <div class="goal-info">
+        <div class="goal-name">${g.name}</div>
+        <div class="goal-meta">Target: ${fmtRp(g.target,true)} · Deadline: ${g.deadline} · ${g.status}</div>
+        <div class="goal-bar-wrap">
+          <div class="goal-bar-bg"><div class="goal-fill" style="width:${pct}%;background:${color}"></div></div>
+          <div class="goal-nums"><span>${fmtRp(g.saved,true)} terkumpul</span><span>Sisa ${fmtRp(g.target-g.saved,true)}</span></div>
+        </div>
+      </div>
+      <div class="goal-pct" style="color:${color}">${pct}%</div>
+    </div>`;
+  }).join('');
+
+  // Bar chart goals
+  mkChart('chart-goals',{type:'bar',data:{labels:goals.map(g=>g.name.split(' ')[0]+'...'),datasets:[{label:'Terkumpul',data:goals.map(g=>g.saved),backgroundColor:goalColors.map(c=>c+'99'),borderRadius:6},{label:'Target',data:goals.map(g=>g.target),backgroundColor:'rgba(255,255,255,.05)',borderRadius:6}]},options:{...chartDefaults,plugins:{...chartDefaults.plugins,tooltip:{callbacks:{label:(c)=>c.dataset.label+': '+fmtRp(c.raw,true)}}},scales:{x:{...chartDefaults.scales.x},y:{...chartDefaults.scales.y,ticks:{...chartDefaults.scales.y.ticks,callback:(v)=>fmtRp(v,true)}}}}});
+}
+
+// ─── LAPORAN ──────────────────────────────────────────────────
+function renderLaporan(){
+  const months3 = [[3,2026,'Maret'],[4,2026,'April'],[5,2026,'Mei']];
+  const incomes = months3.map(([m,y])=>getIncome(getTx(m,y)));
+  const expenses = months3.map(([m,y])=>getSpending(getTx(m,y)));
+  const savings = incomes.map((inc,i)=>inc-expenses[i]);
+  
+  mkChart('chart-laporan-main',{type:'line',data:{labels:months3.map(m=>m[2]),datasets:[{label:'Pemasukan',data:incomes,borderColor:'#4F8EF7',backgroundColor:'rgba(79,142,247,.1)',tension:.4,fill:true,pointBackgroundColor:'#4F8EF7'},{label:'Pengeluaran',data:expenses,borderColor:'#FF453A',backgroundColor:'rgba(255,69,58,.1)',tension:.4,fill:true,pointBackgroundColor:'#FF453A'}]},options:{...chartDefaults,plugins:{...chartDefaults.plugins,tooltip:{callbacks:{label:(c)=>c.dataset.label+': '+fmtRp(c.raw,true)}}},scales:{x:{...chartDefaults.scales.x},y:{...chartDefaults.scales.y,ticks:{...chartDefaults.scales.y.ticks,callback:(v)=>fmtRp(v,true)}}},maintainAspectRatio:false}});
+
+  mkChart('chart-laporan-save',{type:'bar',data:{labels:months3.map(m=>m[2]),datasets:[{label:'Tabungan Bersih',data:savings,backgroundColor:savings.map(s=>s>=0?'rgba(48,209,88,.6)':'rgba(255,69,58,.6)'),borderRadius:8}]},options:{...chartDefaults,plugins:{...chartDefaults.plugins,legend:{display:false},tooltip:{callbacks:{label:(c)=>'Tabungan: '+fmtRp(c.raw,true)}}},scales:{x:{...chartDefaults.scales.x},y:{...chartDefaults.scales.y,ticks:{...chartDefaults.scales.y.ticks,callback:(v)=>fmtRp(v,true)}}},maintainAspectRatio:false}});
+
+  // Summary table
+  const rows = [
+    {label:'💰 Total Pemasukan',data:months3.map(([m,y])=>getIncome(getTx(m,y))),cls:''},
+    {label:'💸 Total Pengeluaran',data:months3.map(([m,y])=>getSpending(getTx(m,y))),cls:''},
+    {label:'💎 Arus Kas Bersih',data:months3.map(([m,y,])=>{const tx=getTx(m,y);return getIncome(tx)-getSpending(tx);}),cls:'total-row'},
+    {label:'📊 Total Transaksi',data:months3.map(([m,y])=>getTx(m,y).length),isNum:true,cls:''},
+  ];
+  document.getElementById('summary-tbody').innerHTML = rows.map(row=>{
+    const total = row.data.reduce((s,v)=>s+v,0);
+    const avg = total/3;
+    const fmt = row.isNum?v=>v:v=>fmtRp(v,true);
+    return `<tr class="${row.cls}"><td>${row.label}</td>${row.data.map(v=>`<td>${fmt(v)}</td>`).join('')}<td>${fmt(total)}</td><td>${row.isNum?Math.round(avg):fmtRp(Math.round(avg),true)}</td></tr>`;
+  }).join('');
+
+  // Top expenses
+  const topEx = [...DATA.transactions].filter(t=>t.type==='Keluar').sort((a,b)=>b.amount-a.amount).slice(0,10);
+  document.getElementById('top-expenses-list').innerHTML = renderTxItems(topEx);
+}
+
+// ─── EXPORT ───────────────────────────────────────────────────
+function exportCSV(){
+  const headers = ['ID','Tanggal','Nama','Kategori','Sub-Kategori','Akun','Nominal','Tipe','Catatan'];
+  const rows = DATA.transactions.map(t=>[t.id,t.date?t.date.toISOString().split('T')[0]:'',t.name,t.kategori,t.subkat,t.akun,t.amount,t.type,t.note]);
+  const csv = [headers,...rows].map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
+  const blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `transaksi_${FULL_MONTHS[currentMonth-1]}_${currentYear}.csv`;
+  a.click();
+}
+
+function exportXLSX(){
+  const ws = XLSX.utils.json_to_sheet(DATA.transactions.map(t=>({
+    ID:t.id, Tanggal:t.date?t.date.toISOString().split('T')[0]:'',
+    Nama:t.name, Kategori:t.kategori, 'Sub-Kategori':t.subkat,
+    Akun:t.akun, 'Nominal (Rp)':t.amount, Tipe:t.type, Catatan:t.note
+  })));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Transaksi');
+  XLSX.writeFile(wb, `FinanKu_Export_${currentYear}${String(currentMonth).padStart(2,'0')}.xlsx`);
+}
+
+// ─── INIT ─────────────────────────────────────────────────────
+document.getElementById('monthLabel').textContent = FULL_MONTHS[currentMonth-1]+' '+currentYear;
+// Load demo data immediately
+loadDemoData();
+
+function loadDemoData(){
+  // Inject the same dummy data inline so app works without file upload
+  DATA.accounts = [
+    {id:'BCA001',name:'BCA - Tabungan',type:'Bank',saldo_awal:18500000,color:'#1565C0',active:'Ya'},
+    {id:'PRM001',name:'Permata - Tabungan',type:'Bank',saldo_awal:7200000,color:'#6A1B9A',active:'Ya'},
+    {id:'UOB001',name:'UOB - ONE Account',type:'Bank',saldo_awal:12000000,color:'#0277BD',active:'Ya'},
+    {id:'SEA001',name:'SeaBank - Tabungan',type:'Bank',saldo_awal:3800000,color:'#00838F',active:'Ya'},
+    {id:'MAY001',name:'Maybank - Tabungan',type:'Bank',saldo_awal:5500000,color:'#E65100',active:'Ya'},
+    {id:'GPY001',name:'GoPay',type:'E-Wallet',saldo_awal:1250000,color:'#00C853',active:'Ya'},
+  ];
+  DATA.budgets = [
+    {id:'KAT01',kategori:'Makan & Minum',subkat:'Makanan Harian',limit:2000000,icon:'🍜',color:'#2E7D32',tipe:'Kebutuhan'},
+    {id:'KAT02',kategori:'Makan & Minum',subkat:'Kopi & Cafe',limit:400000,icon:'☕',color:'#2E7D32',tipe:'Kebutuhan'},
+    {id:'KAT03',kategori:'Transportasi',subkat:'Bensin',limit:600000,icon:'⛽',color:'#1565C0',tipe:'Kebutuhan'},
+    {id:'KAT04',kategori:'Transportasi',subkat:'Ojol & Taksi',limit:300000,icon:'🛵',color:'#1565C0',tipe:'Kebutuhan'},
+    {id:'KAT05',kategori:'Tagihan',subkat:'Listrik',limit:350000,icon:'💡',color:'#6A1B9A',tipe:'Kebutuhan'},
+    {id:'KAT06',kategori:'Tagihan',subkat:'Internet',limit:200000,icon:'📶',color:'#6A1B9A',tipe:'Kebutuhan'},
+    {id:'KAT07',kategori:'Tagihan',subkat:'Air',limit:80000,icon:'💧',color:'#6A1B9A',tipe:'Kebutuhan'},
+    {id:'KAT08',kategori:'Belanja',subkat:'Kebutuhan Rumah',limit:500000,icon:'🏠',color:'#E65100',tipe:'Kebutuhan'},
+    {id:'KAT09',kategori:'Belanja',subkat:'Pakaian & Fashion',limit:400000,icon:'👕',color:'#E65100',tipe:'Keinginan'},
+    {id:'KAT10',kategori:'Hiburan',subkat:'Streaming',limit:150000,icon:'🎬',color:'#C62828',tipe:'Keinginan'},
+    {id:'KAT11',kategori:'Hiburan',subkat:'Rekreasi & Jalan',limit:300000,icon:'🎉',color:'#C62828',tipe:'Keinginan'},
+    {id:'KAT12',kategori:'Kesehatan',subkat:'Apotek & Dokter',limit:300000,icon:'💊',color:'#00838F',tipe:'Kebutuhan'},
+    {id:'KAT13',kategori:'Investasi',subkat:'Reksa Dana',limit:1000000,icon:'📈',color:'#0277BD',tipe:'Tabungan'},
+    {id:'KAT14',kategori:'Investasi',subkat:'Saham',limit:500000,icon:'💹',color:'#0277BD',tipe:'Tabungan'},
+    {id:'KAT15',kategori:'Lain-lain',subkat:'Sumbangan & Sosial',limit:200000,icon:'🤝',color:'#546E7A',tipe:'Keinginan'},
+  ];
+  DATA.bills = [
+    {name:'Listrik PLN',kategori:'Tagihan',akun:'BCA001',amount:350000,freq:'Bulanan',tgl:'5',start:'Mar-26',end:'Ongoing',status:'Aktif'},
+    {name:'Internet IndiHome',kategori:'Tagihan',akun:'BCA001',amount:350000,freq:'Bulanan',tgl:'10',start:'Mar-26',end:'Ongoing',status:'Aktif'},
+    {name:'Air PDAM',kategori:'Tagihan',akun:'BCA001',amount:80000,freq:'Bulanan',tgl:'15',start:'Mar-26',end:'Ongoing',status:'Aktif'},
+    {name:'Netflix',kategori:'Hiburan',akun:'GPY001',amount:65000,freq:'Bulanan',tgl:'1',start:'Mar-26',end:'Ongoing',status:'Aktif'},
+    {name:'Spotify',kategori:'Hiburan',akun:'GPY001',amount:29000,freq:'Bulanan',tgl:'1',start:'Mar-26',end:'Ongoing',status:'Aktif'},
+    {name:'iCloud 50GB',kategori:'Tagihan',akun:'GPY001',amount:15000,freq:'Bulanan',tgl:'20',start:'Mar-26',end:'Ongoing',status:'Aktif'},
+    {name:'Cicilan KPR BCA',kategori:'Cicilan',akun:'BCA001',amount:3200000,freq:'Bulanan',tgl:'25',start:'Jan-23',end:'Des-42',status:'Aktif'},
+    {name:'Cicilan Mobil Permata',kategori:'Cicilan',akun:'PRM001',amount:2800000,freq:'Bulanan',tgl:'20',start:'Jun-24',end:'Mei-27',status:'Aktif'},
+    {name:'Asuransi Jiwa',kategori:'Asuransi',akun:'MAY001',amount:450000,freq:'Bulanan',tgl:'15',start:'Mar-26',end:'Ongoing',status:'Aktif'},
+    {name:'Asuransi Kendaraan',kategori:'Asuransi',akun:'UOB001',amount:1800000,freq:'Tahunan',tgl:'1 Mar',start:'Mar-26',end:'Ongoing',status:'Aktif'},
+    {name:'Domain & Hosting',kategori:'Lain-lain',akun:'BCA001',amount:1200000,freq:'Tahunan',tgl:'15 Jun',start:'Jun-24',end:'Ongoing',status:'Aktif'},
+    {name:'GoPay PayLater',kategori:'Cicilan',akun:'GPY001',amount:500000,freq:'Bulanan',tgl:'28',start:'Mar-26',end:'Ongoing',status:'Aktif'},
+  ];
+  DATA.goals = [
+    {name:'Dana Darurat (6x Gaji)',target:51000000,saved:12000000,deadline:'Des-26',per_month:1500000,selesai:'Okt-27',status:'🔄 On Track'},
+    {name:'Liburan Keluarga',target:15000000,saved:3250000,deadline:'Des-26',per_month:1000000,selesai:'Jan-27',status:'🔄 On Track'},
+    {name:'Laptop Baru',target:20000000,saved:4500000,deadline:'Jun-27',per_month:800000,selesai:'Feb-27',status:'✅ Ahead'},
+    {name:'Renovasi Rumah',target:50000000,saved:8000000,deadline:'Des-27',per_month:2000000,selesai:'Nov-27',status:'🔄 On Track'},
+    {name:'Pendidikan Anak',target:100000000,saved:15000000,deadline:'Jan-32',per_month:1500000,selesai:'Okt-31',status:'🔄 On Track'},
+  ];
+
+  // Transactions (same as xlsx)
+  const raw = [
+    ['TX0001','2026-03-01','Gaji Bulan Maret','Pemasukan','Gaji','BCA001',8500000,'Masuk',''],
+    ['TX0002','2026-03-01','Netflix','Hiburan','Streaming','GPY001',65000,'Keluar',''],
+    ['TX0003','2026-03-01','Spotify','Hiburan','Streaming','GPY001',29000,'Keluar',''],
+    ['TX0004','2026-03-02','Makan Siang Warteg','Makan & Minum','Makanan Harian','BCA001',25000,'Keluar',''],
+    ['TX0005','2026-03-02','Bensin Pertamina','Transportasi','Bensin','BCA001',150000,'Keluar',''],
+    ['TX0006','2026-03-03','Kopi Kenangan','Makan & Minum','Kopi & Cafe','GPY001',35000,'Keluar',''],
+    ['TX0007','2026-03-04','Grab ke Kantor','Transportasi','Ojol & Taksi','GPY001',28000,'Keluar',''],
+    ['TX0008','2026-03-05','Listrik PLN','Tagihan','Listrik','BCA001',348000,'Keluar',''],
+    ['TX0009','2026-03-05','Makan Malam Keluarga','Makan & Minum','Makanan Harian','BCA001',180000,'Keluar',''],
+    ['TX0010','2026-03-06','GoPay TopUp','Transfer','TopUp','BCA001',300000,'Transfer',''],
+    ['TX0011','2026-03-07','Shopee - Kebutuhan Rumah','Belanja','Kebutuhan Rumah','GPY001',215000,'Keluar',''],
+    ['TX0012','2026-03-08','Makan Siang Warteg','Makan & Minum','Makanan Harian','BCA001',22000,'Keluar',''],
+    ['TX0013','2026-03-09','Alfamart','Makan & Minum','Makanan Harian','GPY001',87500,'Keluar',''],
+    ['TX0014','2026-03-10','Internet IndiHome','Tagihan','Internet','BCA001',350000,'Keluar',''],
+    ['TX0015','2026-03-10','Kopi Starbucks','Makan & Minum','Kopi & Cafe','GPY001',75000,'Keluar',''],
+    ['TX0016','2026-03-11','Gojek - Pesan Makan','Makan & Minum','Makanan Harian','GPY001',55000,'Keluar',''],
+    ['TX0017','2026-03-12','Transfer ke Permata','Transfer','Antar Rekening','BCA001',2000000,'Transfer',''],
+    ['TX0018','2026-03-12','Transfer dari BCA','Transfer','Antar Rekening','PRM001',2000000,'Masuk',''],
+    ['TX0019','2026-03-12','Bensin Pertamina','Transportasi','Bensin','BCA001',120000,'Keluar',''],
+    ['TX0020','2026-03-13','Makan Siang Warteg','Makan & Minum','Makanan Harian','BCA001',25000,'Keluar',''],
+    ['TX0021','2026-03-14','Bukalapak - Charger HP','Belanja','Kebutuhan Rumah','GPY001',125000,'Keluar',''],
+    ['TX0022','2026-03-15','Air PDAM','Tagihan','Air','BCA001',78000,'Keluar',''],
+    ['TX0023','2026-03-15','Asuransi Jiwa','Asuransi','Asuransi Jiwa','MAY001',450000,'Keluar',''],
+    ['TX0024','2026-03-15','Iuran RT','Lain-lain','Sumbangan & Sosial','BCA001',50000,'Keluar',''],
+    ['TX0025','2026-03-16','Indomaret','Makan & Minum','Makanan Harian','BCA001',95000,'Keluar',''],
+    ['TX0026','2026-03-17','Obat Apotek','Kesehatan','Apotek & Dokter','BCA001',85000,'Keluar',''],
+    ['TX0027','2026-03-18','Grab Motor','Transportasi','Ojol & Taksi','GPY001',18000,'Keluar',''],
+    ['TX0028','2026-03-19','Makan Siang','Makan & Minum','Makanan Harian','BCA001',35000,'Keluar',''],
+    ['TX0029','2026-03-20','Cicilan Mobil Permata','Cicilan','Cicilan Mobil','PRM001',2800000,'Keluar',''],
+    ['TX0030','2026-03-20','iCloud Storage','Tagihan','Langganan','GPY001',15000,'Keluar',''],
+    ['TX0031','2026-03-21','Reksa Dana Bibit','Investasi','Reksa Dana','BCA001',1000000,'Keluar',''],
+    ['TX0032','2026-03-22','Nonton Bioskop','Hiburan','Rekreasi & Jalan','BCA001',120000,'Keluar',''],
+    ['TX0033','2026-03-23','Makan Siang','Makan & Minum','Makanan Harian','BCA001',28000,'Keluar',''],
+    ['TX0034','2026-03-24','Tokopedia - Baju','Belanja','Pakaian & Fashion','GPY001',285000,'Keluar',''],
+    ['TX0035','2026-03-25','Cicilan KPR BCA','Cicilan','KPR','BCA001',3200000,'Keluar',''],
+    ['TX0036','2026-03-26','Bensin','Transportasi','Bensin','BCA001',100000,'Keluar',''],
+    ['TX0037','2026-03-27','Makan Siang','Makan & Minum','Makanan Harian','BCA001',30000,'Keluar',''],
+    ['TX0038','2026-03-28','GoPay PayLater','Cicilan','PayLater','GPY001',500000,'Keluar',''],
+    ['TX0039','2026-03-28','Makan Malam','Makan & Minum','Makanan Harian','BCA001',65000,'Keluar',''],
+    ['TX0040','2026-03-29','Saham BRI via Stockbit','Investasi','Saham','UOB001',500000,'Keluar',''],
+    ['TX0041','2026-03-30','Freelance Project','Pemasukan','Freelance','BCA001',1500000,'Masuk',''],
+    ['TX0042','2026-03-31','Bensin','Transportasi','Bensin','BCA001',150000,'Keluar',''],
+    ['TX0043','2026-04-01','Gaji Bulan April','Pemasukan','Gaji','BCA001',8500000,'Masuk',''],
+    ['TX0044','2026-04-01','Netflix','Hiburan','Streaming','GPY001',65000,'Keluar',''],
+    ['TX0045','2026-04-01','Spotify','Hiburan','Streaming','GPY001',29000,'Keluar',''],
+    ['TX0046','2026-04-02','Makan Siang','Makan & Minum','Makanan Harian','BCA001',27000,'Keluar',''],
+    ['TX0047','2026-04-03','Kopi Kenangan','Makan & Minum','Kopi & Cafe','GPY001',35000,'Keluar',''],
+    ['TX0048','2026-04-04','Grab Mobil','Transportasi','Ojol & Taksi','GPY001',45000,'Keluar',''],
+    ['TX0049','2026-04-04','THR Diterima','Pemasukan','Bonus','BCA001',8500000,'Masuk','THR Lebaran 2026'],
+    ['TX0050','2026-04-05','Listrik PLN','Tagihan','Listrik','BCA001',362000,'Keluar',''],
+    ['TX0051','2026-04-05','Oleh-oleh Lebaran','Makan & Minum','Makanan Harian','BCA001',650000,'Keluar',''],
+    ['TX0052','2026-04-06','Baju Lebaran','Belanja','Pakaian & Fashion','BCA001',780000,'Keluar',''],
+    ['TX0053','2026-04-07','Bensin Mudik','Transportasi','Bensin','BCA001',350000,'Keluar',''],
+    ['TX0054','2026-04-08','Makan di Jalan','Makan & Minum','Makanan Harian','BCA001',220000,'Keluar',''],
+    ['TX0055','2026-04-09','Salam Tempel Keponakan','Lain-lain','Sumbangan & Sosial','BCA001',500000,'Keluar',''],
+    ['TX0056','2026-04-10','Internet IndiHome','Tagihan','Internet','BCA001',350000,'Keluar',''],
+    ['TX0057','2026-04-11','Bensin Balik','Transportasi','Bensin','BCA001',250000,'Keluar',''],
+    ['TX0058','2026-04-12','Makan Siang','Makan & Minum','Makanan Harian','BCA001',30000,'Keluar',''],
+    ['TX0059','2026-04-13','Shopee Harbolnas','Belanja','Kebutuhan Rumah','GPY001',430000,'Keluar',''],
+    ['TX0060','2026-04-14','Kopi Janji Jiwa','Makan & Minum','Kopi & Cafe','GPY001',28000,'Keluar',''],
+    ['TX0061','2026-04-15','Air PDAM','Tagihan','Air','BCA001',82000,'Keluar',''],
+    ['TX0062','2026-04-15','Asuransi Jiwa','Asuransi','Asuransi Jiwa','MAY001',450000,'Keluar',''],
+    ['TX0063','2026-04-16','Dokter Umum','Kesehatan','Apotek & Dokter','SEA001',150000,'Keluar',''],
+    ['TX0064','2026-04-16','Obat','Kesehatan','Apotek & Dokter','SEA001',95000,'Keluar',''],
+    ['TX0065','2026-04-17','GoPay TopUp','Transfer','TopUp','BCA001',500000,'Transfer',''],
+    ['TX0066','2026-04-18','Grab - GoFood','Makan & Minum','Makanan Harian','GPY001',75000,'Keluar',''],
+    ['TX0067','2026-04-19','Indomaret','Makan & Minum','Makanan Harian','BCA001',112000,'Keluar',''],
+    ['TX0068','2026-04-20','Cicilan Mobil Permata','Cicilan','Cicilan Mobil','PRM001',2800000,'Keluar',''],
+    ['TX0069','2026-04-20','iCloud Storage','Tagihan','Langganan','GPY001',15000,'Keluar',''],
+    ['TX0070','2026-04-21','Reksa Dana Bibit','Investasi','Reksa Dana','BCA001',2000000,'Keluar','Extra invest THR'],
+    ['TX0071','2026-04-22','Saham BCA','Investasi','Saham','UOB001',1000000,'Keluar',''],
+    ['TX0072','2026-04-23','Nonton + Makan','Hiburan','Rekreasi & Jalan','BCA001',280000,'Keluar',''],
+    ['TX0073','2026-04-24','Bensin','Transportasi','Bensin','BCA001',130000,'Keluar',''],
+    ['TX0074','2026-04-25','Cicilan KPR BCA','Cicilan','KPR','BCA001',3200000,'Keluar',''],
+    ['TX0075','2026-04-26','Makan Siang','Makan & Minum','Makanan Harian','BCA001',32000,'Keluar',''],
+    ['TX0076','2026-04-27','GoPay PayLater','Cicilan','PayLater','GPY001',500000,'Keluar',''],
+    ['TX0077','2026-04-28','Laundry','Lain-lain','Sumbangan & Sosial','BCA001',45000,'Keluar',''],
+    ['TX0078','2026-04-29','Makan Malam','Makan & Minum','Makanan Harian','BCA001',88000,'Keluar',''],
+    ['TX0079','2026-04-30','Freelance Project','Pemasukan','Freelance','BCA001',2000000,'Masuk',''],
+    ['TX0080','2026-05-01','Gaji Bulan Mei','Pemasukan','Gaji','BCA001',8500000,'Masuk',''],
+    ['TX0081','2026-05-01','Netflix','Hiburan','Streaming','GPY001',65000,'Keluar',''],
+    ['TX0082','2026-05-01','Spotify','Hiburan','Streaming','GPY001',29000,'Keluar',''],
+    ['TX0083','2026-05-02','Makan Siang Warteg','Makan & Minum','Makanan Harian','BCA001',25000,'Keluar',''],
+    ['TX0084','2026-05-02','Bensin Pertamina','Transportasi','Bensin','BCA001',150000,'Keluar',''],
+    ['TX0085','2026-05-03','Kopi Kenangan','Makan & Minum','Kopi & Cafe','GPY001',35000,'Keluar',''],
+    ['TX0086','2026-05-04','Grab Ojek','Transportasi','Ojol & Taksi','GPY001',22000,'Keluar',''],
+    ['TX0087','2026-05-05','Listrik PLN','Tagihan','Listrik','BCA001',335000,'Keluar',''],
+    ['TX0088','2026-05-05','GoPay TopUp','Transfer','TopUp','BCA001',400000,'Transfer',''],
+    ['TX0089','2026-05-06','Alfamart','Makan & Minum','Makanan Harian','BCA001',95000,'Keluar',''],
+    ['TX0090','2026-05-07','Shopee - Alat Dapur','Belanja','Kebutuhan Rumah','GPY001',180000,'Keluar',''],
+    ['TX0091','2026-05-08','Makan Siang','Makan & Minum','Makanan Harian','BCA001',28000,'Keluar',''],
+    ['TX0092','2026-05-09','Kopi Starbucks','Makan & Minum','Kopi & Cafe','GPY001',58000,'Keluar',''],
+    ['TX0093','2026-05-10','Internet IndiHome','Tagihan','Internet','BCA001',350000,'Keluar',''],
+    ['TX0094','2026-05-10','Makan Malam Keluarga','Makan & Minum','Makanan Harian','BCA001',220000,'Keluar','Ulang tahun istri'],
+    ['TX0095','2026-05-11','Kado Ulang Tahun','Belanja','Pakaian & Fashion','BCA001',450000,'Keluar',''],
+    ['TX0096','2026-05-12','Grab Mobil','Transportasi','Ojol & Taksi','GPY001',55000,'Keluar',''],
+    ['TX0097','2026-05-13','Gojek GoFood','Makan & Minum','Makanan Harian','GPY001',68000,'Keluar',''],
+    ['TX0098','2026-05-14','Bensin','Transportasi','Bensin','BCA001',120000,'Keluar',''],
+    ['TX0099','2026-05-15','Air PDAM','Tagihan','Air','BCA001',80000,'Keluar',''],
+    ['TX0100','2026-05-15','Asuransi Jiwa','Asuransi','Asuransi Jiwa','MAY001',450000,'Keluar',''],
+    ['TX0101','2026-05-15','Iuran RT','Lain-lain','Sumbangan & Sosial','BCA001',50000,'Keluar',''],
+    ['TX0102','2026-05-16','Indomaret','Makan & Minum','Makanan Harian','BCA001',87500,'Keluar',''],
+    ['TX0103','2026-05-17','Obat Vitamin','Kesehatan','Apotek & Dokter','SEA001',65000,'Keluar',''],
+    ['TX0104','2026-05-18','Makan Siang','Makan & Minum','Makanan Harian','BCA001',30000,'Keluar',''],
+    ['TX0105','2026-05-19','Tokopedia Sepatu','Belanja','Pakaian & Fashion','GPY001',380000,'Keluar',''],
+    ['TX0106','2026-05-20','Cicilan Mobil Permata','Cicilan','Cicilan Mobil','PRM001',2800000,'Keluar',''],
+    ['TX0107','2026-05-20','iCloud Storage','Tagihan','Langganan','GPY001',15000,'Keluar',''],
+    ['TX0108','2026-05-21','Reksa Dana Bibit','Investasi','Reksa Dana','BCA001',1000000,'Keluar',''],
+    ['TX0109','2026-05-22','Makan Siang Warteg','Makan & Minum','Makanan Harian','BCA001',25000,'Keluar',''],
+    ['TX0110','2026-05-23','Nonton Bioskop','Hiburan','Rekreasi & Jalan','BCA001',140000,'Keluar',''],
+    ['TX0111','2026-05-24','Bensin','Transportasi','Bensin','BCA001',100000,'Keluar',''],
+    ['TX0112','2026-05-25','Cicilan KPR BCA','Cicilan','KPR','BCA001',3200000,'Keluar',''],
+    ['TX0113','2026-05-26','Grab - GoFood','Makan & Minum','Makanan Harian','GPY001',72000,'Keluar',''],
+    ['TX0114','2026-05-27','GoPay PayLater','Cicilan','PayLater','GPY001',500000,'Keluar',''],
+    ['TX0115','2026-05-28','Makan Malam','Makan & Minum','Makanan Harian','BCA001',55000,'Keluar',''],
+    ['TX0116','2026-05-28','Saham Stockbit','Investasi','Saham','UOB001',500000,'Keluar',''],
+    ['TX0117','2026-05-29','Freelance Design','Pemasukan','Freelance','BCA001',1800000,'Masuk',''],
+    ['TX0118','2026-05-30','Makan Siang','Makan & Minum','Makanan Harian','BCA001',28000,'Keluar',''],
+  ];
+  DATA.transactions = raw.map(r=>({
+    id:r[0],date:new Date(r[1]),name:r[2],kategori:r[3],subkat:r[4],
+    akun:r[5],amount:r[6],type:r[7],note:r[8]
+  }));
+  document.getElementById('fileStatus').textContent = '✅ Data demo dimuat (120 tx, 3 bulan)';
+  renderAll();
+}
+</script>
+</body>
+</html>
