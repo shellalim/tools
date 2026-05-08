@@ -2413,30 +2413,23 @@ a { text-decoration: none; color: inherit; }
 
 
 <script>
-const API_URL = 'https://script.google.com/macros/s/AKfycbzSPVUqU3tSd1pj9MwniIX07fv-xs5EMd--54KrK9wxrLx2QK1OV26Sa9McIvQMGTB2cQ/exec';
-const API_KEY = 'finanku2026';  // harus sama dengan SECRET_KEY di Apps Script
+  const API_URL = 'https://script.google.com/macros/s/AKfycbwU1tjO4hI4fsGKGiINBHDfKzTMVzREVeqbIQi9GCHg_P6X1NuzuCthpiy8dZ1q8gf3/exec';
 
-// ═══════════════════════════════════════════
-//  API HELPER
-// ═══════════════════════════════════════════
+/* ════════════════════════════════════════════
+   API HELPER
+════════════════════════════════════════════ */
 const API = {
-
-  // GET request
   get(action, params = {}) {
-    return $.get(API_URL, { ...params, action, key: API_KEY });
+    return $.get(API_URL, { ...params, action });
   },
-
-  // POST request
   post(action, data) {
     return $.ajax({
       url        : API_URL,
       method     : 'POST',
       contentType: 'application/json',
-      data       : JSON.stringify({ action, key: API_KEY, data }),
+      data       : JSON.stringify({ action, data }),
     });
   },
-
-  // Shorthand CRUD
   add   (module, data) { return this.post('add'    + cap(module), data); },
   update(module, data) { return this.post('update' + cap(module), data); },
   delete(module, id)   { return this.get ('delete' + cap(module), { id }); },
@@ -2445,22 +2438,61 @@ const API = {
 
 function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
-// ═══════════════════════════════════════════
-//  CACHE LOKAL — hindari GET berulang
-// ═══════════════════════════════════════════
+/* ════════════════════════════════════════════
+   CACHE LOKAL
+════════════════════════════════════════════ */
 const Cache = {
   transaksi : [],
   akun      : [],
   budget    : [],
   tagihan   : [],
   goals     : [],
-
   set(key, data) { this[key] = Array.isArray(data) ? data : []; },
   get(key)       { return Array.isArray(this[key]) ? this[key] : []; },
 };
 
+/* ════════════════════════════════════════════
+   TOAST NOTIFICATION
+════════════════════════════════════════════ */
+function toast(msg, type = 'success', duration = 3000) {
+  if (!$('#fkToastWrap').length) {
+    $('body').append(`<div id="fkToastWrap" style="
+      position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+      z-index:9999;display:flex;flex-direction:column;gap:8px;
+      align-items:center;pointer-events:none"></div>`);
+  }
+  if (!$('#fkToastStyle').length) {
+    $('head').append(`<style id="fkToastStyle">
+      @keyframes fkToastIn  { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+      @keyframes fkToastOut { from{opacity:1} to{opacity:0;transform:translateY(6px)} }
+    </style>`);
+  }
+  const colors = {
+    success: { bg:'#0E1320', border:'rgba(34,197,94,.4)',  icon:'✅', text:'#22C55E' },
+    error  : { bg:'#0E1320', border:'rgba(239,68,68,.4)',  icon:'❌', text:'#EF4444' },
+    info   : { bg:'#0E1320', border:'rgba(59,130,246,.4)', icon:'ℹ️', text:'#3B82F6' },
+    warn   : { bg:'#0E1320', border:'rgba(245,158,11,.4)', icon:'⚠️', text:'#F59E0B' },
+  };
+  const c = colors[type] || colors.info;
+  const $t = $(`<div style="
+    background:${c.bg};border:1px solid ${c.border};border-radius:12px;
+    padding:10px 18px;display:flex;align-items:center;gap:8px;
+    font-size:13px;font-weight:600;color:${c.text};
+    box-shadow:0 8px 24px rgba(0,0,0,.4);
+    animation:fkToastIn .2s ease;pointer-events:all;
+    font-family:'Instrument Sans',sans-serif">
+    <span>${c.icon}</span><span style="color:#EDF1FA">${msg}</span>
+  </div>`);
+  $('#fkToastWrap').append($t);
+  setTimeout(() => {
+    $t.css('animation', 'fkToastOut .25s ease forwards');
+    setTimeout(() => $t.remove(), 260);
+  }, duration);
+}
 
-// Loading state
+/* ════════════════════════════════════════════
+   LOADING STATE
+════════════════════════════════════════════ */
 function showLoading(show) {
   if (show) {
     if (!$('#fkLoader').length) {
@@ -2487,27 +2519,47 @@ function showLoading(show) {
   }
 }
 
+/* ════════════════════════════════════════════
+   INIT FROM SHEETS
+════════════════════════════════════════════ */
+function initFromSheets() {
+  showLoading(true);
+  API.getAll()
+    .done(function(res) {
+      if (res.status === 'ok') {
+        Cache.set('transaksi', res.data.transaksi);
+        Cache.set('akun',      res.data.akun);
+        Cache.set('budget',    res.data.budget);
+        Cache.set('tagihan',   res.data.tagihan);
+        Cache.set('goals',     res.data.goals);
+        if (window.FK && window.FK.refreshAll) window.FK.refreshAll();
+        if (window.FK && window.FK.renderAllCharts) window.FK.renderAllCharts();
+        toast('Data berhasil dimuat dari Sheets', 'success', 2000);
+      } else {
+        toast('Gagal load data: ' + res.message, 'error');
+      }
+    })
+    .fail(function() {
+      toast('Tidak bisa terhubung ke server', 'error');
+    })
+    .always(function() {
+      showLoading(false);
+    });
+}
+
 $(function () {
 
   /* ════════════════════════════════════════════
      AUTH CONFIG
-     Edit bagian ini untuk mengatur akun & password
   ════════════════════════════════════════════ */
   const AUTH_CONFIG = {
     sessionKey: 'finanku_session',
     users: [
       { username: 'admin', password: 'admin123', displayName: 'Administrator', role: 'Owner' },
       { username: 'demo',  password: 'demo',     displayName: 'Demo User',     role: 'Member' },
-      // Tambah user baru di sini:
-      // { username: 'budi', password: 'budi123', displayName: 'Budi Santoso', role: 'Owner' },
-      // { username: 'sari', password: 'sari123', displayName: 'Sari Dewi',    role: 'Member' },
     ]
   };
 
-  /* ════════════════════════════════════════════
-     PAGE CONFIG
-     Mapping page id → judul topbar
-  ════════════════════════════════════════════ */
   const PAGE_TITLES = {
     dashboard:    'Dashboard',
     transaksi:    'Transaksi',
@@ -2522,43 +2574,27 @@ $(function () {
     familyReport: 'Laporan Merge',
   };
 
-  /* ════════════════════════════════════════════
-     STATE
-  ════════════════════════════════════════════ */
-  let currentUser  = null;   // user object yang sedang login
+  let currentUser  = null;
   let currentPage  = 'dashboard';
-  let currentMode  = 'pribadi'; // 'pribadi' | 'keluarga'
+  let currentMode  = 'pribadi';
   let currentMonth = 5;
   let currentYear  = 2026;
 
-  const MONTHS_ID = [
-    'Januari','Februari','Maret','April','Mei','Juni',
-    'Juli','Agustus','September','Oktober','November','Desember'
-  ];
+  const MONTHS_ID = ['Januari','Februari','Maret','April','Mei','Juni',
+                     'Juli','Agustus','September','Oktober','November','Desember'];
+
+  function getInitial(name) { return (name || '?').charAt(0).toUpperCase(); }
+  function updateMonthLabel() { $('#monthLabel').text(MONTHS_ID[currentMonth - 1] + ' ' + currentYear); }
 
   /* ════════════════════════════════════════════
-     HELPERS
-  ════════════════════════════════════════════ */
-  function getInitial(name) {
-    return (name || '?').charAt(0).toUpperCase();
-  }
-
-  function updateMonthLabel() {
-    $('#monthLabel').text(MONTHS_ID[currentMonth - 1] + ' ' + currentYear);
-  }
-
-  /* ════════════════════════════════════════════
-     AUTH — LOGIN
+     AUTH
   ════════════════════════════════════════════ */
   function doLogin() {
     const username = $('#loginUser').val().trim();
     const password = $('#loginPass').val();
-
-    // Reset error state
     $('#loginErr').removeClass('show');
     $('#loginUser, #loginPass').removeClass('err');
 
-    // Validasi kosong
     if (!username || !password) {
       $('#loginErr').text('Username dan password tidak boleh kosong.').addClass('show');
       if (!username) $('#loginUser').addClass('err');
@@ -2566,25 +2602,16 @@ $(function () {
       return;
     }
 
-    // Animasi loading
     const $btn = $('#btnLogin');
     $btn.text('Memverifikasi...').prop('disabled', true).css('opacity', .7);
 
-    // Simulasi delay natural
     setTimeout(function () {
-      const user = AUTH_CONFIG.users.find(
-        u => u.username === username && u.password === password
-      );
-
+      const user = AUTH_CONFIG.users.find(u => u.username === username && u.password === password);
       if (user) {
-        // Simpan sesi
-        const session = {
-          username:    user.username,
-          displayName: user.displayName,
-          role:        user.role,
-          loginTime:   Date.now()
-        };
-        sessionStorage.setItem(AUTH_CONFIG.sessionKey, JSON.stringify(session));
+        sessionStorage.setItem(AUTH_CONFIG.sessionKey, JSON.stringify({
+          username: user.username, displayName: user.displayName,
+          role: user.role, loginTime: Date.now()
+        }));
         enterApp(user);
       } else {
         $btn.text('Masuk →').prop('disabled', false).css('opacity', 1);
@@ -2594,76 +2621,45 @@ $(function () {
     }, 500);
   }
 
-  /* ════════════════════════════════════════════
-     AUTH — MASUK KE APP
-  ════════════════════════════════════════════ */
   function enterApp(user) {
     currentUser = user;
-
     const initial = getInitial(user.displayName);
-
-    // Update UI nama di semua titik
     $('#sbAvatar').text(initial);
     $('#sbUsername').text(user.displayName);
     $('#sbRole').text(user.role || 'Member');
     $('#tbAvatar').text(initial);
     $('#tbUsername').text(user.displayName);
-
-    // Sembunyikan login, tampilkan app
     $('#loginScreen').addClass('hidden');
     $('#appShell').addClass('visible');
-
-    // Reset form login untuk keamanan
     $('#loginUser').val('');
     $('#loginPass').val('');
     $('#loginErr').removeClass('show');
     $('#loginUser, #loginPass').removeClass('err');
     $('#btnLogin').text('Masuk →').prop('disabled', false).css('opacity', 1);
-
-    // Init tampilan awal
     updateMonthLabel();
     showPage('dashboard');
-
+    initFromSheets();
     console.log('FinanKu — Login berhasil:', user.displayName);
   }
 
-  /* ════════════════════════════════════════════
-     AUTH — LOGOUT
-  ════════════════════════════════════════════ */
   function doLogout() {
     if (!confirm('Yakin ingin keluar dari FinanKu?')) return;
-
     sessionStorage.removeItem(AUTH_CONFIG.sessionKey);
     currentUser = null;
-
-    // Sembunyikan app, tampilkan login
     $('#appShell').removeClass('visible');
     $('#loginScreen').removeClass('hidden');
-
-    // Reset ke halaman dashboard untuk session berikutnya
     currentPage = 'dashboard';
     currentMode = 'pribadi';
-
     setTimeout(() => $('#loginUser').focus(), 150);
-
-    console.log('FinanKu — Logout berhasil');
   }
 
-  /* ════════════════════════════════════════════
-     AUTH — CEK SESSION (auto-login jika masih aktif)
-  ════════════════════════════════════════════ */
   function checkSession() {
     try {
       const raw = sessionStorage.getItem(AUTH_CONFIG.sessionKey);
       if (!raw) return false;
-
       const session = JSON.parse(raw);
       const user = AUTH_CONFIG.users.find(u => u.username === session.username);
-
-      if (user) {
-        enterApp(user);
-        return true;
-      }
+      if (user) { enterApp(user); return true; }
     } catch (e) {
       sessionStorage.removeItem(AUTH_CONFIG.sessionKey);
     }
@@ -2671,77 +2667,41 @@ $(function () {
   }
 
   /* ════════════════════════════════════════════
-     NAVIGATION — SHOW PAGE
+     NAVIGATION
   ════════════════════════════════════════════ */
   function showPage(pageId) {
-    // Sembunyikan semua page
     $('.page').removeClass('active');
-
-    // Tampilkan page yang dipilih
     $('#page-' + pageId).addClass('active');
-
-    // Update topbar title
     $('#topbarTitle').text(PAGE_TITLES[pageId] || pageId);
-
-    // Update nav active state
     $('.navItem').removeClass('active');
     $(`.navItem[data-page="${pageId}"]`).addClass('active');
-
     currentPage = pageId;
-
-    // Tutup sidebar di mobile setelah navigasi
-    if ($(window).width() <= 768) {
-      closeSidebar();
-    }
-
-    console.log('FinanKu — Navigate to:', pageId);
+    if ($(window).width() <= 768) closeSidebar();
   }
 
-  /* ════════════════════════════════════════════
-     NAVIGATION — MODE TOGGLE (Pribadi / Keluarga)
-  ════════════════════════════════════════════ */
   function setMode(mode) {
     currentMode = mode;
-
     if (mode === 'pribadi') {
       $('#modePribadi').addClass('active');
       $('#modeKeluarga').removeClass('active');
       $('#navPribadi').show();
       $('#navKeluarga').hide();
-      // Kembali ke dashboard pribadi
       showPage('dashboard');
     } else {
       $('#modeKeluarga').addClass('active');
       $('#modePribadi').removeClass('active');
       $('#navPribadi').hide();
       $('#navKeluarga').show();
-      // Langsung ke family dashboard
       showPage('familyDash');
     }
   }
 
   /* ════════════════════════════════════════════
-     SIDEBAR — MOBILE DRAWER
+     SIDEBAR
   ════════════════════════════════════════════ */
-  function openSidebar() {
-    $('#sidebar').addClass('open');
-    $('#sidebarOverlay').addClass('open');
-    $('#sidebarCloseBtn').show();
-  }
-
-  function closeSidebar() {
-    $('#sidebar').removeClass('open');
-    $('#sidebarOverlay').removeClass('open');
-    $('#sidebarCloseBtn').hide();
-  }
-
-  function toggleSidebar() {
-    if ($('#sidebar').hasClass('open')) {
-      closeSidebar();
-    } else {
-      openSidebar();
-    }
-  }
+  function openSidebar()   { $('#sidebar').addClass('open'); $('#sidebarOverlay').addClass('open'); $('#sidebarCloseBtn').show(); }
+  function closeSidebar()  { $('#sidebar').removeClass('open'); $('#sidebarOverlay').removeClass('open'); $('#sidebarCloseBtn').hide(); }
+  function toggleSidebar() { $('#sidebar').hasClass('open') ? closeSidebar() : openSidebar(); }
 
   /* ════════════════════════════════════════════
      MONTH NAVIGATOR
@@ -2751,29 +2711,20 @@ $(function () {
     if (currentMonth > 12) { currentMonth = 1;  currentYear++; }
     if (currentMonth < 1)  { currentMonth = 12; currentYear--; }
     updateMonthLabel();
-    // Trigger refresh data (akan diisi di sesi CRUD & Charts)
     $(document).trigger('finanku:monthChanged', [currentMonth, currentYear]);
   }
 
+  function openDrawer(id)  { $('#' + id).addClass('open'); }
+  function closeDrawer(id) { $('#' + id).removeClass('open'); }
+
   /* ════════════════════════════════════════════
-     DRAWER HELPER — buka/tutup drawer form
+     THEME TOGGLE
   ════════════════════════════════════════════ */
-  function openDrawer(drawerId) {
-    $('#' + drawerId).addClass('open');
-  }
-
-  function closeDrawer(drawerId) {
-    $('#' + drawerId).removeClass('open');
-  }
-
-  // ── Theme Toggle ──
   const THEME_KEY = 'finanku_theme';
-  const savedTheme = localStorage.getItem(THEME_KEY);
-  if (savedTheme === 'light') {
+  if (localStorage.getItem(THEME_KEY) === 'light') {
     $('body').addClass('light');
     $('#btnTheme').text('☀️');
   }
-
   $('#btnTheme').on('click', function () {
     const isLight = $('body').toggleClass('light').hasClass('light');
     $(this).text(isLight ? '☀️' : '🌙');
@@ -2781,285 +2732,83 @@ $(function () {
   });
 
   /* ════════════════════════════════════════════
-     EVENT LISTENERS
+     EVENT LISTENERS — AUTH & NAV
   ════════════════════════════════════════════ */
-
-  // ── Login ──
   $('#btnLogin').on('click', doLogin);
-
-  // Enter key di form login
-  $('#loginUser, #loginPass').on('keydown', function (e) {
-    if (e.key === 'Enter') doLogin();
-  });
-
-  // Clear error saat user mulai mengetik
-  $('#loginUser, #loginPass').on('input', function () {
-    $(this).removeClass('err');
-    $('#loginErr').removeClass('show');
-  });
-
-
-  // Init — load semua data dari Sheets saat login
-  function initFromSheets() {
-    showLoading(true);
-    API.getAll()
-      .done(function(res) {
-        if (res.status === 'ok') {
-          Cache.set('transaksi', res.data.transaksi);
-          Cache.set('akun',      res.data.akun);
-          Cache.set('budget',    res.data.budget);
-          Cache.set('tagihan',   res.data.tagihan);
-          Cache.set('goals',     res.data.goals);
-          refreshAll();
-          renderCharts();
-          //toast('Data berhasil dimuat dari Sheets', 'success', 2000);
-        } else {
-          //toast('Gagal load data: ' + res.message, 'error');
-        }
-      })
-      .fail(function() {
-        //toast('Tidak bisa terhubung ke server', 'error');
-      })
-      .always(function() {
-        showLoading(false);
-      });
-  }
-
-  // ── Logout ──
+  $('#loginUser, #loginPass').on('keydown', function (e) { if (e.key === 'Enter') doLogin(); });
+  $('#loginUser, #loginPass').on('input', function () { $(this).removeClass('err'); $('#loginErr').removeClass('show'); });
   $('#btnLogout, #topbarUserBtn').on('click', doLogout);
-
-  // ── Nav items ──
-  $(document).on('click', '.navItem[data-page]', function () {
-    const pageId = $(this).data('page');
-    showPage(pageId);
-  });
-
-  // ── "Lihat Semua" button di dashboard ──
+  $(document).on('click', '.navItem[data-page]', function () { showPage($(this).data('page')); });
   $(document).on('click', '.btn[data-page]', function () {
     const pageId = $(this).data('page');
     showPage(pageId);
-    // Update nav active state juga
     $('.navItem').removeClass('active');
     $(`.navItem[data-page="${pageId}"]`).addClass('active');
   });
-
-  // ── Mode toggle ──
   $('#modePribadi').on('click', function () { setMode('pribadi'); });
   $('#modeKeluarga').on('click', function () { setMode('keluarga'); });
-
-  // ── Hamburger & Sidebar ──
   $('#hamburgerBtn').on('click', toggleSidebar);
   $('#sidebarOverlay').on('click', closeSidebar);
   $('#sidebarCloseBtn').on('click', closeSidebar);
-
-  // ── Month navigation ──
   $('#btnPrevMonth').on('click', function () { changeMonth(-1); });
   $('#btnNextMonth').on('click', function () { changeMonth(1); });
-
-  // ── Buka Drawer Form ──
-  $('#btnTambahTx, #fabBtn').on('click',       function () { openDrawer('drawerTx'); });
-  $('#btnTambahAkun').on('click',              function () { openDrawer('drawerAkun'); });
-  $('#btnTambahBudget').on('click',            function () { openDrawer('drawerBudget'); });
-  $('#btnTambahTagihan').on('click',           function () { openDrawer('drawerTagihan'); });
-  $('#btnTambahGoal').on('click',              function () { openDrawer('drawerGoal'); });
-  $('#btnTambahFamGoal').on('click',           function () { openDrawer('drawerGoal'); });
-
-  // ── Tutup Drawer (tombol X dan Batal) ──
-  $(document).on('click', '[data-close]', function () {
-    const drawerId = $(this).data('close');
-    closeDrawer(drawerId);
-  });
-
-  // ── Tutup Drawer klik overlay ──
-  $(document).on('click', '.modalOverlay', function (e) {
-    if ($(e.target).hasClass('modalOverlay')) {
-      $(this).removeClass('open');
-    }
-  });
-
-  // ── FAB tampil/sembunyi berdasarkan halaman ──
-  // FAB hanya tampil di halaman Transaksi atau Dashboard
-  $(document).on('finanku:pageChanged', function (e, pageId) {
-    const fabPages = ['dashboard', 'transaksi'];
-    if (fabPages.includes(pageId)) {
-      $('#fabBtn').show();
-    } else {
-      $('#fabBtn').hide();
-    }
-  });
-
-  // ── Escape key tutup drawer/sidebar ──
+  $('#btnTambahTx, #fabBtn').on('click',  function () { openDrawer('drawerTx'); });
+  $('#btnTambahAkun').on('click',         function () { openDrawer('drawerAkun'); });
+  $('#btnTambahBudget').on('click',       function () { openDrawer('drawerBudget'); });
+  $('#btnTambahTagihan').on('click',      function () { openDrawer('drawerTagihan'); });
+  $('#btnTambahGoal, #btnTambahFamGoal').on('click', function () { openDrawer('drawerGoal'); });
+  $(document).on('click', '[data-close]', function () { closeDrawer($(this).data('close')); });
+  $(document).on('click', '.modalOverlay', function (e) { if ($(e.target).hasClass('modalOverlay')) $(this).removeClass('open'); });
   $(document).on('keydown', function (e) {
     if (e.key === 'Escape') {
-      // Tutup drawer yang sedang terbuka
       $('.modalOverlay.open').removeClass('open');
-      // Tutup sidebar di mobile
       if ($(window).width() <= 768) closeSidebar();
     }
   });
-
-  // ── Segmented control di drawer Transaksi ──
   $(document).on('click', '.segBtn', function () {
     $(this).closest('.segControl').find('.segBtn').removeClass('active');
     $(this).addClass('active');
-
-    // Tampilkan/sembunyikan field akun tujuan jika Transfer
-    const tipe = $(this).data('tipe');
-    if (tipe === 'Transfer') {
-      $('#txAkunTujuanWrap').show();
-    } else {
-      $('#txAkunTujuanWrap').hide();
-    }
+    $('#txAkunTujuanWrap').toggle($(this).data('tipe') === 'Transfer');
   });
-
-  // ── Color picker di drawer Akun ──
   $(document).on('click', '.colorDot', function () {
     $(this).closest('.colorPicker').find('.colorDot').removeClass('selected');
     $(this).addClass('selected');
   });
-
-  // ── Period button di Laporan ──
   $(document).on('click', '.periodBtn', function () {
     $(this).closest('.reportPeriod').find('.periodBtn').removeClass('active');
     $(this).addClass('active');
   });
-
-  // ── Responsive: sembunyikan FAB di halaman non-transaksi ──
-  // Default FAB visible di dashboard
   $('#fabBtn').show();
 
-  // Intercept showPage untuk trigger event
-  const _showPage = showPage;
-  // (sudah di-handle di dalam showPage)
-
   /* ════════════════════════════════════════════
-     INIT — Cek session atau tampilkan login
+     INIT — cek session
   ════════════════════════════════════════════ */
   if (!checkSession()) {
-    // Tidak ada session aktif — tampilkan login
     $('#loginScreen').removeClass('hidden');
     setTimeout(() => $('#loginUser').focus(), 100);
   }
 
   console.log('FinanKu v2 — Auth & Navigation ready');
- 
 
   /* ════════════════════════════════════════════
      CONSTANTS
   ════════════════════════════════════════════ */
-  const STORAGE_KEYS = {
-    transaksi : 'fk_transaksi',
-    akun      : 'fk_akun',
-    budget    : 'fk_budget',
-    tagihan   : 'fk_tagihan',
-    goals     : 'fk_goals',
-  };
-
   const KAT_ICONS = {
-    'Makan & Minum' : '🍜',
-    'Transportasi'  : '🚗',
-    'Tagihan'       : '📱',
-    'Belanja'       : '🛍️',
-    'Hiburan'       : '🎬',
-    'Kesehatan'     : '💊',
-    'Investasi'     : '📈',
-    'Cicilan'       : '🏠',
-    'Asuransi'      : '🛡️',
-    'Lain-lain'     : '📦',
-    'Pemasukan'     : '💰',
-    'Transfer'      : '🔄',
+    'Makan & Minum':'🍜','Transportasi':'🚗','Tagihan':'📱','Belanja':'🛍️',
+    'Hiburan':'🎬','Kesehatan':'💊','Investasi':'📈','Cicilan':'🏠',
+    'Asuransi':'🛡️','Lain-lain':'📦','Pemasukan':'💰','Transfer':'🔄',
   };
-
   const KAT_COLORS = {
-    'Makan & Minum' : '#22C55E',
-    'Transportasi'  : '#3B82F6',
-    'Tagihan'       : '#A855F7',
-    'Belanja'       : '#F59E0B',
-    'Hiburan'       : '#EF4444',
-    'Kesehatan'     : '#06B6D4',
-    'Investasi'     : '#64748B',
-    'Cicilan'       : '#F97316',
-    'Asuransi'      : '#EC4899',
-    'Lain-lain'     : '#6B7280',
+    'Makan & Minum':'#22C55E','Transportasi':'#3B82F6','Tagihan':'#A855F7',
+    'Belanja':'#F59E0B','Hiburan':'#EF4444','Kesehatan':'#06B6D4',
+    'Investasi':'#64748B','Cicilan':'#F97316','Asuransi':'#EC4899','Lain-lain':'#6B7280',
   };
-
   const MONTHS_ID_SHORT = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 
   /* ════════════════════════════════════════════
-     DATA MODEL — camelCase standar
-
-     transaksi: {
-       txId, tanggal, nama, kategori, subKategori,
-       akunId, akunTujuanId, nominal, tipe, catatan
-     }
-
-     akun: {
-       akunId, namaAkun, tipeAkun, saldoAwal,
-       warna, pemilik, aktif
-     }
-
-     budget: {
-       budgetId, kategori, subKategori,
-       limitBulanan, tipeKebutuhan
-     }
-
-     tagihan: {
-       tagihanId, namaBill, kategori, akunId, nominal,
-       frekuensi, tanggalBayar, tanggalMulai,
-       tanggalSelesai, status
-     }
-
-     goal: {
-       goalId, namaGoal, targetNominal, sudahTerkumpul,
-       deadline, nabungPerBulan, ikonGoal, status
-     }
+     HELPERS
   ════════════════════════════════════════════ */
-
-  /* ════════════════════════════════════════════
-     LOCALSTORAGE HELPERS
-  ════════════════════════════════════════════ */
-  const Store = {
-    get(key) {
-      try {
-        return JSON.parse(localStorage.getItem(key)) || [];
-      } catch { return []; }
-    },
-    set(key, data) {
-      try {
-        localStorage.setItem(key, JSON.stringify(data));
-        return true;
-      } catch { return false; }
-    },
-    add(key, item) {
-      const list = this.get(key);
-      list.push(item);
-      return this.set(key, list);
-    },
-    update(key, idField, id, newItem) {
-      const list = this.get(key).map(item =>
-        item[idField] === id ? { ...item, ...newItem } : item
-      );
-      return this.set(key, list);
-    },
-    remove(key, idField, id) {
-      const list = this.get(key).filter(item => item[idField] !== id);
-      return this.set(key, list);
-    },
-    clear(key) {
-      localStorage.removeItem(key);
-    }
-  };
-
-  /* ════════════════════════════════════════════
-     ID GENERATOR
-  ════════════════════════════════════════════ */
-  function genId(prefix) {
-    return prefix + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-  }
-
-  /* ════════════════════════════════════════════
-     FORMAT HELPERS
-  ════════════════════════════════════════════ */
+  function genId(prefix) { return prefix + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7); }
   function fmtRp(n, compact = false) {
     const num = parseInt(n) || 0;
     if (compact) {
@@ -3069,63 +2818,39 @@ $(function () {
     }
     return 'Rp ' + num.toLocaleString('id-ID');
   }
-
   function fmtDate(str) {
     if (!str) return '—';
     const d = new Date(str);
     if (isNaN(d)) return str;
     return d.getDate() + ' ' + MONTHS_ID_SHORT[d.getMonth()] + ' ' + d.getFullYear();
   }
-
-  function today() {
-    return new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-  }
-
-  function todayMonth() {
-    const d = new Date();
-    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-  }
+  function today() { return new Date().toISOString().split('T')[0]; }
 
   /* ════════════════════════════════════════════
-     POPULATE DROPDOWNS (akun di form)
+     POPULATE DROPDOWNS
   ════════════════════════════════════════════ */
   function populateAkunDropdowns() {
     const akunList = Cache.get('akun');
-    const opts = akunList.map(a =>
-      `<option value="${a.akunId}">${a.namaAkun}</option>`
-    ).join('');
-
-    const placeholder = '<option value="">Pilih akun</option>';
-    $('#txAkun, #txAkunTujuan, #tagihanAkun').html(placeholder + opts);
-
-    // Filter dropdown di halaman Transaksi
-    const filterOpts = '<option value="">Semua Akun</option>' +
-      akunList.map(a => `<option value="${a.akunId}">${a.namaAkun}</option>`).join('');
-    $('#txFilterAkun').html(filterOpts);
+    const opts = akunList.map(a => `<option value="${a.akunId}">${a.namaAkun}</option>`).join('');
+    $('#txAkun, #txAkunTujuan, #tagihanAkun').html('<option value="">Pilih akun</option>' + opts);
+    $('#txFilterAkun').html('<option value="">Semua Akun</option>' + opts);
   }
-
   function populateKategoriDropdown() {
-    const txList = Cache.get('transaksi');
-    const kats   = [...new Set(txList.map(t => t.kategori))].filter(Boolean).sort();
-    const opts   = '<option value="">Semua Kategori</option>' +
-      kats.map(k => `<option value="${k}">${k}</option>`).join('');
-    $('#txFilterKat').html(opts);
+    const kats = [...new Set(Cache.get('transaksi').map(t => t.kategori))].filter(Boolean).sort();
+    $('#txFilterKat').html('<option value="">Semua Kategori</option>' + kats.map(k => `<option value="${k}">${k}</option>`).join(''));
   }
 
   /* ════════════════════════════════════════════
-     RENDER — TRANSAKSI LIST
+     RENDER — TRANSAKSI
   ════════════════════════════════════════════ */
   function renderTxItem(tx) {
-    const akunList = Cache.get('akun');
-    const akun     = akunList.find(a => a.akunId === tx.akunId);
+    const akun     = Cache.get('akun').find(a => a.akunId === tx.akunId);
     const akunName = akun ? akun.namaAkun : tx.akunId || '—';
     const icon     = KAT_ICONS[tx.kategori] || '📦';
     const color    = KAT_COLORS[tx.kategori] || '#6B7280';
-
     const amtClass = tx.tipe === 'Masuk' ? 'in' : tx.tipe === 'Transfer' ? 'tf' : 'out';
     const amtSign  = tx.tipe === 'Masuk' ? '+' : tx.tipe === 'Transfer' ? '⇄' : '-';
     const badgeClass = tx.tipe === 'Masuk' ? 'tbIn' : tx.tipe === 'Transfer' ? 'tbTf' : 'tbOut';
-
     return `
       <div class="txItem" data-txid="${tx.txId}">
         <div class="txIcon" style="background:${color}20">${icon}</div>
@@ -3143,73 +2868,39 @@ $(function () {
           title="Hapus">✕</button>
       </div>`;
   }
-
   function renderTxList(selector, txList) {
-    if (!txList.length) {
-      $(selector).html(`
-        <div class="emptyState">
-          <div class="emptyIcon">📭</div>
-          <h3>Belum ada transaksi</h3>
-          <p>Klik "+ Tambah Transaksi" atau upload spreadsheet</p>
-        </div>`);
-      return;
-    }
-    $(selector).html(txList.map(renderTxItem).join(''));
+    $(selector).html(txList.length ? txList.map(renderTxItem).join('') : `
+      <div class="emptyState">
+        <div class="emptyIcon">📭</div>
+        <h3>Belum ada transaksi</h3>
+        <p>Klik "+ Tambah Transaksi" atau upload spreadsheet</p>
+      </div>`);
   }
-
   function getFilteredTx() {
-    // Ambil semua transaksi
-    let list = Cache.get('transaksi');
-
-    // Filter bulan aktif (dari state Part 01)
     const m = window.fkCurrentMonth || new Date().getMonth() + 1;
     const y = window.fkCurrentYear  || new Date().getFullYear();
-
-    list = list.filter(t => {
+    let list = Cache.get('transaksi').filter(t => {
       if (!t.tanggal) return false;
       const d = new Date(t.tanggal);
       return d.getMonth() + 1 === m && d.getFullYear() === y;
     });
-
-    // Filter search
     const search = $('#txSearch').val().toLowerCase().trim();
-    if (search) {
-      list = list.filter(t =>
-        (t.nama || '').toLowerCase().includes(search) ||
-        (t.kategori || '').toLowerCase().includes(search)
-      );
-    }
-
-    // Filter tipe
-    const tipe = $('#txFilterTipe').val();
-    if (tipe) list = list.filter(t => t.tipe === tipe);
-
-    // Filter kategori
-    const kat = $('#txFilterKat').val();
-    if (kat) list = list.filter(t => t.kategori === kat);
-
-    // Filter akun
-    const akun = $('#txFilterAkun').val();
-    if (akun) list = list.filter(t => t.akunId === akun);
-
-    // Sort terbaru dulu
-    list.sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal));
-
-    return list;
+    if (search) list = list.filter(t => (t.nama||'').toLowerCase().includes(search) || (t.kategori||'').toLowerCase().includes(search));
+    const tipe = $('#txFilterTipe').val(); if (tipe) list = list.filter(t => t.tipe === tipe);
+    const kat  = $('#txFilterKat').val();  if (kat)  list = list.filter(t => t.kategori === kat);
+    const akun = $('#txFilterAkun').val(); if (akun) list = list.filter(t => t.akunId === akun);
+    return list.sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal));
   }
-
   function refreshTxPage() {
     const list = getFilteredTx();
     renderTxList('#allTxList', list);
     $('#txCount').text(list.length + ' transaksi ditemukan');
     populateKategoriDropdown();
   }
-
   function refreshDashTx() {
-    let list = Cache.get('transaksi');
-    const m  = window.fkCurrentMonth || new Date().getMonth() + 1;
-    const y  = window.fkCurrentYear  || new Date().getFullYear();
-    list = list
+    const m = window.fkCurrentMonth || new Date().getMonth() + 1;
+    const y = window.fkCurrentYear  || new Date().getFullYear();
+    const list = Cache.get('transaksi')
       .filter(t => { const d = new Date(t.tanggal); return d.getMonth()+1===m && d.getFullYear()===y; })
       .sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal))
       .slice(0, 8);
@@ -3217,198 +2908,136 @@ $(function () {
   }
 
   /* ════════════════════════════════════════════
-     RENDER — AKUN GRID & TABS
+     RENDER — AKUN
   ════════════════════════════════════════════ */
   function getSaldoAkun(akunId) {
     const akun = Cache.get('akun').find(a => a.akunId === akunId);
     if (!akun) return 0;
     let delta = 0;
     Cache.get('transaksi').forEach(t => {
-      if (t.akunId !== akunId) return;
-      if (t.tipe === 'Masuk')     delta += parseInt(t.nominal) || 0;
-      if (t.tipe === 'Keluar')    delta -= parseInt(t.nominal) || 0;
-      if (t.tipe === 'Transfer')  delta -= parseInt(t.nominal) || 0;
-    });
-    // Transfer masuk ke akun tujuan
-    Cache.get('transaksi').forEach(t => {
-      if (t.tipe === 'Transfer' && t.akunTujuanId === akunId) {
-        delta += parseInt(t.nominal) || 0;
+      if (t.akunId === akunId) {
+        if (t.tipe === 'Masuk')    delta += parseInt(t.nominal) || 0;
+        if (t.tipe === 'Keluar')   delta -= parseInt(t.nominal) || 0;
+        if (t.tipe === 'Transfer') delta -= parseInt(t.nominal) || 0;
       }
+      if (t.tipe === 'Transfer' && t.akunTujuanId === akunId) delta += parseInt(t.nominal) || 0;
     });
     return (parseInt(akun.saldoAwal) || 0) + delta;
   }
-
   function renderAkunGrid() {
     const list = Cache.get('akun');
     if (!list.length) {
-      $('#akunGrid').html(`
-        <div class="emptyState" style="grid-column:1/-1">
-          <div class="emptyIcon">💳</div>
-          <h3>Belum ada akun</h3>
-          <p>Tambah akun bank atau dompet digital Anda</p>
-        </div>`);
+      $('#akunGrid').html(`<div class="emptyState" style="grid-column:1/-1"><div class="emptyIcon">💳</div><h3>Belum ada akun</h3><p>Tambah akun bank atau dompet digital Anda</p></div>`);
       $('#akunTabs').html('');
       renderTxList('#akunTxList', []);
       return;
     }
-
-    // Cards
-    const cards = list.map(a => {
+    $('#akunGrid').html(list.map(a => {
       const saldo = getSaldoAkun(a.akunId);
-      const chip  = a.tipeAkun === 'E-Wallet' ? '💚' : '💳';
-      return `
-        <div class="akunCard" style="background:linear-gradient(135deg,${a.warna}dd,${a.warna}99)"
-             data-akunid="${a.akunId}">
-          <div class="akunCardChip">${chip}</div>
-          <div class="akunCardName">${a.namaAkun}</div>
-          <div class="akunCardType">${a.tipeAkun}${a.pemilik ? ' · ' + a.pemilik : ''}</div>
-          <div class="akunCardSaldo">${fmtRp(saldo, true)}</div>
-          <div class="akunCardSub">${fmtRp(saldo)}</div>
-        </div>`;
-    }).join('');
-    $('#akunGrid').html(cards);
-
-    // Tabs
-    const tabs = '<div class="akunTab active" data-akunid="">Semua</div>' +
-      list.map(a => `<div class="akunTab" data-akunid="${a.akunId}"
-        style="--c:${a.warna}">${a.namaAkun.split(' - ')[0]}</div>`).join('');
-    $('#akunTabs').html(tabs);
-
-    // Default: tampilkan semua transaksi bulan ini
+      return `<div class="akunCard" style="background:linear-gradient(135deg,${a.warna}dd,${a.warna}99)" data-akunid="${a.akunId}">
+        <div class="akunCardChip">${a.tipeAkun === 'E-Wallet' ? '💚' : '💳'}</div>
+        <div class="akunCardName">${a.namaAkun}</div>
+        <div class="akunCardType">${a.tipeAkun}${a.pemilik ? ' · ' + a.pemilik : ''}</div>
+        <div class="akunCardSaldo">${fmtRp(saldo, true)}</div>
+        <div class="akunCardSub">${fmtRp(saldo)}</div>
+      </div>`;
+    }).join(''));
+    $('#akunTabs').html('<div class="akunTab active" data-akunid="">Semua</div>' +
+      list.map(a => `<div class="akunTab" data-akunid="${a.akunId}" style="--c:${a.warna}">${a.namaAkun.split(' - ')[0]}</div>`).join(''));
     filterAkunTx('');
   }
-
   function filterAkunTx(akunId) {
-    // Update tab active
     $('#akunTabs .akunTab').removeClass('active').css({ background: '', borderColor: '', color: '' });
-    const $tab = $('#akunTabs .akunTab[data-akunid="' + akunId + '"]');
-    $tab.addClass('active');
+    const $tab = $(`#akunTabs .akunTab[data-akunid="${akunId}"]`).addClass('active');
     if (akunId) {
       const akun = Cache.get('akun').find(a => a.akunId === akunId);
       if (akun) $tab.css({ background: akun.warna, borderColor: akun.warna, color: '#fff' });
     } else {
       $tab.css({ background: 'var(--blue)', borderColor: 'var(--blue)', color: '#fff' });
     }
-
-    let list = Cache.get('transaksi')
+    renderTxList('#akunTxList', Cache.get('transaksi')
       .filter(t => !akunId || t.akunId === akunId)
       .sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal))
-      .slice(0, 60);
-    renderTxList('#akunTxList', list);
+      .slice(0, 60));
   }
 
   /* ════════════════════════════════════════════
-     RENDER — BUDGET LIST
+     RENDER — BUDGET
   ════════════════════════════════════════════ */
   function renderBudgetList() {
     const budgetList = Cache.get('budget');
     const txList     = Cache.get('transaksi');
     const m = window.fkCurrentMonth || new Date().getMonth() + 1;
     const y = window.fkCurrentYear  || new Date().getFullYear();
-
-    // Kelompokkan budget per kategori
     const katMap = {};
     budgetList.forEach(b => {
       if (!katMap[b.kategori]) katMap[b.kategori] = { limit: 0 };
       katMap[b.kategori].limit += parseInt(b.limitBulanan) || 0;
     });
-
     if (!Object.keys(katMap).length) {
-      $('#budgetList').html(`
-        <div class="emptyState">
-          <div class="emptyIcon">📊</div>
-          <h3>Belum ada budget</h3>
-          <p>Klik "Atur Budget" untuk menambah budget per kategori</p>
-        </div>`);
-      // Reset metrics
+      $('#budgetList').html(`<div class="emptyState"><div class="emptyIcon">📊</div><h3>Belum ada budget</h3><p>Klik "Atur Budget" untuk menambah budget per kategori</p></div>`);
       $('#mBudgetTotal, #mBudgetReal, #mBudgetSisa').text('Rp 0');
       $('#mBudgetPct').text('0% terpakai');
       $('#mBudgetSisaSub').text('Belum ada data');
-      return;
+      updateTagihanBadge(); return;
     }
-
     let totalLimit = 0, totalSpend = 0;
-    const items = Object.entries(katMap).map(([kat, b]) => {
-      const spent = txList
-        .filter(t => {
-          const d = new Date(t.tanggal);
-          return t.kategori === kat && t.tipe === 'Keluar' &&
-                 d.getMonth()+1 === m && d.getFullYear() === y;
-        })
-        .reduce((s, t) => s + (parseInt(t.nominal) || 0), 0);
-
-      totalLimit += b.limit;
-      totalSpend += spent;
-
+    $('#budgetList').html(Object.entries(katMap).map(([kat, b]) => {
+      const spent = txList.filter(t => {
+        const d = new Date(t.tanggal);
+        return t.kategori === kat && t.tipe === 'Keluar' && d.getMonth()+1===m && d.getFullYear()===y;
+      }).reduce((s, t) => s + (parseInt(t.nominal) || 0), 0);
+      totalLimit += b.limit; totalSpend += spent;
       const pct  = b.limit > 0 ? Math.min(Math.round(spent / b.limit * 100), 100) : 0;
       const over = spent > b.limit;
       const barColor = over ? 'var(--red)' : pct > 80 ? 'var(--amber)' : 'var(--green)';
       const pctBg    = over ? 'var(--redGlow)' : pct > 80 ? 'var(--amberGlow)' : 'var(--greenGlow)';
-      const pctColor = over ? 'var(--red)'    : pct > 80 ? 'var(--amber)'    : 'var(--green)';
-      const icon     = KAT_ICONS[kat] || '📦';
-
-      return `
-        <div class="budgetItem">
-          <div class="budgetRow">
-            <span class="budgetCat">${icon} ${kat}</span>
-            <div style="display:flex;align-items:center;gap:8px">
-              <span class="budgetPct" style="background:${pctBg};color:${pctColor}">${pct}%</span>
-              <span class="budgetNums">${fmtRp(spent,true)} / ${fmtRp(b.limit,true)}</span>
-            </div>
+      const pctColor = over ? 'var(--red)'  : pct > 80 ? 'var(--amber)'  : 'var(--green)';
+      return `<div class="budgetItem">
+        <div class="budgetRow">
+          <span class="budgetCat">${KAT_ICONS[kat]||'📦'} ${kat}</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="budgetPct" style="background:${pctBg};color:${pctColor}">${pct}%</span>
+            <span class="budgetNums">${fmtRp(spent,true)} / ${fmtRp(b.limit,true)}</span>
           </div>
-          <div class="barBg">
-            <div class="barFill" style="width:${pct}%;background:${barColor}"></div>
-          </div>
-        </div>`;
-    }).join('');
-
-    $('#budgetList').html(items);
-
-    // Update metrics
-    const sisa    = totalLimit - totalSpend;
+        </div>
+        <div class="barBg"><div class="barFill" style="width:${pct}%;background:${barColor}"></div></div>
+      </div>`;
+    }).join(''));
+    const sisa = totalLimit - totalSpend;
     const pctUsed = totalLimit > 0 ? Math.round(totalSpend / totalLimit * 100) : 0;
     $('#mBudgetTotal').text(fmtRp(totalLimit, true));
     $('#mBudgetReal').text(fmtRp(totalSpend, true));
     $('#mBudgetPct').text(pctUsed + '% terpakai');
-    $('#mBudgetSisa').text(fmtRp(Math.abs(sisa), true))
-      .css('color', sisa >= 0 ? 'var(--green)' : 'var(--red)');
+    $('#mBudgetSisa').text(fmtRp(Math.abs(sisa), true)).css('color', sisa >= 0 ? 'var(--green)' : 'var(--red)');
     $('#mBudgetSisaSub').text(sisa >= 0 ? 'Aman' : 'Over budget!');
-
-    // Badge tagihan — update dari sini juga
     updateTagihanBadge();
   }
 
   /* ════════════════════════════════════════════
-     RENDER — TAGIHAN LIST
+     RENDER — TAGIHAN
   ════════════════════════════════════════════ */
   const BILL_ICONS = {
-    'PLN': '⚡', 'Listrik': '⚡', 'Air': '💧', 'PDAM': '💧',
-    'Internet': '📶', 'IndiHome': '📶', 'Netflix': '🎬',
-    'Spotify': '🎵', 'iCloud': '☁️', 'KPR': '🏠', 'Rumah': '🏠',
-    'Mobil': '🚗', 'Asuransi': '🛡️', 'PayLater': '💳',
+    'PLN':'⚡','Listrik':'⚡','Air':'💧','PDAM':'💧','Internet':'📶','IndiHome':'📶',
+    'Netflix':'🎬','Spotify':'🎵','iCloud':'☁️','KPR':'🏠','Rumah':'🏠',
+    'Mobil':'🚗','Asuransi':'🛡️','PayLater':'💳',
   };
-
   function getBillIcon(name) {
     for (const [key, icon] of Object.entries(BILL_ICONS)) {
       if (name.toLowerCase().includes(key.toLowerCase())) return icon;
     }
     return '📋';
   }
-
   function renderTagihanList() {
     const list    = Cache.get('tagihan').filter(t => t.status === 'Aktif');
     const monthly = list.filter(t => t.frekuensi === 'Bulanan');
     const yearly  = list.filter(t => t.frekuensi !== 'Bulanan');
-
     const totalMonthly = monthly.reduce((s, t) => s + (parseInt(t.nominal) || 0), 0);
     const totalYearly  = yearly.reduce((s, t)  => s + (parseInt(t.nominal) || 0), 0);
-    const totalAnnual  = totalMonthly * 12 + totalYearly;
-
     $('#mTagihanBulanan').text(fmtRp(totalMonthly, true));
-    $('#mTagihanTahunan').text(fmtRp(totalAnnual, true));
+    $('#mTagihanTahunan').text(fmtRp(totalMonthly * 12 + totalYearly, true));
     $('#mTagihanCount').text(list.length);
     updateTagihanBadge();
-
     const renderBill = t => `
       <div class="billItem" data-tagihanid="${t.tagihanId}">
         <div class="billIcon">${getBillIcon(t.namaBill)}</div>
@@ -3426,178 +3055,100 @@ $(function () {
                  padding:4px 6px;border-radius:6px;font-size:14px;margin-left:6px"
           title="Hapus">✕</button>
       </div>`;
-
-    $('#tagihanListBulanan').html(
-      monthly.length ? monthly.map(renderBill).join('') :
-      '<div class="emptyState"><div class="emptyIcon">🔁</div><h3>Belum ada tagihan bulanan</h3></div>'
-    );
-    $('#tagihanListTahunan').html(
-      yearly.length ? yearly.map(renderBill).join('') :
-      '<div class="emptyState"><div class="emptyIcon">📅</div><h3>Belum ada tagihan tahunan</h3></div>'
-    );
+    $('#tagihanListBulanan').html(monthly.length ? monthly.map(renderBill).join('') :
+      '<div class="emptyState"><div class="emptyIcon">🔁</div><h3>Belum ada tagihan bulanan</h3></div>');
+    $('#tagihanListTahunan').html(yearly.length ? yearly.map(renderBill).join('') :
+      '<div class="emptyState"><div class="emptyIcon">📅</div><h3>Belum ada tagihan tahunan</h3></div>');
   }
-
   function updateTagihanBadge() {
-    const count = Cache.get('tagihan').filter(t => t.status === 'Aktif').length;
-    $('#badgeTagihan').text(count);
+    $('#badgeTagihan').text(Cache.get('tagihan').filter(t => t.status === 'Aktif').length);
   }
 
   /* ════════════════════════════════════════════
-     RENDER — GOALS LIST
+     RENDER — GOALS
   ════════════════════════════════════════════ */
   const GOAL_COLORS = ['#3B82F6','#A855F7','#22C55E','#EF4444','#F59E0B','#06B6D4'];
-
   function renderGoalList() {
     const list = Cache.get('goals');
-
     const totalTarget = list.reduce((s, g) => s + (parseInt(g.targetNominal) || 0), 0);
     const totalSaved  = list.reduce((s, g) => s + (parseInt(g.sudahTerkumpul) || 0), 0);
-    const overallPct  = totalTarget > 0 ? Math.round(totalSaved / totalTarget * 100) : 0;
-
     $('#mGoalTarget').text(fmtRp(totalTarget, true));
     $('#mGoalSaved').text(fmtRp(totalSaved, true));
-    $('#mGoalPct').text(overallPct + '%');
-
+    $('#mGoalPct').text(totalTarget > 0 ? Math.round(totalSaved / totalTarget * 100) + '%' : '0%');
     if (!list.length) {
-      $('#goalList').html(`
-        <div class="emptyState">
-          <div class="emptyIcon">🎯</div>
-          <h3>Belum ada goal</h3>
-          <p>Mulai tambah target tabungan pertama Anda</p>
-        </div>`);
+      $('#goalList').html(`<div class="emptyState"><div class="emptyIcon">🎯</div><h3>Belum ada goal</h3><p>Mulai tambah target tabungan pertama Anda</p></div>`);
       return;
     }
-
-    const items = list.map((g, i) => {
-      const pct   = parseInt(g.targetNominal) > 0
-        ? Math.min(Math.round(parseInt(g.sudahTerkumpul) / parseInt(g.targetNominal) * 100), 100)
-        : 0;
+    $('#goalList').html(list.map((g, i) => {
+      const pct   = parseInt(g.targetNominal) > 0 ? Math.min(Math.round(parseInt(g.sudahTerkumpul) / parseInt(g.targetNominal) * 100), 100) : 0;
       const color = GOAL_COLORS[i % GOAL_COLORS.length];
-      const statusClass = g.status === '✅ Ahead' ? 'gsAhead'
-        : g.status === '🔴 Behind' ? 'gsBehind' : 'gsOnTrack';
-      const sisa = (parseInt(g.targetNominal) || 0) - (parseInt(g.sudahTerkumpul) || 0);
-
-      return `
-        <div class="goalItem" data-goalid="${g.goalId}">
-          <div class="goalIcon" style="background:${color}18">${g.ikonGoal || '🎯'}</div>
-          <div class="goalInfo">
-            <div class="goalName">${g.namaGoal}</div>
-            <div class="goalMeta">
-              Target: ${fmtRp(g.targetNominal, true)} ·
-              Deadline: ${g.deadline || '—'} ·
-              <span class="goalStatusBadge ${statusClass}">${g.status || 'On Track'}</span>
-            </div>
-            <div class="goalBarWrap">
-              <div class="goalBarBg">
-                <div class="goalBarFill" style="width:${pct}%;background:${color}"></div>
-              </div>
-              <div class="goalNums">
-                <span>${fmtRp(g.sudahTerkumpul, true)} terkumpul</span>
-                <span>Sisa ${fmtRp(sisa, true)}</span>
-              </div>
-            </div>
+      const statusClass = g.status === '✅ Ahead' ? 'gsAhead' : g.status === '🔴 Behind' ? 'gsBehind' : 'gsOnTrack';
+      const sisa  = (parseInt(g.targetNominal)||0) - (parseInt(g.sudahTerkumpul)||0);
+      return `<div class="goalItem" data-goalid="${g.goalId}">
+        <div class="goalIcon" style="background:${color}18">${g.ikonGoal||'🎯'}</div>
+        <div class="goalInfo">
+          <div class="goalName">${g.namaGoal}</div>
+          <div class="goalMeta">Target: ${fmtRp(g.targetNominal,true)} · Deadline: ${g.deadline||'—'} ·
+            <span class="goalStatusBadge ${statusClass}">${g.status||'On Track'}</span></div>
+          <div class="goalBarWrap">
+            <div class="goalBarBg"><div class="goalBarFill" style="width:${pct}%;background:${color}"></div></div>
+            <div class="goalNums"><span>${fmtRp(g.sudahTerkumpul,true)} terkumpul</span><span>Sisa ${fmtRp(sisa,true)}</span></div>
           </div>
-          <div class="goalPct" style="color:${color}">${pct}%</div>
-          <button class="btnDelGoal" data-goalid="${g.goalId}"
-            style="background:none;border:none;color:var(--text3);cursor:pointer;
-                   padding:4px 6px;border-radius:6px;font-size:14px;margin-left:4px"
-            title="Hapus">✕</button>
-        </div>`;
-    }).join('');
-
-    $('#goalList').html(items);
+        </div>
+        <div class="goalPct" style="color:${color}">${pct}%</div>
+        <button class="btnDelGoal" data-goalid="${g.goalId}"
+          style="background:none;border:none;color:var(--text3);cursor:pointer;
+                 padding:4px 6px;border-radius:6px;font-size:14px;margin-left:4px"
+          title="Hapus">✕</button>
+      </div>`;
+    }).join(''));
   }
 
   /* ════════════════════════════════════════════
-     CRUD — SAVE TRANSAKSI
+     CRUD — SAVE
   ════════════════════════════════════════════ */
   function saveTx() {
-    const tipe     = $('.segBtn.active').data('tipe') || 'Keluar';
-    const tanggal  = $('#txTanggal').val();
-    const nominal  = $('#txNominal').val();
-    const nama     = $('#txNama').val().trim();
-    const kategori = $('#txKategori').val();
-    const subKat   = $('#txSubKat').val().trim();
-    const akunId   = $('#txAkun').val();
+    const tipe         = $('.segBtn.active').data('tipe') || 'Keluar';
+    const tanggal      = $('#txTanggal').val();
+    const nominal      = $('#txNominal').val();
+    const nama         = $('#txNama').val().trim();
+    const kategori     = $('#txKategori').val();
+    const akunId       = $('#txAkun').val();
     const akunTujuanId = tipe === 'Transfer' ? $('#txAkunTujuan').val() : '';
-    const catatan  = $('#txCatatan').val().trim();
-
-    // Validasi
-    if (!tanggal || !nominal || !nama || !kategori || !akunId) {
-      $('#txErr').addClass('show');
-      return;
-    }
-    if (tipe === 'Transfer' && !akunTujuanId) {
-      $('#txErr').text('Akun tujuan wajib diisi untuk Transfer.').addClass('show');
-      return;
-    }
+    if (!tanggal || !nominal || !nama || !kategori || !akunId) { $('#txErr').addClass('show'); return; }
+    if (tipe === 'Transfer' && !akunTujuanId) { $('#txErr').text('Akun tujuan wajib diisi untuk Transfer.').addClass('show'); return; }
     $('#txErr').removeClass('show');
-
     const tx = {
-      txId        : genId('TX'),
-      tanggal,
-      nama,
-      kategori,
-      subKategori : subKat,
-      akunId,
-      akunTujuanId,
-      nominal     : parseInt(nominal) || 0,
-      tipe,
-      catatan,
+      txId: genId('TX'), tanggal, nama, kategori,
+      subKategori: $('#txSubKat').val().trim(), akunId, akunTujuanId,
+      nominal: parseInt(nominal) || 0, tipe, catatan: $('#txCatatan').val().trim(),
     };
-
     showLoading(true);
     API.post('addTransaksi', tx)
       .done(function(res) {
         if (res.status === 'ok') {
           Cache.get('transaksi').push(tx);
           $('#drawerTx').removeClass('open');
-          // reset form
           $('#txNama, #txSubKat, #txCatatan').val('');
-          $('#txNominal').val('');
-          $('#txKategori').val('');
-          $('#txAkun').val('');
+          $('#txNominal, #txKategori, #txAkun').val('');
           $('#txTanggal').val(today());
           refreshAll();
-          //toast('Transaksi berhasil disimpan', 'success');
-        } else {
-          //toast('Gagal: ' + res.message, 'error');
-        }
+          toast('Transaksi berhasil disimpan', 'success');
+        } else { toast('Gagal: ' + res.message, 'error'); }
       })
-      .fail(function() {
-        //toast('Koneksi gagal', 'error');
-      })
-      .always(function() {
-        showLoading(false);
-      });
-
-    return;
+      .fail(function() { toast('Koneksi gagal', 'error'); })
+      .always(function() { showLoading(false); });
   }
 
-  /* ════════════════════════════════════════════
-     CRUD — SAVE AKUN
-  ════════════════════════════════════════════ */
   function saveAkun() {
-    const namaAkun  = $('#akunNama').val().trim();
-    const tipeAkun  = $('#akunTipe').val();
-    const saldoAwal = $('#akunSaldoAwal').val();
-    const warna     = $('#akunColorPicker .colorDot.selected').data('color') || '#3B82F6';
-    const pemilik   = $('#akunPemilik').val().trim();
-
-    if (!namaAkun) {
-      $('#akunErr').addClass('show');
-      return;
-    }
+    const namaAkun = $('#akunNama').val().trim();
+    if (!namaAkun) { $('#akunErr').addClass('show'); return; }
     $('#akunErr').removeClass('show');
-
     const akun = {
-      akunId    : genId('AKN'),
-      namaAkun,
-      tipeAkun,
-      saldoAwal : parseInt(saldoAwal) || 0,
-      warna,
-      pemilik,
-      aktif     : true,
+      akunId: genId('AKN'), namaAkun, tipeAkun: $('#akunTipe').val(),
+      saldoAwal: parseInt($('#akunSaldoAwal').val()) || 0,
+      warna: $('#akunColorPicker .colorDot.selected').data('color') || '#3B82F6',
+      pemilik: $('#akunPemilik').val().trim(), aktif: true,
     };
     showLoading(true);
     API.post('addAkun', akun)
@@ -3605,204 +3156,100 @@ $(function () {
         if (res.status === 'ok') {
           Cache.get('akun').push(akun);
           $('#drawerAkun').removeClass('open');
-          // reset form
-          $('#akunNama, #akunPemilik').val('');
-          $('#akunSaldoAwal').val('');
+          $('#akunNama, #akunPemilik, #akunSaldoAwal').val('');
           refreshAll();
-          //toast('Akun berhasil disimpan', 'success');
-        } else {
-          //toast('Gagal: ' + res.message, 'error');
-        }
+          toast('Akun berhasil disimpan', 'success');
+        } else { toast('Gagal: ' + res.message, 'error'); }
       })
-      .fail(function() {
-        //toast('Koneksi gagal', 'error');
-      })
-      .always(function() {
-        showLoading(false);
-      });
-
-    return;
+      .fail(function() { toast('Koneksi gagal', 'error'); })
+      .always(function() { showLoading(false); });
   }
 
-  /* ════════════════════════════════════════════
-     CRUD — SAVE BUDGET
-  ════════════════════════════════════════════ */
   function saveBudget() {
     const kategori     = $('#budgetKategori').val();
-    const subKategori  = $('#budgetSubKat').val().trim();
     const limitBulanan = $('#budgetLimit').val();
-    const tipeKebutuhan= $('#budgetTipe').val();
-
-    if (!kategori || !limitBulanan) {
-      $('#budgetErr').addClass('show');
-      return;
-    }
+    if (!kategori || !limitBulanan) { $('#budgetErr').addClass('show'); return; }
     $('#budgetErr').removeClass('show');
-
-    // Cek apakah kategori sudah ada — update saja
     const existing = Cache.get('budget').find(b => b.kategori === kategori);
     const budgetData = {
-    budgetId     : existing ? existing.budgetId : genId('BDG'),
-    kategori,
-    subKategori,
-    limitBulanan : parseInt(limitBulanan) || 0,
-    tipeKebutuhan,
-  };
-
-  const action = existing ? 'updateBudget' : 'addBudget';
-
-  showLoading(true);
-  API.post(action, budgetData)
-    .done(function(res) {
-      if (res.status === 'ok') {
-        // Update cache lokal
-        if (existing) {
-          const idx = Cache.get('budget').findIndex(b => b.budgetId === existing.budgetId);
-          if (idx !== -1) Cache.get('budget')[idx] = budgetData;
-        } else {
-          Cache.get('budget').push(budgetData);
-        }
-        $('#drawerBudget').removeClass('open');
-        refreshAll();
-        //toast(existing ? 'Budget diperbarui' : 'Budget disimpan', 'success');
-      } else {
-        //toast('Gagal: ' + res.message, 'error');
-      }
-    })
-    .fail(function() {
-      //toast('Koneksi gagal', 'error');
-    })
-    .always(function() {
-      showLoading(false);
-    });
-    return;
+      budgetId: existing ? existing.budgetId : genId('BDG'),
+      kategori, subKategori: $('#budgetSubKat').val().trim(),
+      limitBulanan: parseInt(limitBulanan) || 0, tipeKebutuhan: $('#budgetTipe').val(),
+    };
+    showLoading(true);
+    API.post(existing ? 'updateBudget' : 'addBudget', budgetData)
+      .done(function(res) {
+        if (res.status === 'ok') {
+          if (existing) {
+            const idx = Cache.get('budget').findIndex(b => b.budgetId === existing.budgetId);
+            if (idx !== -1) Cache.get('budget')[idx] = budgetData;
+          } else { Cache.get('budget').push(budgetData); }
+          $('#drawerBudget').removeClass('open');
+          refreshAll();
+          toast(existing ? 'Budget diperbarui' : 'Budget disimpan', 'success');
+        } else { toast('Gagal: ' + res.message, 'error'); }
+      })
+      .fail(function() { toast('Koneksi gagal', 'error'); })
+      .always(function() { showLoading(false); });
   }
 
-  /* ════════════════════════════════════════════
-     CRUD — SAVE TAGIHAN
-  ════════════════════════════════════════════ */
   function saveTagihan() {
-    const namaBill    = $('#tagihanNama').val().trim();
-    const kategori    = $('#tagihanKategori').val();
-    const nominal     = $('#tagihanNominal').val();
-    const frekuensi   = $('#tagihanFrekuensi').val();
-    const tanggalBayar= $('#tagihanTglBayar').val();
-    const akunId      = $('#tagihanAkun').val();
-    const status      = $('#tagihanStatus').val();
-    const tanggalMulai   = $('#tagihanMulai').val();
-    const tanggalSelesai = $('#tagihanSelesai').val();
-
-    if (!namaBill || !nominal || !akunId) {
-      $('#tagihanErr').addClass('show');
-      return;
-    }
+    const namaBill = $('#tagihanNama').val().trim();
+    const nominal  = $('#tagihanNominal').val();
+    const akunId   = $('#tagihanAkun').val();
+    if (!namaBill || !nominal || !akunId) { $('#tagihanErr').addClass('show'); return; }
     $('#tagihanErr').removeClass('show');
-
     const tagihanData = {
-      tagihanId    : genId('TGH'),
-      namaBill,
-      kategori,
-      akunId,
-      nominal      : parseInt(nominal) || 0,
-      frekuensi,
-      tanggalBayar,
-      tanggalMulai,
-      tanggalSelesai,
-      status,
+      tagihanId: genId('TGH'), namaBill, kategori: $('#tagihanKategori').val(),
+      akunId, nominal: parseInt(nominal) || 0, frekuensi: $('#tagihanFrekuensi').val(),
+      tanggalBayar: $('#tagihanTglBayar').val(), tanggalMulai: $('#tagihanMulai').val(),
+      tanggalSelesai: $('#tagihanSelesai').val(), status: $('#tagihanStatus').val(),
     };
-
     showLoading(true);
     API.post('addTagihan', tagihanData)
       .done(function(res) {
         if (res.status === 'ok') {
           Cache.get('tagihan').push(tagihanData);
           $('#drawerTagihan').removeClass('open');
-          // reset form
-          $('#tagihanNama').val('');
-          $('#tagihanNominal, #tagihanTglBayar').val('');
-          $('#tagihanMulai, #tagihanSelesai').val('');
+          $('#tagihanNama, #tagihanNominal, #tagihanTglBayar, #tagihanMulai, #tagihanSelesai').val('');
           refreshAll();
-          //toast('Tagihan berhasil disimpan', 'success');
-        } else {
-          //toast('Gagal: ' + res.message, 'error');
-        }
+          toast('Tagihan berhasil disimpan', 'success');
+        } else { toast('Gagal: ' + res.message, 'error'); }
       })
-      .fail(function() {
-        //toast('Koneksi gagal', 'error');
-      })
-      .always(function() {
-        showLoading(false);
-      });
-
-    return;
-
-    refreshAll();
+      .fail(function() { toast('Koneksi gagal', 'error'); })
+      .always(function() { showLoading(false); });
   }
 
-  /* ════════════════════════════════════════════
-     CRUD — SAVE GOAL
-  ════════════════════════════════════════════ */
   function saveGoal() {
-    const namaGoal       = $('#goalNama').val().trim();
-    const targetNominal  = $('#goalTarget').val();
-    const sudahTerkumpul = $('#goalTerkumpul').val() || 0;
-    const deadline       = $('#goalDeadline').val();
-    const nabungPerBulan = $('#goalPerBulan').val();
-    const ikonGoal       = $('.ikon-goal-selected') // dari ikon picker (opsional)
-      || '🎯';
-
-    if (!namaGoal || !targetNominal) {
-      $('#goalErr').addClass('show');
-      return;
-    }
+    const namaGoal      = $('#goalNama').val().trim();
+    const targetNominal = $('#goalTarget').val();
+    if (!namaGoal || !targetNominal) { $('#goalErr').addClass('show'); return; }
     $('#goalErr').removeClass('show');
-
-    // Auto-hitung nabungPerBulan jika kosong
-    let nabung = parseInt(nabungPerBulan) || 0;
+    const sudahTerkumpul = parseInt($('#goalTerkumpul').val()) || 0;
+    const deadline       = $('#goalDeadline').val();
+    let nabung = parseInt($('#goalPerBulan').val()) || 0;
     if (!nabung && deadline) {
-      const now    = new Date();
-      const dl     = new Date(deadline + '-01');
-      const months = Math.max(1,
-        (dl.getFullYear() - now.getFullYear()) * 12 + (dl.getMonth() - now.getMonth())
-      );
-      nabung = Math.ceil(((parseInt(targetNominal) || 0) - (parseInt(sudahTerkumpul) || 0)) / months);
+      const now = new Date(), dl = new Date(deadline + '-01');
+      const months = Math.max(1, (dl.getFullYear() - now.getFullYear()) * 12 + (dl.getMonth() - now.getMonth()));
+      nabung = Math.ceil(((parseInt(targetNominal)||0) - sudahTerkumpul) / months);
     }
-
     const goalData = {
-  goalId         : genId('GLS'),
-  namaGoal,
-  targetNominal  : parseInt(targetNominal) || 0,
-  sudahTerkumpul : parseInt(sudahTerkumpul) || 0,
-  deadline,
-  nabungPerBulan : nabung,
-  ikonGoal       : '🎯',
-  status         : '🔄 On Track',
-};
-
-  showLoading(true);
-  API.post('addGoal', goalData)
-    .done(function(res) {
-      if (res.status === 'ok') {
-        Cache.get('goals').push(goalData);
-        $('#drawerGoal').removeClass('open');
-        // reset form
-        $('#goalNama').val('');
-        $('#goalTarget, #goalTerkumpul, #goalPerBulan').val('');
-        $('#goalDeadline').val('');
-        refreshAll();
-        //toast('Goal berhasil disimpan', 'success');
-      } else {
-        //toast('Gagal: ' + res.message, 'error');
-      }
-    })
-    .fail(function() {
-      //toast('Koneksi gagal', 'error');
-    })
-    .always(function() {
-      showLoading(false);
-    });
-
-  return;
+      goalId: genId('GLS'), namaGoal, targetNominal: parseInt(targetNominal)||0,
+      sudahTerkumpul, deadline, nabungPerBulan: nabung, ikonGoal: '🎯', status: '🔄 On Track',
+    };
+    showLoading(true);
+    API.post('addGoal', goalData)
+      .done(function(res) {
+        if (res.status === 'ok') {
+          Cache.get('goals').push(goalData);
+          $('#drawerGoal').removeClass('open');
+          $('#goalNama, #goalTarget, #goalTerkumpul, #goalPerBulan, #goalDeadline').val('');
+          refreshAll();
+          toast('Goal berhasil disimpan', 'success');
+        } else { toast('Gagal: ' + res.message, 'error'); }
+      })
+      .fail(function() { toast('Koneksi gagal', 'error'); })
+      .always(function() { showLoading(false); });
   }
 
   /* ════════════════════════════════════════════
@@ -3817,11 +3264,8 @@ $(function () {
       .done(function(res) {
         if (res.status === 'ok') {
           Cache.set('transaksi', Cache.get('transaksi').filter(t => t.txId !== id));
-          refreshAll();
-          //toast('Transaksi dihapus', 'warn');
-        } else {
-          //toast('Gagal: ' + res.message, 'error');
-        }
+          refreshAll(); toast('Transaksi dihapus', 'warn');
+        } else { toast('Gagal: ' + res.message, 'error'); }
       })
       .fail(function() { toast('Koneksi gagal', 'error'); })
       .always(function() { showLoading(false); });
@@ -3836,11 +3280,8 @@ $(function () {
       .done(function(res) {
         if (res.status === 'ok') {
           Cache.set('tagihan', Cache.get('tagihan').filter(t => t.tagihanId !== id));
-          refreshAll();
-          //toast('Tagihan dihapus', 'warn');
-        } else {
-          //toast('Gagal: ' + res.message, 'error');
-        }
+          refreshAll(); toast('Tagihan dihapus', 'warn');
+        } else { toast('Gagal: ' + res.message, 'error'); }
       })
       .fail(function() { toast('Koneksi gagal', 'error'); })
       .always(function() { showLoading(false); });
@@ -3855,136 +3296,110 @@ $(function () {
       .done(function(res) {
         if (res.status === 'ok') {
           Cache.set('goals', Cache.get('goals').filter(g => g.goalId !== id));
-          refreshAll();
-          //toast('Goal dihapus', 'warn');
-        } else {
-          //toast('Gagal: ' + res.message, 'error');
-        }
+          refreshAll(); toast('Goal dihapus', 'warn');
+        } else { toast('Gagal: ' + res.message, 'error'); }
       })
       .fail(function() { toast('Koneksi gagal', 'error'); })
       .always(function() { showLoading(false); });
   });
 
   /* ════════════════════════════════════════════
-     UPLOAD XLSX → PARSE → STORE
+     UPLOAD XLSX → PARSE → API
   ════════════════════════════════════════════ */
   function parseExcel(file, isPribadi) {
     const reader = new FileReader();
     reader.onload = function (e) {
       try {
-        const wb   = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+        const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+        let newAkun = [], newTx = [], budgets = [], tagihans = [], goals = [];
 
-        // ── Akun ──
         const wsAkun = wb.Sheets['Akun'];
         if (wsAkun) {
           const rows = XLSX.utils.sheet_to_json(wsAkun, { header: 1, range: 2 });
-          const akun = rows.slice(1).filter(r => r[1]).map(r => ({
-            akunId    : String(r[1] || genId('AKN')),
-            namaAkun  : String(r[2] || ''),
-            tipeAkun  : String(r[3] || 'Bank'),
-            saldoAwal : parseInt(r[4]) || 0,
-            warna     : String(r[5] || '#3B82F6'),
-            pemilik   : '',
-            aktif     : true,
+          const parsed = rows.slice(1).filter(r => r[1]).map(r => ({
+            akunId: String(r[1]||genId('AKN')), namaAkun: String(r[2]||''),
+            tipeAkun: String(r[3]||'Bank'), saldoAwal: parseInt(r[4])||0,
+            warna: String(r[5]||'#3B82F6'), pemilik: '', aktif: true,
           }));
-          // Merge — hindari duplikat akunId
-          const existing = Cache.get('akun');
-          const existIds = new Set(existing.map(a => a.akunId));
-          const newAkun  = akun.filter(a => !existIds.has(a.akunId));
-          Store.set(STORAGE_KEYS.akun, [...existing, ...newAkun]);
+          const existIds = new Set(Cache.get('akun').map(a => a.akunId));
+          newAkun = [...Cache.get('akun'), ...parsed.filter(a => !existIds.has(a.akunId))];
         }
 
-        // ── Transaksi ──
         const wsTx = wb.Sheets['Transaksi'];
         if (wsTx) {
           const rows = XLSX.utils.sheet_to_json(wsTx, { header: 1, range: 2 });
-          const txList = rows.slice(1).filter(r => r[1] && r[2]).map(r => {
+          const parsed = rows.slice(1).filter(r => r[1] && r[2]).map(r => {
             let tgl = r[2];
             if (tgl instanceof Date) tgl = tgl.toISOString().split('T')[0];
             else if (typeof tgl === 'string') tgl = tgl.slice(0, 10);
-            return {
-              txId        : String(r[1] || genId('TX')),
-              tanggal     : tgl,
-              nama        : String(r[3] || ''),
-              kategori    : String(r[4] || ''),
-              subKategori : String(r[5] || ''),
-              akunId      : String(r[6] || ''),
-              akunTujuanId: '',
-              nominal     : parseInt(r[7]) || 0,
-              tipe        : String(r[8] || 'Keluar'),
-              catatan     : String(r[9] || ''),
-            };
+            return { txId: String(r[1]||genId('TX')), tanggal: tgl, nama: String(r[3]||''),
+              kategori: String(r[4]||''), subKategori: String(r[5]||''), akunId: String(r[6]||''),
+              akunTujuanId: '', nominal: parseInt(r[7])||0, tipe: String(r[8]||'Keluar'), catatan: String(r[9]||'') };
           });
-          const existing = Cache.get('transaksi');
-          const existIds = new Set(existing.map(t => t.txId));
-          const newTx    = txList.filter(t => !existIds.has(t.txId));
-          Store.set(STORAGE_KEYS.transaksi, [...existing, ...newTx]);
+          const existIds = new Set(Cache.get('transaksi').map(t => t.txId));
+          newTx = [...Cache.get('transaksi'), ...parsed.filter(t => !existIds.has(t.txId))];
         }
 
-        // ── Budget ──
         const wsBudget = wb.Sheets['Budget'];
         if (wsBudget) {
           const rows = XLSX.utils.sheet_to_json(wsBudget, { header: 1, range: 2 });
-          const budgets = rows.slice(1).filter(r => r[1]).map(r => ({
-            budgetId     : String(r[1] || genId('BDG')),
-            kategori     : String(r[2] || ''),
-            subKategori  : String(r[3] || ''),
-            limitBulanan : parseInt(r[4]) || 0,
-            tipeKebutuhan: String(r[7] || 'Kebutuhan'),
+          budgets = rows.slice(1).filter(r => r[1]).map(r => ({
+            budgetId: String(r[1]||genId('BDG')), kategori: String(r[2]||''),
+            subKategori: String(r[3]||''), limitBulanan: parseInt(r[4])||0, tipeKebutuhan: String(r[7]||'Kebutuhan'),
           }));
-          Store.set(STORAGE_KEYS.budget, budgets);
         }
 
-        // ── Tagihan ──
         const wsTag = wb.Sheets['Tagihan Berulang'];
         if (wsTag) {
           const rows = XLSX.utils.sheet_to_json(wsTag, { header: 1, range: 2 });
-          const tagihans = rows.slice(1).filter(r => r[1]).map(r => ({
-            tagihanId    : genId('TGH'),
-            namaBill     : String(r[1] || ''),
-            kategori     : String(r[2] || ''),
-            akunId       : String(r[3] || ''),
-            nominal      : parseInt(r[4]) || 0,
-            frekuensi    : String(r[5] || 'Bulanan'),
-            tanggalBayar : String(r[6] || ''),
-            tanggalMulai : String(r[7] || ''),
-            tanggalSelesai:String(r[8] || ''),
-            status       : String(r[9] || 'Aktif'),
+          tagihans = rows.slice(1).filter(r => r[1]).map(r => ({
+            tagihanId: genId('TGH'), namaBill: String(r[1]||''), kategori: String(r[2]||''),
+            akunId: String(r[3]||''), nominal: parseInt(r[4])||0, frekuensi: String(r[5]||'Bulanan'),
+            tanggalBayar: String(r[6]||''), tanggalMulai: String(r[7]||''),
+            tanggalSelesai: String(r[8]||''), status: String(r[9]||'Aktif'),
           }));
-          Store.set(STORAGE_KEYS.tagihan, tagihans);
         }
 
-        // ── Goals ──
         const wsGoal = wb.Sheets['Target Tabungan'];
         if (wsGoal) {
           const rows = XLSX.utils.sheet_to_json(wsGoal, { header: 1, range: 2 });
-          const goals = rows.slice(1).filter(r => r[1]).map(r => ({
-            goalId        : genId('GLS'),
-            namaGoal      : String(r[1] || ''),
-            targetNominal : parseInt(r[2]) || 0,
-            sudahTerkumpul: parseInt(r[3]) || 0,
-            deadline      : String(r[6] || ''),
-            nabungPerBulan: parseInt(r[7]) || 0,
-            ikonGoal      : '🎯',
-            status        : String(r[9] || '🔄 On Track'),
+          goals = rows.slice(1).filter(r => r[1]).map(r => ({
+            goalId: genId('GLS'), namaGoal: String(r[1]||''), targetNominal: parseInt(r[2])||0,
+            sudahTerkumpul: parseInt(r[3])||0, deadline: String(r[6]||''),
+            nabungPerBulan: parseInt(r[7])||0, ikonGoal: '🎯', status: String(r[9]||'🔄 On Track'),
           }));
-          Store.set(STORAGE_KEYS.goals, goals);
         }
 
-        const label = isPribadi ? '#statusPribadi' : '#statusKeluarga';
-        $(label).text('✅ ' + file.name + ' dimuat');
+        const importData = {
+          akun      : newAkun.length   ? newAkun   : Cache.get('akun'),
+          transaksi : newTx.length     ? newTx     : Cache.get('transaksi'),
+          budget    : budgets.length   ? budgets   : Cache.get('budget'),
+          tagihan   : tagihans.length  ? tagihans  : Cache.get('tagihan'),
+          goals     : goals.length     ? goals     : Cache.get('goals'),
+        };
 
-        refreshAll();
+        showLoading(true);
+        API.post('bulkImport', importData)
+          .done(function(res) {
+            if (res.status === 'ok') {
+              Object.entries(importData).forEach(([k, v]) => Cache.set(k, v));
+              $(isPribadi ? '#statusPribadi' : '#statusKeluarga').text('✅ ' + file.name + ' dimuat');
+              refreshAll();
+              toast('File berhasil diimpor ke Sheets', 'success');
+            } else { toast('Gagal import: ' + res.message, 'error'); }
+          })
+          .fail(function() { toast('Koneksi gagal', 'error'); })
+          .always(function() { showLoading(false); });
       } catch (err) {
         console.error('Gagal parse Excel:', err);
-        alert('Gagal membaca file. Pastikan format sesuai template.');
+        toast('Gagal membaca file. Pastikan format sesuai template.', 'error');
       }
     };
     reader.readAsArrayBuffer(file);
   }
 
   /* ════════════════════════════════════════════
-     REFRESH ALL — panggil semua render sekaligus
+     REFRESH ALL
   ════════════════════════════════════════════ */
   function refreshAll() {
     populateAkunDropdowns();
@@ -3995,41 +3410,22 @@ $(function () {
     renderBudgetList();
     renderTagihanList();
     renderGoalList();
-    // Charts akan di-refresh di Part 03
     $(document).trigger('finanku:dataChanged');
   }
 
   /* ════════════════════════════════════════════
-     EVENT LISTENERS — FORM SAVE
+     EVENT LISTENERS — FORM & FILTER
   ════════════════════════════════════════════ */
   $('#btnSaveTx').on('click', saveTx);
   $('#btnSaveAkun').on('click', saveAkun);
   $('#btnSaveBudget').on('click', saveBudget);
   $('#btnSaveTagihan').on('click', saveTagihan);
   $('#btnSaveGoal').on('click', saveGoal);
-
-  // ── Filter transaksi realtime ──
   $('#txSearch, #txFilterTipe, #txFilterKat, #txFilterAkun').on('input change', refreshTxPage);
-
-  // ── Akun tab filter ──
-  $(document).on('click', '.akunTab', function () {
-    filterAkunTx($(this).data('akunid'));
-  });
-
-  // ── Upload XLSX ──
-  $('#uploadPribadi').on('change', function () {
-    if (this.files[0]) parseExcel(this.files[0], true);
-  });
-  $('#uploadKeluarga').on('change', function () {
-    if (this.files[0]) parseExcel(this.files[0], false);
-  });
-
-  // ── Set default tanggal hari ini saat buka drawer tx ──
-  $('#btnTambahTx, #fabBtn').on('click', function () {
-    if (!$('#txTanggal').val()) $('#txTanggal').val(today());
-  });
-
-  // ── Refresh saat bulan berubah (event dari Part 01) ──
+  $(document).on('click', '.akunTab', function () { filterAkunTx($(this).data('akunid')); });
+  $('#uploadPribadi').on('change', function () { if (this.files[0]) parseExcel(this.files[0], true); });
+  $('#uploadKeluarga').on('change', function () { if (this.files[0]) parseExcel(this.files[0], false); });
+  $('#btnTambahTx, #fabBtn').on('click', function () { if (!$('#txTanggal').val()) $('#txTanggal').val(today()); });
   $(document).on('finanku:monthChanged', function (e, m, y) {
     window.fkCurrentMonth = m;
     window.fkCurrentYear  = y;
@@ -4037,249 +3433,127 @@ $(function () {
   });
 
   /* ════════════════════════════════════════════
-     EXPOSE ke window (dipakai Part 03 - Charts)
+     EXPOSE ke window
   ════════════════════════════════════════════ */
   window.FK = window.FK || {};
-  window.FK.Cache = Cache;
-  window.FK.API   = API;
-  window.FK.fmtRp        = fmtRp;
-  window.FK.fmtDate      = fmtDate;
-  window.FK.KAT_COLORS   = KAT_COLORS;
+  window.FK.Cache           = Cache;
+  window.FK.API             = API;
+  window.FK.fmtRp           = fmtRp;
+  window.FK.fmtDate         = fmtDate;
+  window.FK.KAT_COLORS      = KAT_COLORS;
   window.FK.MONTHS_ID_SHORT = MONTHS_ID_SHORT;
-  window.FK.refreshAll   = refreshAll;
+  window.FK.refreshAll      = refreshAll;
+  window.FK.toast           = toast;
 
-  /* ════════════════════════════════════════════
-     INIT
-  ════════════════════════════════════════════ */
-  // Sync state bulan dari Part 01 jika sudah ada
   window.fkCurrentMonth = window.fkCurrentMonth || 5;
   window.fkCurrentYear  = window.fkCurrentYear  || 2026;
 
-  // Refresh tampilan pertama kali setelah login
-  $(document).on('finanku:loggedIn', function () {
-    refreshAll();
-  });
-
-  // Jika data sudah ada di localStorage (session aktif), langsung render
-  if (Cache.get('transaksi').length) {
-    refreshAll();
-  }
-
-  console.log('FinanKu v2 — CRUD & localStorage ready');
- 
+  console.log('FinanKu v2 — Core ready');
 
   /* ════════════════════════════════════════════
-     WAIT — pastikan Part 02 sudah siap
+     PART 03 — CHARTS
   ════════════════════════════════════════════ */
-  function waitFK(cb) {
-    if (window.FK && window.FK.Cache) { cb(); }
-    else { setTimeout(() => waitFK(cb), 80); }
+  function waitForCharts(cb) {
+    if (window.FK && window.FK.Cache) cb();
+    else setTimeout(() => waitForCharts(cb), 80);
   }
 
-  waitFK(function () {
-
-    /* ── Shorthand dari Part 02 ── */
-    const Cache        = window.FK.Cache;
-    const fmtRp         = window.FK.fmtRp;
-    const KAT_COLORS    = window.FK.KAT_COLORS;
-    const MONTHS_SHORT  = window.FK.MONTHS_ID_SHORT;
-
-    /* ════════════════════════════════════════════
-       CHART REGISTRY — simpan instance supaya
-       bisa di-destroy sebelum re-render
-    ════════════════════════════════════════════ */
+  waitForCharts(function () {
     const Charts = {};
-
     function mkChart(id, config) {
       const canvas = document.getElementById(id);
       if (!canvas) return null;
-      if (Charts[id]) { Charts[id].destroy(); }
+      if (Charts[id]) Charts[id].destroy();
       Charts[id] = new Chart(canvas.getContext('2d'), config);
       return Charts[id];
     }
 
-    /* ════════════════════════════════════════════
-       GLOBAL CHART DEFAULTS — dark theme
-    ════════════════════════════════════════════ */
     Chart.defaults.color = '#4E5F82';
     Chart.defaults.font  = { family: 'Instrument Sans, sans-serif', size: 11 };
-
-    Chart.defaults.plugins.legend.labels = {
-      color  : '#8C9BBF',
-      font   : { size: 11 },
-      padding: 14,
-    };
-
+    Chart.defaults.plugins.legend.labels = { color: '#8C9BBF', font: { size: 11 }, padding: 14 };
     Chart.defaults.plugins.tooltip = {
-      backgroundColor: '#161D2E',
-      borderColor    : '#2A3858',
-      borderWidth    : 1,
-      titleColor     : '#EDF1FA',
-      bodyColor      : '#8C9BBF',
-      padding        : 10,
-      cornerRadius   : 8,
-    };
-    const GRID_COLOR  = 'rgba(30,42,64,.7)';
-    const TICK_COLOR  = '#4E5F82';
-
-    const scaleX = {
-      grid : { color: GRID_COLOR },
-      ticks: { color: TICK_COLOR },
-    };
-    const scaleY = {
-      grid : { color: GRID_COLOR },
-      ticks: { color: TICK_COLOR, callback: v => fmtRp(v, true) },
-    };
-    const scaleYCount = {
-      grid : { color: GRID_COLOR },
-      ticks: { color: TICK_COLOR },
+      backgroundColor: '#161D2E', borderColor: '#2A3858', borderWidth: 1,
+      titleColor: '#EDF1FA', bodyColor: '#8C9BBF', padding: 10, cornerRadius: 8,
     };
 
-    /* ════════════════════════════════════════════
-       DATA HELPERS
-    ════════════════════════════════════════════ */
+    const GRID_COLOR = 'rgba(30,42,64,.7)';
+    const TICK_COLOR = '#4E5F82';
+    const scaleX = { grid: { color: GRID_COLOR }, ticks: { color: TICK_COLOR } };
+    const scaleY = { grid: { color: GRID_COLOR }, ticks: { color: TICK_COLOR, callback: v => fmtRp(v, true) } };
+
     function getCurrentMY() {
-      return {
-        m: window.fkCurrentMonth || new Date().getMonth() + 1,
-        y: window.fkCurrentYear  || new Date().getFullYear(),
-      };
+      return { m: window.fkCurrentMonth || new Date().getMonth()+1, y: window.fkCurrentYear || new Date().getFullYear() };
     }
-
     function getTxByMonth(m, y) {
-      return Cache.get('transaksi').filter(t => {
-        const d = new Date(t.tanggal);
-        return d.getMonth() + 1 === m && d.getFullYear() === y;
-      });
+      return Cache.get('transaksi').filter(t => { const d = new Date(t.tanggal); return d.getMonth()+1===m && d.getFullYear()===y; });
     }
-
-    /** Pengeluaran per kategori dari list tx */
     function spendByKat(txList) {
       const map = {};
-      txList
-        .filter(t => t.tipe === 'Keluar')
-        .forEach(t => {
-          map[t.kategori] = (map[t.kategori] || 0) + (parseInt(t.nominal) || 0);
-        });
+      txList.filter(t => t.tipe === 'Keluar').forEach(t => { map[t.kategori] = (map[t.kategori]||0) + (parseInt(t.nominal)||0); });
       return map;
     }
-
-    /** Total pemasukan dari list tx */
-    function totalMasuk(txList) {
-      return txList
-        .filter(t => t.tipe === 'Masuk')
-        .reduce((s, t) => s + (parseInt(t.nominal) || 0), 0);
-    }
-
-    /** Total pengeluaran dari list tx */
-    function totalKeluar(txList) {
-      return txList
-        .filter(t => t.tipe === 'Keluar')
-        .reduce((s, t) => s + (parseInt(t.nominal) || 0), 0);
-    }
-
-    /** 3 bulan terakhir dari bulan aktif */
+    function totalMasuk(txList)  { return txList.filter(t => t.tipe==='Masuk').reduce((s,t)=>s+(parseInt(t.nominal)||0),0); }
+    function totalKeluar(txList) { return txList.filter(t => t.tipe==='Keluar').reduce((s,t)=>s+(parseInt(t.nominal)||0),0); }
     function last3Months() {
       const { m, y } = getCurrentMY();
-      const result = [];
-      for (let i = 2; i >= 0; i--) {
-        let mo = m - i, yr = y;
+      return Array.from({ length: 3 }, (_, i) => {
+        let mo = m - (2 - i), yr = y;
         if (mo <= 0) { mo += 12; yr--; }
-        result.push({ m: mo, y: yr, label: MONTHS_SHORT[mo - 1] + ' ' + yr });
-      }
-      return result;
+        return { m: mo, y: yr, label: MONTHS_ID_SHORT[mo-1] + ' ' + yr };
+      });
     }
-
-    /** Saldo akun (saldo awal + delta transaksi) */
     function getSaldo(akunId) {
       const akun = Cache.get('akun').find(a => a.akunId === akunId);
       if (!akun) return 0;
       let delta = 0;
       Cache.get('transaksi').forEach(t => {
         if (t.akunId === akunId) {
-          if (t.tipe === 'Masuk')    delta += parseInt(t.nominal) || 0;
-          if (t.tipe === 'Keluar')   delta -= parseInt(t.nominal) || 0;
-          if (t.tipe === 'Transfer') delta -= parseInt(t.nominal) || 0;
+          if (t.tipe === 'Masuk')    delta += parseInt(t.nominal)||0;
+          if (t.tipe === 'Keluar')   delta -= parseInt(t.nominal)||0;
+          if (t.tipe === 'Transfer') delta -= parseInt(t.nominal)||0;
         }
-        if (t.tipe === 'Transfer' && t.akunTujuanId === akunId) {
-          delta += parseInt(t.nominal) || 0;
-        }
+        if (t.tipe === 'Transfer' && t.akunTujuanId === akunId) delta += parseInt(t.nominal)||0;
       });
-      return (parseInt(akun.saldoAwal) || 0) + delta;
+      return (parseInt(akun.saldoAwal)||0) + delta;
     }
 
-    /* ════════════════════════════════════════════
-       DASHBOARD METRICS
-    ════════════════════════════════════════════ */
     function renderDashMetrics() {
       const { m, y } = getCurrentMY();
-      const txMonth   = getTxByMonth(m, y);
-      const income    = totalMasuk(txMonth);
-      const expense   = totalKeluar(txMonth);
-      const cashflow  = income - expense;
-      const akunList  = Array.isArray(Cache.get('akun')) ? Cache.get('akun') : [];
-      const totalSaldo= akunList.reduce((s, a) => s + getSaldo(a.akunId), 0);
-
+      const txMonth  = getTxByMonth(m, y);
+      const income   = totalMasuk(txMonth);
+      const expense  = totalKeluar(txMonth);
+      const cashflow = income - expense;
+      const akunList = Cache.get('akun');
+      const totalSaldo = akunList.reduce((s, a) => s + getSaldo(a.akunId), 0);
       $('#mIncome').text(fmtRp(income, true));
       $('#mExpense').text(fmtRp(expense, true));
       $('#mBalance').text(fmtRp(totalSaldo, true));
       $('#mBalanceSub').text(akunList.length + ' akun aktif');
-
-      $('#mCashflow')
-        .text(fmtRp(Math.abs(cashflow), true))
-        .css('color', cashflow >= 0 ? 'var(--green)' : 'var(--red)');
-      $('#mCashflowSub')
-        .text(cashflow >= 0 ? '✅ Surplus' : '⚠️ Defisit')
-        .removeClass('up down')
-        .addClass(cashflow >= 0 ? 'up' : 'down');
-
-      // Insight cards
-      const savePct = income > 0 ? Math.round((cashflow / income) * 100) : 0;
-      const bills   = Cache.get('tagihan')
-        .filter(t => t.status === 'Aktif' && t.frekuensi === 'Bulanan')
-        .reduce((s, t) => s + (parseInt(t.nominal) || 0), 0);
-
-      // Cek over budget
+      $('#mCashflow').text(fmtRp(Math.abs(cashflow), true)).css('color', cashflow>=0 ? 'var(--green)' : 'var(--red)');
+      $('#mCashflowSub').text(cashflow>=0 ? '✅ Surplus' : '⚠️ Defisit').removeClass('up down').addClass(cashflow>=0 ? 'up' : 'down');
+      const savePct    = income > 0 ? Math.round((cashflow/income)*100) : 0;
+      const bills      = Cache.get('tagihan').filter(t => t.status==='Aktif' && t.frekuensi==='Bulanan').reduce((s,t)=>s+(parseInt(t.nominal)||0),0);
       const budgetList = Cache.get('budget');
-      const overKat = [];
-      const katMap  = {};
-      budgetList.forEach(b => {
-        katMap[b.kategori] = (katMap[b.kategori] || 0) + (parseInt(b.limitBulanan) || 0);
-      });
+      const katMap     = {}, overKat = [];
+      budgetList.forEach(b => { katMap[b.kategori] = (katMap[b.kategori]||0) + (parseInt(b.limitBulanan)||0); });
       const katSpend = spendByKat(txMonth);
-      Object.entries(katMap).forEach(([kat, limit]) => {
-        if ((katSpend[kat] || 0) > limit) overKat.push(kat);
-      });
-
-      // Cashflow insight
+      Object.entries(katMap).forEach(([kat, limit]) => { if ((katSpend[kat]||0) > limit) overKat.push(kat); });
       if (cashflow >= 0) {
-        $('#dashInsights .insightCard:first')
-          .removeClass('iWarn iDanger iInfo').addClass('iGood');
+        $('#dashInsights .insightCard:first').removeClass('iWarn iDanger iInfo').addClass('iGood');
         $('#dashInsights .insightLabel:first').text('✅ Arus Kas Positif');
-        $('#insightCashflow').text(
-          'Surplus ' + fmtRp(cashflow, true) +
-          (savePct > 0 ? ' · Menabung ' + savePct + '% dari pemasukan' : '')
-        );
+        $('#insightCashflow').text('Surplus ' + fmtRp(cashflow, true) + (savePct > 0 ? ' · Menabung ' + savePct + '% dari pemasukan' : ''));
       } else {
-        $('#dashInsights .insightCard:first')
-          .removeClass('iGood iInfo').addClass('iDanger');
+        $('#dashInsights .insightCard:first').removeClass('iGood iInfo').addClass('iDanger');
         $('#dashInsights .insightLabel:first').text('⚠️ Defisit');
         $('#insightCashflow').text('Pengeluaran melebihi pemasukan sebesar ' + fmtRp(Math.abs(cashflow), true));
       }
-
-      $('#insightBills').text(
-        bills > 0
-          ? 'Total tagihan rutin: ' + fmtRp(bills, true) + ' / bln'
-          : 'Belum ada tagihan berulang yang aktif'
-      );
-
+      $('#insightBills').text(bills > 0 ? 'Total tagihan rutin: ' + fmtRp(bills, true) + ' / bln' : 'Belum ada tagihan berulang yang aktif');
       if (overKat.length) {
-        $('#dashInsights .insightCard:last')
-          .removeClass('iWarn iGood').addClass('iDanger');
+        $('#dashInsights .insightCard:last').removeClass('iWarn iGood').addClass('iDanger');
         $('#dashInsights .insightLabel:last').text('🚨 Over Budget');
         $('#insightBudget').text('Kategori melebihi budget: ' + overKat.join(', '));
       } else if (budgetList.length) {
-        $('#dashInsights .insightCard:last')
-          .removeClass('iDanger').addClass('iGood');
+        $('#dashInsights .insightCard:last').removeClass('iDanger').addClass('iGood');
         $('#dashInsights .insightLabel:last').text('✅ Budget Aman');
         $('#insightBudget').text('Semua kategori masih dalam batas budget bulan ini');
       } else {
@@ -4289,629 +3563,153 @@ $(function () {
       }
     }
 
-    /* ════════════════════════════════════════════
-       CHART: DONUT KATEGORI (dashboard)
-    ════════════════════════════════════════════ */
     function chartKategori() {
-      const { m, y } = getCurrentMY();
-      const katSpend  = spendByKat(getTxByMonth(m, y));
-      const filtered  = Object.entries(katSpend)
-        .filter(([k]) => k !== 'Transfer')
-        .sort((a, b) => b[1] - a[1]);
-
-      if (!filtered.length) {
-        mkChart('chartKategori', {
-          type: 'doughnut',
-          data: { labels: ['Belum ada data'], datasets: [{ data: [1], backgroundColor: ['#1E273C'], borderWidth: 0 }] },
-          options: { plugins: { legend: { display: false } }, cutout: '60%' }
-        });
-        return;
-      }
-
-      mkChart('chartKategori', {
-        type: 'doughnut',
-        data: {
-          labels  : filtered.map(([k]) => k),
-          datasets: [{
-            data           : filtered.map(([, v]) => v),
-            backgroundColor: filtered.map(([k]) => KAT_COLORS[k] || '#6B7280'),
-            borderWidth    : 2,
-            borderColor    : '#0E1320',
-            hoverOffset    : 6,
-          }]
-        },
-        options: {
-          cutout  : '62%',
-          plugins : {
-            legend  : { position: 'right' },
-            tooltip : { callbacks: { label: c => ' ' + c.label + ': ' + fmtRp(c.raw, true) } },
-          },
-          maintainAspectRatio: false,
-        }
-      });
+      const { m, y }  = getCurrentMY();
+      const filtered  = Object.entries(spendByKat(getTxByMonth(m, y))).filter(([k]) => k !== 'Transfer').sort((a,b) => b[1]-a[1]);
+      if (!filtered.length) { mkChart('chartKategori', { type:'doughnut', data:{ labels:['Belum ada data'], datasets:[{ data:[1], backgroundColor:['#1E273C'], borderWidth:0 }] }, options:{ plugins:{ legend:{ display:false } }, cutout:'60%' } }); return; }
+      mkChart('chartKategori', { type:'doughnut', data:{ labels: filtered.map(([k]) => k), datasets:[{ data: filtered.map(([,v]) => v), backgroundColor: filtered.map(([k]) => KAT_COLORS[k]||'#6B7280'), borderWidth:2, borderColor:'#0E1320', hoverOffset:6 }] }, options:{ cutout:'62%', plugins:{ legend:{ position:'right' }, tooltip:{ callbacks:{ label: c => ' '+c.label+': '+fmtRp(c.raw,true) } } }, maintainAspectRatio:false } });
     }
-
-    /* ════════════════════════════════════════════
-       CHART: BAR TREN 3 BULAN (dashboard)
-    ════════════════════════════════════════════ */
     function chartTren() {
       const months = last3Months();
-      const labels = months.map(mo => mo.label);
-
-      const incomes  = months.map(mo => totalMasuk(getTxByMonth(mo.m, mo.y)));
-      const expenses = months.map(mo => totalKeluar(getTxByMonth(mo.m, mo.y)));
-
-      mkChart('chartTren', {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [
-            {
-              label          : 'Pemasukan',
-              data           : incomes,
-              backgroundColor: 'rgba(59,130,246,.7)',
-              borderRadius   : 6,
-              borderSkipped  : false,
-            },
-            {
-              label          : 'Pengeluaran',
-              data           : expenses,
-              backgroundColor: 'rgba(239,68,68,.7)',
-              borderRadius   : 6,
-              borderSkipped  : false,
-            },
-          ]
-        },
-        options: {
-          scales : { x: scaleX, y: scaleY },
-          plugins : {
-            legend : { position: 'top' },
-            tooltip: { callbacks: { label: c => ' ' + c.dataset.label + ': ' + fmtRp(c.raw, true) } },
-          },
-          maintainAspectRatio: false,
-        }
-      });
+      mkChart('chartTren', { type:'bar', data:{ labels: months.map(mo => mo.label), datasets:[
+        { label:'Pemasukan',   data: months.map(mo => totalMasuk(getTxByMonth(mo.m,mo.y))),  backgroundColor:'rgba(59,130,246,.7)', borderRadius:6, borderSkipped:false },
+        { label:'Pengeluaran', data: months.map(mo => totalKeluar(getTxByMonth(mo.m,mo.y))), backgroundColor:'rgba(239,68,68,.7)',  borderRadius:6, borderSkipped:false },
+      ] }, options:{ scales:{ x:scaleX, y:scaleY }, plugins:{ legend:{ position:'top' }, tooltip:{ callbacks:{ label: c => ' '+c.dataset.label+': '+fmtRp(c.raw,true) } } }, maintainAspectRatio:false } });
     }
-
-    /* ════════════════════════════════════════════
-       CHART: BAR SALDO AKUN — horizontal (dashboard)
-    ════════════════════════════════════════════ */
     function chartAkunDash() {
       const akunList = Cache.get('akun');
       if (!akunList.length) return;
-
-      const labels = akunList.map(a => a.namaAkun.split(' - ')[0] || a.namaAkun);
-      const saldos = akunList.map(a => getSaldo(a.akunId));
-      const colors = akunList.map(a => a.warna || '#3B82F6');
-
-      mkChart('chartAkunDash', {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [{
-            label          : 'Saldo',
-            data           : saldos,
-            backgroundColor: colors.map(c => c + 'cc'),
-            borderRadius   : 6,
-            borderSkipped  : false,
-          }]
-        },
-        options: {
-          indexAxis: 'y',
-          scales   : {
-            x: { ...scaleX, ticks: { color: TICK_COLOR, callback: v => fmtRp(v, true) } },
-            y: { grid: { display: false }, ticks: { color: TICK_COLOR } },
-          },
-          plugins: {
-            legend : { display: false },
-            tooltip: { callbacks: { label: c => ' Saldo: ' + fmtRp(c.raw, true) } },
-          },
-          maintainAspectRatio: false,
-        }
-      });
+      mkChart('chartAkunDash', { type:'bar', data:{ labels: akunList.map(a => a.namaAkun.split(' - ')[0]||a.namaAkun), datasets:[{ label:'Saldo', data: akunList.map(a => getSaldo(a.akunId)), backgroundColor: akunList.map(a => (a.warna||'#3B82F6')+'cc'), borderRadius:6, borderSkipped:false }] }, options:{ indexAxis:'y', scales:{ x:{ ...scaleX, ticks:{ color:TICK_COLOR, callback: v => fmtRp(v,true) } }, y:{ grid:{ display:false }, ticks:{ color:TICK_COLOR } } }, plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label: c => ' Saldo: '+fmtRp(c.raw,true) } } }, maintainAspectRatio:false } });
     }
-
-    /* ════════════════════════════════════════════
-       CHART: PIE DISTRIBUSI SALDO (halaman Akun)
-    ════════════════════════════════════════════ */
     function chartAkunPie() {
       const akunList = Cache.get('akun');
       if (!akunList.length) return;
-
-      const labels = akunList.map(a => a.namaAkun.split(' - ')[0] || a.namaAkun);
-      const saldos = akunList.map(a => Math.max(getSaldo(a.akunId), 0));
-      const colors = akunList.map(a => a.warna || '#3B82F6');
-
-      mkChart('chartAkunPie', {
-        type: 'doughnut',
-        data: {
-          labels,
-          datasets: [{
-            data           : saldos,
-            backgroundColor: colors.map(c => c + 'dd'),
-            borderWidth    : 2,
-            borderColor    : '#0E1320',
-            hoverOffset    : 6,
-          }]
-        },
-        options: {
-          cutout : '55%',
-          plugins: {
-            legend : { position: 'right' },
-            tooltip: { callbacks: { label: c => ' ' + c.label + ': ' + fmtRp(c.raw, true) } },
-          },
-          maintainAspectRatio: false,
-        }
-      });
+      mkChart('chartAkunPie', { type:'doughnut', data:{ labels: akunList.map(a => a.namaAkun.split(' - ')[0]||a.namaAkun), datasets:[{ data: akunList.map(a => Math.max(getSaldo(a.akunId),0)), backgroundColor: akunList.map(a => (a.warna||'#3B82F6')+'dd'), borderWidth:2, borderColor:'#0E1320', hoverOffset:6 }] }, options:{ cutout:'55%', plugins:{ legend:{ position:'right' }, tooltip:{ callbacks:{ label: c => ' '+c.label+': '+fmtRp(c.raw,true) } } }, maintainAspectRatio:false } });
     }
-
-    /* ════════════════════════════════════════════
-       CHART: BAR PENGELUARAN PER AKUN (halaman Akun)
-    ════════════════════════════════════════════ */
     function chartAkunBar() {
       const { m, y } = getCurrentMY();
       const akunList  = Cache.get('akun');
       if (!akunList.length) return;
-
       const txMonth = getTxByMonth(m, y);
-      const labels  = akunList.map(a => a.namaAkun.split(' - ')[0] || a.namaAkun);
-      const data    = akunList.map(a =>
-        txMonth
-          .filter(t => t.akunId === a.akunId && t.tipe === 'Keluar')
-          .reduce((s, t) => s + (parseInt(t.nominal) || 0), 0)
-      );
-      const colors = akunList.map(a => a.warna || '#3B82F6');
-
-      mkChart('chartAkunBar', {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [{
-            label          : 'Pengeluaran',
-            data,
-            backgroundColor: colors.map(c => c + 'aa'),
-            borderRadius   : 6,
-            borderSkipped  : false,
-          }]
-        },
-        options: {
-          scales : { x: { ...scaleX, grid: { display: false } }, y: scaleY },
-          plugins: {
-            legend : { display: false },
-            tooltip: { callbacks: { label: c => ' Pengeluaran: ' + fmtRp(c.raw, true) } },
-          },
-          maintainAspectRatio: false,
-        }
-      });
+      mkChart('chartAkunBar', { type:'bar', data:{ labels: akunList.map(a => a.namaAkun.split(' - ')[0]||a.namaAkun), datasets:[{ label:'Pengeluaran', data: akunList.map(a => txMonth.filter(t => t.akunId===a.akunId && t.tipe==='Keluar').reduce((s,t)=>s+(parseInt(t.nominal)||0),0)), backgroundColor: akunList.map(a => (a.warna||'#3B82F6')+'aa'), borderRadius:6, borderSkipped:false }] }, options:{ scales:{ x:{ ...scaleX, grid:{ display:false } }, y:scaleY }, plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label: c => ' Pengeluaran: '+fmtRp(c.raw,true) } } }, maintainAspectRatio:false } });
     }
-
-    /* ════════════════════════════════════════════
-       CHART: DONUT KOMPOSISI PENGELUARAN (Budget)
-    ════════════════════════════════════════════ */
     function chartBudgetDonut() {
       const { m, y } = getCurrentMY();
-      const katSpend  = spendByKat(getTxByMonth(m, y));
-      const filtered  = Object.entries(katSpend)
-        .filter(([k]) => k !== 'Transfer')
-        .sort((a, b) => b[1] - a[1]);
-
+      const filtered  = Object.entries(spendByKat(getTxByMonth(m, y))).filter(([k]) => k !== 'Transfer').sort((a,b) => b[1]-a[1]);
       if (!filtered.length) return;
-
-      mkChart('chartBudgetDonut', {
-        type: 'doughnut',
-        data: {
-          labels  : filtered.map(([k]) => k),
-          datasets: [{
-            data           : filtered.map(([, v]) => v),
-            backgroundColor: filtered.map(([k]) => KAT_COLORS[k] || '#6B7280'),
-            borderWidth    : 2,
-            borderColor    : '#0E1320',
-            hoverOffset    : 6,
-          }]
-        },
-        options: {
-          cutout : '55%',
-          plugins: {
-            legend : { position: 'bottom' },
-            tooltip: { callbacks: { label: c => ' ' + c.label + ': ' + fmtRp(c.raw, true) } },
-          },
-          maintainAspectRatio: false,
-        }
-      });
+      mkChart('chartBudgetDonut', { type:'doughnut', data:{ labels: filtered.map(([k]) => k), datasets:[{ data: filtered.map(([,v]) => v), backgroundColor: filtered.map(([k]) => KAT_COLORS[k]||'#6B7280'), borderWidth:2, borderColor:'#0E1320', hoverOffset:6 }] }, options:{ cutout:'55%', plugins:{ legend:{ position:'bottom' }, tooltip:{ callbacks:{ label: c => ' '+c.label+': '+fmtRp(c.raw,true) } } }, maintainAspectRatio:false } });
     }
-
-    /* ════════════════════════════════════════════
-       CHART: BAR BREAKDOWN TAGIHAN
-    ════════════════════════════════════════════ */
     function chartTagihan() {
       const tagList = Cache.get('tagihan').filter(t => t.status === 'Aktif');
       if (!tagList.length) return;
-
-      // Kelompokkan per kategori, prorate tahunan ke bulanan
       const katMap = {};
-      tagList.forEach(t => {
-        const kat = t.kategori || 'Lain-lain';
-        const nom = t.frekuensi === 'Bulanan'
-          ? parseInt(t.nominal) || 0
-          : Math.round((parseInt(t.nominal) || 0) / 12);
-        katMap[kat] = (katMap[kat] || 0) + nom;
-      });
-
+      tagList.forEach(t => { const kat = t.kategori||'Lain-lain'; katMap[kat] = (katMap[kat]||0) + (t.frekuensi==='Bulanan' ? parseInt(t.nominal)||0 : Math.round((parseInt(t.nominal)||0)/12)); });
       const PALETTE = ['#3B82F6','#EF4444','#22C55E','#A855F7','#F59E0B','#06B6D4','#EC4899','#14B8A6'];
-
-      mkChart('chartTagihan', {
-        type: 'bar',
-        data: {
-          labels  : Object.keys(katMap),
-          datasets: [{
-            label          : 'Per bulan (estimasi)',
-            data           : Object.values(katMap),
-            backgroundColor: Object.keys(katMap).map((_, i) => PALETTE[i % PALETTE.length] + 'bb'),
-            borderRadius   : 6,
-            borderSkipped  : false,
-          }]
-        },
-        options: {
-          scales : { x: { ...scaleX, grid: { display: false } }, y: scaleY },
-          plugins: {
-            legend : { display: false },
-            tooltip: { callbacks: { label: c => ' ' + fmtRp(c.raw, true) + ' / bln' } },
-          },
-          maintainAspectRatio: false,
-        }
-      });
+      mkChart('chartTagihan', { type:'bar', data:{ labels: Object.keys(katMap), datasets:[{ label:'Per bulan (estimasi)', data: Object.values(katMap), backgroundColor: Object.keys(katMap).map((_,i) => PALETTE[i%PALETTE.length]+'bb'), borderRadius:6, borderSkipped:false }] }, options:{ scales:{ x:{ ...scaleX, grid:{ display:false } }, y:scaleY }, plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label: c => ' '+fmtRp(c.raw,true)+' / bln' } } }, maintainAspectRatio:false } });
     }
-
-    /* ════════════════════════════════════════════
-       CHART: BAR GOALS (target vs terkumpul)
-    ════════════════════════════════════════════ */
     function chartGoals() {
       const list = Cache.get('goals');
       if (!list.length) return;
-
-      const GOAL_COLORS = ['#3B82F6','#A855F7','#22C55E','#EF4444','#F59E0B','#06B6D4'];
-      const labels   = list.map(g => g.namaGoal.length > 14 ? g.namaGoal.slice(0, 14) + '…' : g.namaGoal);
-      const targets  = list.map(g => parseInt(g.targetNominal) || 0);
-      const saveds   = list.map(g => parseInt(g.sudahTerkumpul) || 0);
-
-      mkChart('chartGoals', {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [
-            {
-              label          : 'Terkumpul',
-              data           : saveds,
-              backgroundColor: list.map((_, i) => GOAL_COLORS[i % GOAL_COLORS.length] + 'bb'),
-              borderRadius   : 6,
-              borderSkipped  : false,
-              order          : 1,
-            },
-            {
-              label          : 'Target',
-              data           : targets,
-              backgroundColor: 'rgba(255,255,255,.06)',
-              borderColor    : 'rgba(255,255,255,.12)',
-              borderWidth    : 1,
-              borderRadius   : 6,
-              borderSkipped  : false,
-              order          : 2,
-            },
-          ]
-        },
-        options: {
-          scales : { x: { ...scaleX, grid: { display: false } }, y: scaleY },
-          plugins: {
-            legend : { position: 'top' },
-            tooltip: { callbacks: { label: c => ' ' + c.dataset.label + ': ' + fmtRp(c.raw, true) } },
-          },
-          maintainAspectRatio: false,
-        }
-      });
+      const GC = ['#3B82F6','#A855F7','#22C55E','#EF4444','#F59E0B','#06B6D4'];
+      mkChart('chartGoals', { type:'bar', data:{ labels: list.map(g => g.namaGoal.length > 14 ? g.namaGoal.slice(0,14)+'…' : g.namaGoal), datasets:[
+        { label:'Terkumpul', data: list.map(g => parseInt(g.sudahTerkumpul)||0), backgroundColor: list.map((_,i) => GC[i%GC.length]+'bb'), borderRadius:6, borderSkipped:false, order:1 },
+        { label:'Target',    data: list.map(g => parseInt(g.targetNominal)||0),  backgroundColor:'rgba(255,255,255,.06)', borderColor:'rgba(255,255,255,.12)', borderWidth:1, borderRadius:6, borderSkipped:false, order:2 },
+      ] }, options:{ scales:{ x:{ ...scaleX, grid:{ display:false } }, y:scaleY }, plugins:{ legend:{ position:'top' }, tooltip:{ callbacks:{ label: c => ' '+c.dataset.label+': '+fmtRp(c.raw,true) } } }, maintainAspectRatio:false } });
     }
-
-    /* ════════════════════════════════════════════
-       CHART: LINE LAPORAN UTAMA (pemasukan vs pengeluaran)
-    ════════════════════════════════════════════ */
     function chartLaporanMain() {
-      const months  = last3Months();
-      const labels  = months.map(mo => mo.label);
-      const incomes = months.map(mo => totalMasuk(getTxByMonth(mo.m, mo.y)));
-      const exps    = months.map(mo => totalKeluar(getTxByMonth(mo.m, mo.y)));
-
-      mkChart('chartLaporanMain', {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [
-            {
-              label          : 'Pemasukan',
-              data           : incomes,
-              borderColor    : '#3B82F6',
-              backgroundColor: 'rgba(59,130,246,.12)',
-              tension        : .4,
-              fill           : true,
-              pointRadius    : 5,
-              pointBackgroundColor: '#3B82F6',
-            },
-            {
-              label          : 'Pengeluaran',
-              data           : exps,
-              borderColor    : '#EF4444',
-              backgroundColor: 'rgba(239,68,68,.08)',
-              tension        : .4,
-              fill           : true,
-              pointRadius    : 5,
-              pointBackgroundColor: '#EF4444',
-            },
-          ]
-        },
-        options: {
-          scales : { x: scaleX, y: scaleY },
-          plugins: {
-            legend : { position: 'top' },
-            tooltip: { callbacks: { label: c => ' ' + c.dataset.label + ': ' + fmtRp(c.raw, true) } },
-          },
-          maintainAspectRatio: false,
-        }
-      });
+      const months = last3Months();
+      mkChart('chartLaporanMain', { type:'line', data:{ labels: months.map(mo => mo.label), datasets:[
+        { label:'Pemasukan',   data: months.map(mo => totalMasuk(getTxByMonth(mo.m,mo.y))),  borderColor:'#3B82F6', backgroundColor:'rgba(59,130,246,.12)', tension:.4, fill:true, pointRadius:5, pointBackgroundColor:'#3B82F6' },
+        { label:'Pengeluaran', data: months.map(mo => totalKeluar(getTxByMonth(mo.m,mo.y))), borderColor:'#EF4444', backgroundColor:'rgba(239,68,68,.08)',  tension:.4, fill:true, pointRadius:5, pointBackgroundColor:'#EF4444' },
+      ] }, options:{ scales:{ x:scaleX, y:scaleY }, plugins:{ legend:{ position:'top' }, tooltip:{ callbacks:{ label: c => ' '+c.dataset.label+': '+fmtRp(c.raw,true) } } }, maintainAspectRatio:false } });
     }
-
-    /* ════════════════════════════════════════════
-       CHART: BAR TABUNGAN BERSIH (laporan)
-    ════════════════════════════════════════════ */
     function chartLaporanSave() {
       const months  = last3Months();
-      const labels  = months.map(mo => mo.label);
-      const savings = months.map(mo => {
-        const tx = getTxByMonth(mo.m, mo.y);
-        return totalMasuk(tx) - totalKeluar(tx);
-      });
-
-      mkChart('chartLaporanSave', {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [{
-            label          : 'Tabungan Bersih',
-            data           : savings,
-            backgroundColor: savings.map(s => s >= 0 ? 'rgba(34,197,94,.7)' : 'rgba(239,68,68,.7)'),
-            borderRadius   : 8,
-            borderSkipped  : false,
-          }]
-        },
-        options: {
-          scales : { x: { ...scaleX, grid: { display: false } }, y: scaleY },
-          plugins: {
-            legend : { display: false },
-            tooltip: {
-              callbacks: {
-                label: c => (c.raw >= 0 ? ' Surplus: ' : ' Defisit: ') + fmtRp(Math.abs(c.raw), true)
-              }
-            },
-          },
-          maintainAspectRatio: false,
-        }
-      });
+      const savings = months.map(mo => { const tx = getTxByMonth(mo.m,mo.y); return totalMasuk(tx)-totalKeluar(tx); });
+      mkChart('chartLaporanSave', { type:'bar', data:{ labels: months.map(mo => mo.label), datasets:[{ label:'Tabungan Bersih', data: savings, backgroundColor: savings.map(s => s>=0 ? 'rgba(34,197,94,.7)' : 'rgba(239,68,68,.7)'), borderRadius:8, borderSkipped:false }] }, options:{ scales:{ x:{ ...scaleX, grid:{ display:false } }, y:scaleY }, plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label: c => (c.raw>=0 ? ' Surplus: ' : ' Defisit: ')+fmtRp(Math.abs(c.raw),true) } } }, maintainAspectRatio:false } });
     }
-
-    /* ════════════════════════════════════════════
-       TABEL RINGKASAN LAPORAN
-    ════════════════════════════════════════════ */
     function renderSummaryTable() {
-      const months = last3Months();
-
-      const incomes  = months.map(mo => totalMasuk(getTxByMonth(mo.m, mo.y)));
-      const expenses = months.map(mo => totalKeluar(getTxByMonth(mo.m, mo.y)));
-      const savings  = months.map((_, i) => incomes[i] - expenses[i]);
-      const txCounts = months.map(mo => getTxByMonth(mo.m, mo.y).length);
-
-      const rows = [
-        { label: '💰 Total Pemasukan',  data: incomes,  isCurrency: true },
-        { label: '💸 Total Pengeluaran',data: expenses, isCurrency: true },
-        { label: '💎 Arus Kas Bersih',  data: savings,  isCurrency: true, isTotal: true },
-        { label: '📊 Jumlah Transaksi', data: txCounts, isCurrency: false },
-      ];
-
-      // Update header bulan
+      const months   = last3Months();
+      const incomes  = months.map(mo => totalMasuk(getTxByMonth(mo.m,mo.y)));
+      const expenses = months.map(mo => totalKeluar(getTxByMonth(mo.m,mo.y)));
+      const savings  = months.map((_,i) => incomes[i]-expenses[i]);
+      const txCounts = months.map(mo => getTxByMonth(mo.m,mo.y).length);
       $('th:nth-child(2)').text(months[0].label);
       $('th:nth-child(3)').text(months[1].label);
       $('th:nth-child(4)').text(months[2].label);
-
-      const tbody = rows.map(row => {
-        const total = row.data.reduce((s, v) => s + v, 0);
-        const avg   = total / 3;
-        const fmt   = v => row.isCurrency ? fmtRp(v, true) : v.toString();
-        const cls   = row.isTotal ? 'style="font-weight:700;color:var(--blue)"' : '';
-        const cells = row.data.map(v => `<td ${cls}>${fmt(v)}</td>`).join('');
-        return `<tr>
-          <td ${cls}>${row.label}</td>
-          ${cells}
-          <td ${cls}>${fmt(total)}</td>
-          <td ${cls}>${row.isCurrency ? fmtRp(Math.round(avg), true) : Math.round(avg)}</td>
-        </tr>`;
-      }).join('');
-
-      $('#summaryTbody').html(tbody);
-
-      // Top 10 expenses
-      const top10 = Cache.get('transaksi')
-        .filter(t => t.tipe === 'Keluar')
-        .sort((a, b) => (parseInt(b.nominal) || 0) - (parseInt(a.nominal) || 0))
-        .slice(0, 10);
-
-      if (top10.length) {
-        // Trigger re-render dari Part 02
-        if (window.FK.renderTxList) {
-          window.FK.renderTxList('#topExpensesList', top10);
-        } else {
-          // Fallback sederhana
-          const html = top10.map(t => `
-            <div class="txItem">
-              <div class="txIcon" style="background:${(KAT_COLORS[t.kategori] || '#6B7280')}20">
-                ${{'Makan & Minum':'🍜','Transportasi':'🚗','Tagihan':'📱','Belanja':'🛍️',
-                   'Hiburan':'🎬','Kesehatan':'💊','Investasi':'📈','Cicilan':'🏠'}[t.kategori] || '📦'}
-              </div>
-              <div class="txInfo">
-                <div class="txName">${t.nama}</div>
-                <div class="txMeta">${t.tanggal ? t.tanggal.slice(0,10) : ''} · ${t.kategori}</div>
-              </div>
-              <div class="txRight">
-                <div class="txAmount out">-${fmtRp(t.nominal)}</div>
-              </div>
-            </div>`).join('');
-          $('#topExpensesList').html(html);
-        }
-      }
+      const rows = [
+        { label:'💰 Total Pemasukan',   data:incomes,  isCurrency:true },
+        { label:'💸 Total Pengeluaran', data:expenses, isCurrency:true },
+        { label:'💎 Arus Kas Bersih',   data:savings,  isCurrency:true, isTotal:true },
+        { label:'📊 Jumlah Transaksi',  data:txCounts, isCurrency:false },
+      ];
+      $('#summaryTbody').html(rows.map(row => {
+        const total = row.data.reduce((s,v)=>s+v,0), avg = total/3;
+        const fmt = v => row.isCurrency ? fmtRp(v,true) : v.toString();
+        const cls = row.isTotal ? 'style="font-weight:700;color:var(--blue)"' : '';
+        return `<tr><td ${cls}>${row.label}</td>${row.data.map(v=>`<td ${cls}>${fmt(v)}</td>`).join('')}<td ${cls}>${fmt(total)}</td><td ${cls}>${row.isCurrency ? fmtRp(Math.round(avg),true) : Math.round(avg)}</td></tr>`;
+      }).join(''));
+      const top10 = Cache.get('transaksi').filter(t => t.tipe==='Keluar').sort((a,b) => (parseInt(b.nominal)||0)-(parseInt(a.nominal)||0)).slice(0,10);
+      if (top10.length) renderTxList('#topExpensesList', top10);
     }
-
-    /* ════════════════════════════════════════════
-       FAMILY CHARTS (placeholder — aktif jika data keluarga ada)
-    ════════════════════════════════════════════ */
     function chartFamPie() {
-      // Placeholder — akan dikembangkan di Part 04 (Family mode)
-      mkChart('chartFamPie', {
-        type: 'doughnut',
-        data: {
-          labels  : ['Budi', 'Sari'],
-          datasets: [{
-            data           : [60, 40],
-            backgroundColor: ['#3B82F6dd', '#A855F7dd'],
-            borderWidth    : 2,
-            borderColor    : '#0E1320',
-          }]
-        },
-        options: {
-          cutout : '55%',
-          plugins: { legend: { position: 'right' } },
-          maintainAspectRatio: false,
-        }
-      });
+      mkChart('chartFamPie', { type:'doughnut', data:{ labels:['Budi','Sari'], datasets:[{ data:[60,40], backgroundColor:['#3B82F6dd','#A855F7dd'], borderWidth:2, borderColor:'#0E1320' }] }, options:{ cutout:'55%', plugins:{ legend:{ position:'right' } }, maintainAspectRatio:false } });
     }
-
     function chartFamTren() {
       const months = last3Months();
-      mkChart('chartFamTren', {
-        type: 'bar',
-        data: {
-          labels  : months.map(m => m.label),
-          datasets: [
-            { label: 'Budi',  data: [8500000, 9200000, 8800000], backgroundColor: '#3B82F6bb', borderRadius: 5 },
-            { label: 'Sari',  data: [4200000, 3800000, 4500000], backgroundColor: '#A855F7bb', borderRadius: 5 },
-          ]
-        },
-        options: {
-          scales : { x: scaleX, y: scaleY },
-          plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: c => ' ' + c.dataset.label + ': ' + fmtRp(c.raw, true) } } },
-          maintainAspectRatio: false,
-        }
-      });
+      mkChart('chartFamTren', { type:'bar', data:{ labels: months.map(m => m.label), datasets:[
+        { label:'Budi', data:[8500000,9200000,8800000], backgroundColor:'#3B82F6bb', borderRadius:5 },
+        { label:'Sari', data:[4200000,3800000,4500000], backgroundColor:'#A855F7bb', borderRadius:5 },
+      ] }, options:{ scales:{ x:scaleX, y:scaleY }, plugins:{ legend:{ position:'top' }, tooltip:{ callbacks:{ label: c => ' '+c.dataset.label+': '+fmtRp(c.raw,true) } } }, maintainAspectRatio:false } });
     }
 
-    /* ════════════════════════════════════════════
-       MASTER RENDER — panggil semua chart sekaligus
-    ════════════════════════════════════════════ */
     function renderAllCharts() {
       renderDashMetrics();
-
-      // Dashboard charts
-      chartKategori();
-      chartTren();
-      chartAkunDash();
-
-      // Akun charts (hanya render jika canvas ada di DOM & visible)
-      chartAkunPie();
-      chartAkunBar();
-
-      // Budget
+      chartKategori(); chartTren(); chartAkunDash();
+      chartAkunPie(); chartAkunBar();
       chartBudgetDonut();
-
-      // Tagihan
       chartTagihan();
-
-      // Goals
       chartGoals();
-
-      // Laporan
-      chartLaporanMain();
-      chartLaporanSave();
-      renderSummaryTable();
-
-      // Family (placeholder)
-      chartFamPie();
-      chartFamTren();
+      chartLaporanMain(); chartLaporanSave(); renderSummaryTable();
+      chartFamPie(); chartFamTren();
     }
 
-    /* ════════════════════════════════════════════
-       RE-RENDER OTOMATIS
-    ════════════════════════════════════════════ */
-
-    // Saat data berubah (dari Part 02 CRUD/upload)
-    $(document).on('finanku:dataChanged', function () {
-      renderAllCharts();
-    });
-
-    // Saat bulan berubah (dari Part 01 navigation)
+    $(document).on('finanku:dataChanged', renderAllCharts);
     $(document).on('finanku:monthChanged', function (e, m, y) {
-      window.fkCurrentMonth = m;
-      window.fkCurrentYear  = y;
+      window.fkCurrentMonth = m; window.fkCurrentYear = y;
       renderAllCharts();
     });
-
-    // Saat halaman di-navigate — resize chart supaya tidak distorted
     $(document).on('click', '.navItem[data-page]', function () {
-      setTimeout(function () {
-        Object.values(Charts).forEach(c => { try { c.resize(); } catch (_) {} });
-      }, 50);
+      setTimeout(function () { Object.values(Charts).forEach(c => { try { c.resize(); } catch(_) {} }); }, 50);
     });
-
-    /* ════════════════════════════════════════════
-       PERIOD BUTTON — Laporan (3bln / 6bln / 1thn)
-    ════════════════════════════════════════════ */
     $(document).on('click', '.periodBtn', function () {
       const label = $(this).text().trim();
-      let nMonths = 3;
-      if (label.includes('6')) nMonths = 6;
-      if (label.includes('1 T') || label.includes('Tahun')) nMonths = 12;
-
-      // Override last3Months scope — simpan ke window
+      let nMonths = label.includes('6') ? 6 : (label.includes('1 T') || label.includes('Tahun')) ? 12 : 3;
       window.fkLaporanMonths = nMonths;
-
-      // Re-render chart laporan dengan range baru
       const { m, y } = getCurrentMY();
-      const months   = [];
-      for (let i = nMonths - 1; i >= 0; i--) {
-        let mo = m - i, yr = y;
+      const months = Array.from({ length: nMonths }, (_, i) => {
+        let mo = m - (nMonths - 1 - i), yr = y;
         while (mo <= 0) { mo += 12; yr--; }
-        months.push({ m: mo, y: yr, label: MONTHS_SHORT[mo - 1] + ' ' + String(yr).slice(2) });
-      }
-
+        return { m: mo, y: yr, label: MONTHS_ID_SHORT[mo-1] + ' ' + String(yr).slice(2) };
+      });
       const labels  = months.map(mo => mo.label);
-      const incomes = months.map(mo => totalMasuk(getTxByMonth(mo.m, mo.y)));
-      const exps    = months.map(mo => totalKeluar(getTxByMonth(mo.m, mo.y)));
-      const savings = months.map((_, i) => incomes[i] - exps[i]);
-
-      // Update chartLaporanMain
+      const incomes = months.map(mo => totalMasuk(getTxByMonth(mo.m,mo.y)));
+      const exps    = months.map(mo => totalKeluar(getTxByMonth(mo.m,mo.y)));
+      const savings = months.map((_,i) => incomes[i]-exps[i]);
       if (Charts['chartLaporanMain']) {
-        Charts['chartLaporanMain'].data.labels        = labels;
+        Charts['chartLaporanMain'].data.labels = labels;
         Charts['chartLaporanMain'].data.datasets[0].data = incomes;
         Charts['chartLaporanMain'].data.datasets[1].data = exps;
         Charts['chartLaporanMain'].update();
       }
-
-      // Update chartLaporanSave
       if (Charts['chartLaporanSave']) {
-        Charts['chartLaporanSave'].data.labels           = labels;
+        Charts['chartLaporanSave'].data.labels = labels;
         Charts['chartLaporanSave'].data.datasets[0].data = savings;
-        Charts['chartLaporanSave'].data.datasets[0].backgroundColor =
-          savings.map(s => s >= 0 ? 'rgba(34,197,94,.7)' : 'rgba(239,68,68,.7)');
+        Charts['chartLaporanSave'].data.datasets[0].backgroundColor = savings.map(s => s>=0 ? 'rgba(34,197,94,.7)' : 'rgba(239,68,68,.7)');
         Charts['chartLaporanSave'].update();
       }
     });
 
-    /* ════════════════════════════════════════════
-       EXPOSE ke window (untuk Part 04+)
-    ════════════════════════════════════════════ */
     window.FK.Charts          = Charts;
     window.FK.renderAllCharts = renderAllCharts;
     window.FK.getTxByMonth    = getTxByMonth;
@@ -4921,511 +3719,199 @@ $(function () {
     window.FK.spendByKat      = spendByKat;
     window.FK.last3Months     = last3Months;
 
-    /* ════════════════════════════════════════════
-       INIT — render pertama kali jika data ada
-    ════════════════════════════════════════════ */
-    // Tunggu sebentar supaya DOM & Part 02 selesai render list-nya
-    setTimeout(function () {
-      renderAllCharts();
-    }, 200);
-
+    setTimeout(renderAllCharts, 200);
     console.log('FinanKu v2 — Charts ready');
+  }); // end waitForCharts
 
-  }); // end waitFK 
   /* ════════════════════════════════════════════
-     WAIT — pastikan Part 02 & 03 sudah siap
+     PART 04 — EXPORT & DEMO DATA
   ════════════════════════════════════════════ */
-  function waitFK(cb) {
-    if (window.FK && window.FK.Cache && window.FK.renderAllCharts) {
-      cb();
-    } else {
-      setTimeout(() => waitFK(cb), 100);
-    }
+  function waitForExport(cb) {
+    if (window.FK && window.FK.Cache && window.FK.renderAllCharts) cb();
+    else setTimeout(() => waitForExport(cb), 100);
   }
 
-  waitFK(function () {
-
-    const Cache        = window.FK.Cache;
-    const fmtRp        = window.FK.fmtRp;
+  waitForExport(function () {
     const refreshAll   = window.FK.refreshAll;
     const renderCharts = window.FK.renderAllCharts;
 
-    /* ════════════════════════════════════════════
-       //TOAST NOTIFICATION
-    ════════════════════════════════════════════ */
-    // Inject //toast container sekali
-    if (!$('#fk//toastWrap').length) {
-      $('body').append(`
-        <div id="fk//toastWrap" style="
-          position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
-          z-index:9999;display:flex;flex-direction:column;gap:8px;
-          align-items:center;pointer-events:none">
-        </div>`);
-    }
-
-    function  toast(msg, type = 'success', duration = 3000) {
-      const colors = {
-        success: { bg: '#0E1320', border: 'rgba(34,197,94,.4)',  icon: '✅', text: '#22C55E' },
-        error  : { bg: '#0E1320', border: 'rgba(239,68,68,.4)',  icon: '❌', text: '#EF4444' },
-        info   : { bg: '#0E1320', border: 'rgba(59,130,246,.4)', icon: 'ℹ️', text: '#3B82F6' },
-        warn   : { bg: '#0E1320', border: 'rgba(245,158,11,.4)', icon: '⚠️', text: '#F59E0B' },
-      };
-      const c = colors[type] || colors.info;
-      const $t = $(`
-        <div style="
-          background:${c.bg};border:1px solid ${c.border};
-          border-radius:12px;padding:10px 18px;
-          display:flex;align-items:center;gap:8px;
-          font-size:13px;font-weight:600;color:${c.text};
-          box-shadow:0 8px 24px rgba(0,0,0,.4);
-          animation:fk//toastIn .2s ease;pointer-events:all;
-          font-family:'Instrument Sans',sans-serif">
-          <span>${c.icon}</span>
-          <span style="color:#EDF1FA">${msg}</span>
-        </div>`);
-
-      // Inject keyframes sekali
-      if (!$('#fk//toastStyle').length) {
-        $('head').append(`<style id="fk//toastStyle">
-          @keyframes fk//toastIn  { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-          @keyframes fk//toastOut { from{opacity:1} to{opacity:0;transform:translateY(6px)} }
-        </style>`);
-      }
-
-      $('#fk//toastWrap').append($t);
-      setTimeout(() => {
-        $t.css('animation', 'fk//toastOut .25s ease forwards');
-        setTimeout(() => $t.remove(), 260);
-      }, duration);
-    }
-
-    /* ════════════════════════════════════════════
-       HELPERS
-    ════════════════════════════════════════════ */
     function getCurrentMY() {
-      return {
-        m: window.fkCurrentMonth || new Date().getMonth() + 1,
-        y: window.fkCurrentYear  || new Date().getFullYear(),
-      };
+      return { m: window.fkCurrentMonth || new Date().getMonth()+1, y: window.fkCurrentYear || new Date().getFullYear() };
     }
-
     function padZ(n) { return String(n).padStart(2, '0'); }
-
-    function filenameSafe(str) {
-      return str.replace(/[^a-zA-Z0-9_\-]/g, '_');
-    }
-
     function getTxThisMonth() {
       const { m, y } = getCurrentMY();
-      return Cache.get('transaksi').filter(t => {
-        const d = new Date(t.tanggal);
-        return d.getMonth() + 1 === m && d.getFullYear() === y;
-      });
+      return Cache.get('transaksi').filter(t => { const d = new Date(t.tanggal); return d.getMonth()+1===m && d.getFullYear()===y; });
     }
-
-    /* ════════════════════════════════════════════
-       EXPORT — CSV (transaksi bulan aktif)
-    ════════════════════════════════════════════ */
-    function exportCSV(allMonths = false) {
-      const txList = allMonths
-        ? Cache.get('transaksi')
-        : getTxThisMonth();
-
-      if (!txList.length) {
-        //toast('Tidak ada transaksi untuk diekspor', 'warn');
-        return;
-      }
-
-      const akunList = Cache.get('akun');
-      const akunMap  = {};
-      akunList.forEach(a => akunMap[a.akunId] = a.namaAkun);
-
-      const headers = ['ID','Tanggal','Nama','Kategori','Sub Kategori','Akun','Nominal','Tipe','Catatan'];
-      const rows    = txList
-        .sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal))
-        .map(t => [
-          t.txId,
-          t.tanggal || '',
-          t.nama || '',
-          t.kategori || '',
-          t.subKategori || '',
-          akunMap[t.akunId] || t.akunId || '',
-          t.nominal || 0,
-          t.tipe || '',
-          t.catatan || '',
-        ]);
-
-      const csv = [headers, ...rows]
-        .map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
-        .join('\n');
-
-      const { m, y } = getCurrentMY();
-      const filename = allMonths
-        ? `FinanKu_Semua_Transaksi.csv`
-        : `FinanKu_Transaksi_${y}${padZ(m)}.csv`;
-
-      downloadBlob(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' }), filename);
-      //toast(`CSV berhasil diekspor (${rows.length} transaksi)`, 'success');
-    }
-
-    /* ════════════════════════════════════════════
-       EXPORT — XLSX multi-sheet
-    ════════════════════════════════════════════ */
-    function exportXLSX() {
-      if (typeof XLSX === 'undefined') {
-        //toast('Library XLSX belum dimuat', 'error');
-        return;
-      }
-
-      const wb = XLSX.utils.book_new();
-
-      /* ── Sheet: Transaksi ── */
-      const akunList = Cache.get('akun');
-      const akunMap  = {};
-      akunList.forEach(a => akunMap[a.akunId] = a.namaAkun);
-
-      const txData = [
-        ['txId','tanggal','nama','kategori','subKategori','akunId','namaAkun','nominal','tipe','catatan'],
-        ...Cache.get('transaksi')
-          .sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal))
-          .map(t => [
-            t.txId, t.tanggal, t.nama, t.kategori, t.subKategori,
-            t.akunId, akunMap[t.akunId] || '', t.nominal, t.tipe, t.catatan
-          ])
-      ];
-      const wsTx = XLSX.utils.aoa_to_sheet(txData);
-      styleXLSXHeader(wsTx, txData[0].length);
-      wsTx['!cols'] = [8,12,24,18,18,10,22,14,10,24].map(w => ({ wch: w }));
-      XLSX.utils.book_append_sheet(wb, wsTx, 'Transaksi');
-
-      /* ── Sheet: Akun ── */
-      const akunData = [
-        ['akunId','namaAkun','tipeAkun','saldoAwal','warna','pemilik','aktif'],
-        ...Cache.get('akun').map(a => [
-          a.akunId, a.namaAkun, a.tipeAkun, a.saldoAwal,
-          a.warna, a.pemilik || '', a.aktif ? 'Ya' : 'Tidak'
-        ])
-      ];
-      const wsAkun = XLSX.utils.aoa_to_sheet(akunData);
-      styleXLSXHeader(wsAkun, akunData[0].length);
-      wsAkun['!cols'] = [12,22,12,16,10,18,8].map(w => ({ wch: w }));
-      XLSX.utils.book_append_sheet(wb, wsAkun, 'Akun');
-
-      /* ── Sheet: Budget ── */
-      const budgetData = [
-        ['budgetId','kategori','subKategori','limitBulanan','tipeKebutuhan'],
-        ...Cache.get('budget').map(b => [
-          b.budgetId, b.kategori, b.subKategori, b.limitBulanan, b.tipeKebutuhan
-        ])
-      ];
-      const wsBudget = XLSX.utils.aoa_to_sheet(budgetData);
-      styleXLSXHeader(wsBudget, budgetData[0].length);
-      wsBudget['!cols'] = [12,18,18,16,14].map(w => ({ wch: w }));
-      XLSX.utils.book_append_sheet(wb, wsBudget, 'Budget');
-
-      /* ── Sheet: Tagihan ── */
-      const tagihanData = [
-        ['tagihanId','namaBill','kategori','akunId','nominal','frekuensi',
-         'tanggalBayar','tanggalMulai','tanggalSelesai','status'],
-        ...Cache.get('tagihan').map(t => [
-          t.tagihanId, t.namaBill, t.kategori, t.akunId, t.nominal,
-          t.frekuensi, t.tanggalBayar, t.tanggalMulai, t.tanggalSelesai, t.status
-        ])
-      ];
-      const wsTagihan = XLSX.utils.aoa_to_sheet(tagihanData);
-      styleXLSXHeader(wsTagihan, tagihanData[0].length);
-      wsTagihan['!cols'] = [12,22,14,12,14,10,12,12,14,10].map(w => ({ wch: w }));
-      XLSX.utils.book_append_sheet(wb, wsTagihan, 'Tagihan Berulang');
-
-      /* ── Sheet: Goals ── */
-      const goalsData = [
-        ['goalId','namaGoal','targetNominal','sudahTerkumpul','deadline','nabungPerBulan','ikonGoal','status'],
-        ...Cache.get('goals').map(g => [
-          g.goalId, g.namaGoal, g.targetNominal, g.sudahTerkumpul,
-          g.deadline, g.nabungPerBulan, g.ikonGoal, g.status
-        ])
-      ];
-      const wsGoals = XLSX.utils.aoa_to_sheet(goalsData);
-      styleXLSXHeader(wsGoals, goalsData[0].length);
-      wsGoals['!cols'] = [12,24,16,16,12,16,8,14].map(w => ({ wch: w }));
-      XLSX.utils.book_append_sheet(wb, wsGoals, 'Target Tabungan');
-
-      /* ── Sheet: Ringkasan ── */
-      const summaryData = buildSummarySheet();
-      const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
-      styleXLSXHeader(wsSummary, summaryData[0].length);
-      wsSummary['!cols'] = [24,16,16,16,16,16].map(w => ({ wch: w }));
-      XLSX.utils.book_append_sheet(wb, wsSummary, 'Ringkasan');
-
-      /* ── Download ── */
-      const { m, y } = getCurrentMY();
-      const filename = `FinanKu_Export_${y}${padZ(m)}.xlsx`;
-      XLSX.writeFile(wb, filename);
-      //toast(`Excel berhasil diekspor (${Cache.get('transaksi').length} transaksi)`, 'success');
-    }
-
-    /* ── Style header row XLSX ── */
-    function styleXLSXHeader(ws, colCount) {
-      // XLSX lite — hanya set bold via cell style jika didukung
-      for (let c = 0; c < colCount; c++) {
-        const addr = XLSX.utils.encode_cell({ r: 0, c });
-        if (!ws[addr]) continue;
-        ws[addr].s = {
-          font: { bold: true, color: { rgb: 'FFFFFF' } },
-          fill: { fgColor: { rgb: '0F3460' } },
-          alignment: { horizontal: 'center' },
-        };
-      }
-    }
-
-    /* ── Build ringkasan sheet ── */
-    function buildSummarySheet() {
-      const { m, y }   = getCurrentMY();
-      const months3     = [];
-      for (let i = 2; i >= 0; i--) {
-        let mo = m - i, yr = y;
-        if (mo <= 0) { mo += 12; yr--; }
-        months3.push({ m: mo, y: yr });
-      }
-
-      const MONTHS_ID = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
-      const labels    = months3.map(mo => MONTHS_ID[mo.m - 1] + ' ' + mo.y);
-
-      const txAll   = Cache.get('transaksi');
-      const getTx   = (mo, yr) => txAll.filter(t => {
-        const d = new Date(t.tanggal);
-        return d.getMonth() + 1 === mo && d.getFullYear() === yr;
-      });
-
-      const incomes  = months3.map(mo => getTx(mo.m, mo.y).filter(t => t.tipe === 'Masuk').reduce((s,t)=>s+(parseInt(t.nominal)||0),0));
-      const expenses = months3.map(mo => getTx(mo.m, mo.y).filter(t => t.tipe === 'Keluar').reduce((s,t)=>s+(parseInt(t.nominal)||0),0));
-      const savings  = months3.map((_, i) => incomes[i] - expenses[i]);
-      const counts   = months3.map(mo => getTx(mo.m, mo.y).length);
-
-      const totalInc = incomes.reduce((s,v)=>s+v,0);
-      const totalExp = expenses.reduce((s,v)=>s+v,0);
-      const totalSav = savings.reduce((s,v)=>s+v,0);
-      const totalCnt = counts.reduce((s,v)=>s+v,0);
-
-      return [
-        ['Keterangan', ...labels, 'Total', 'Rata-rata'],
-        ['Total Pemasukan',  ...incomes,  totalInc, Math.round(totalInc/3)],
-        ['Total Pengeluaran',...expenses, totalExp, Math.round(totalExp/3)],
-        ['Arus Kas Bersih',  ...savings,  totalSav, Math.round(totalSav/3)],
-        ['Jumlah Transaksi', ...counts,   totalCnt, Math.round(totalCnt/3)],
-      ];
-    }
-
-    /* ── Download blob helper ── */
     function downloadBlob(blob, filename) {
       const url = URL.createObjectURL(blob);
       const a   = document.createElement('a');
-      a.href     = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click();
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
-    /* ════════════════════════════════════════════
-       DEMO DATA — 3 bulan (Mar-Mei 2026)
-    ════════════════════════════════════════════ */
+    /* ── EXPORT CSV ── */
+    function exportCSV(allMonths = false) {
+      const txList = allMonths ? Cache.get('transaksi') : getTxThisMonth();
+      if (!txList.length) { toast('Tidak ada transaksi untuk diekspor', 'warn'); return; }
+      const akunMap = {};
+      Cache.get('akun').forEach(a => akunMap[a.akunId] = a.namaAkun);
+      const headers = ['ID','Tanggal','Nama','Kategori','Sub Kategori','Akun','Nominal','Tipe','Catatan'];
+      const rows = txList.sort((a,b) => new Date(b.tanggal)-new Date(a.tanggal)).map(t => [
+        t.txId, t.tanggal||'', t.nama||'', t.kategori||'', t.subKategori||'',
+        akunMap[t.akunId]||t.akunId||'', t.nominal||0, t.tipe||'', t.catatan||'',
+      ]);
+      const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+      const { m, y } = getCurrentMY();
+      downloadBlob(new Blob(['\uFEFF'+csv], { type:'text/csv;charset=utf-8' }),
+        allMonths ? 'FinanKu_Semua_Transaksi.csv' : `FinanKu_Transaksi_${y}${padZ(m)}.csv`);
+      toast(`CSV berhasil diekspor (${rows.length} transaksi)`, 'success');
+    }
+
+    /* ── EXPORT XLSX ── */
+    function exportXLSX() {
+      if (typeof XLSX === 'undefined') { toast('Library XLSX belum dimuat', 'error'); return; }
+      const wb = XLSX.utils.book_new();
+      const akunMap = {};
+      Cache.get('akun').forEach(a => akunMap[a.akunId] = a.namaAkun);
+      function addSheet(name, headers, rows, colWidths) {
+        const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+        for (let c = 0; c < headers.length; c++) {
+          const addr = XLSX.utils.encode_cell({ r:0, c });
+          if (ws[addr]) ws[addr].s = { font:{ bold:true, color:{ rgb:'FFFFFF' } }, fill:{ fgColor:{ rgb:'0F3460' } }, alignment:{ horizontal:'center' } };
+        }
+        ws['!cols'] = colWidths.map(w => ({ wch: w }));
+        XLSX.utils.book_append_sheet(wb, ws, name);
+      }
+      addSheet('Transaksi',
+        ['txId','tanggal','nama','kategori','subKategori','akunId','namaAkun','nominal','tipe','catatan'],
+        Cache.get('transaksi').sort((a,b) => new Date(b.tanggal)-new Date(a.tanggal)).map(t => [t.txId,t.tanggal,t.nama,t.kategori,t.subKategori,t.akunId,akunMap[t.akunId]||'',t.nominal,t.tipe,t.catatan]),
+        [8,12,24,18,18,10,22,14,10,24]);
+      addSheet('Akun',
+        ['akunId','namaAkun','tipeAkun','saldoAwal','warna','pemilik','aktif'],
+        Cache.get('akun').map(a => [a.akunId,a.namaAkun,a.tipeAkun,a.saldoAwal,a.warna,a.pemilik||'',a.aktif?'Ya':'Tidak']),
+        [12,22,12,16,10,18,8]);
+      addSheet('Budget',
+        ['budgetId','kategori','subKategori','limitBulanan','tipeKebutuhan'],
+        Cache.get('budget').map(b => [b.budgetId,b.kategori,b.subKategori,b.limitBulanan,b.tipeKebutuhan]),
+        [12,18,18,16,14]);
+      addSheet('Tagihan Berulang',
+        ['tagihanId','namaBill','kategori','akunId','nominal','frekuensi','tanggalBayar','tanggalMulai','tanggalSelesai','status'],
+        Cache.get('tagihan').map(t => [t.tagihanId,t.namaBill,t.kategori,t.akunId,t.nominal,t.frekuensi,t.tanggalBayar,t.tanggalMulai,t.tanggalSelesai,t.status]),
+        [12,22,14,12,14,10,12,12,14,10]);
+      addSheet('Target Tabungan',
+        ['goalId','namaGoal','targetNominal','sudahTerkumpul','deadline','nabungPerBulan','ikonGoal','status'],
+        Cache.get('goals').map(g => [g.goalId,g.namaGoal,g.targetNominal,g.sudahTerkumpul,g.deadline,g.nabungPerBulan,g.ikonGoal,g.status]),
+        [12,24,16,16,12,16,8,14]);
+      const { m, y } = getCurrentMY();
+      XLSX.writeFile(wb, `FinanKu_Export_${y}${padZ(m)}.xlsx`);
+      toast(`Excel berhasil diekspor (${Cache.get('transaksi').length} transaksi)`, 'success');
+    }
+
+    /* ── DEMO DATA ── */
     function loadDemoData(force = false) {
       const hasTx = Cache.get('transaksi').length > 0;
       if (hasTx && !force) {
         if (!confirm('Data sudah ada. Ganti dengan demo data?\n(Data lama akan dihapus)')) return;
       }
-      return;
-      // Clear semua data
-
-      // /* ── AKUN ── */
-      // Store.set(KEYS.akun, [
-      //   { akunId:'BCA001', namaAkun:'BCA - Tabungan',   tipeAkun:'Bank',     saldoAwal:18500000, warna:'#3B82F6', pemilik:'', aktif:true },
-      //   { akunId:'PRM001', namaAkun:'Permata - Tabungan',tipeAkun:'Bank',     saldoAwal:7200000,  warna:'#A855F7', pemilik:'', aktif:true },
-      //   { akunId:'UOB001', namaAkun:'UOB - ONE Account', tipeAkun:'Bank',     saldoAwal:12000000, warna:'#06B6D4', pemilik:'', aktif:true },
-      //   { akunId:'SEA001', namaAkun:'SeaBank - Tabungan',tipeAkun:'Bank',     saldoAwal:3800000,  warna:'#22C55E', pemilik:'', aktif:true },
-      //   { akunId:'MAY001', namaAkun:'Maybank - Tabungan',tipeAkun:'Bank',     saldoAwal:5500000,  warna:'#F59E0B', pemilik:'', aktif:true },
-      //   { akunId:'GPY001', namaAkun:'GoPay',             tipeAkun:'E-Wallet', saldoAwal:1250000,  warna:'#14B8A6', pemilik:'', aktif:true },
-      // ]);
-
-      // /* ── BUDGET ── */
-      // Store.set(KEYS.budget, [
-      //   { budgetId:'BDG01', kategori:'Makan & Minum', subKategori:'Makanan Harian', limitBulanan:2000000, tipeKebutuhan:'Kebutuhan' },
-      //   { budgetId:'BDG02', kategori:'Makan & Minum', subKategori:'Kopi & Cafe',    limitBulanan:400000,  tipeKebutuhan:'Keinginan' },
-      //   { budgetId:'BDG03', kategori:'Transportasi',  subKategori:'Bensin',          limitBulanan:600000,  tipeKebutuhan:'Kebutuhan' },
-      //   { budgetId:'BDG04', kategori:'Transportasi',  subKategori:'Ojol & Taksi',    limitBulanan:300000,  tipeKebutuhan:'Kebutuhan' },
-      //   { budgetId:'BDG05', kategori:'Tagihan',       subKategori:'Listrik',         limitBulanan:350000,  tipeKebutuhan:'Kebutuhan' },
-      //   { budgetId:'BDG06', kategori:'Tagihan',       subKategori:'Internet',        limitBulanan:350000,  tipeKebutuhan:'Kebutuhan' },
-      //   { budgetId:'BDG07', kategori:'Tagihan',       subKategori:'Air',             limitBulanan:100000,  tipeKebutuhan:'Kebutuhan' },
-      //   { budgetId:'BDG08', kategori:'Belanja',       subKategori:'Kebutuhan Rumah', limitBulanan:500000,  tipeKebutuhan:'Kebutuhan' },
-      //   { budgetId:'BDG09', kategori:'Belanja',       subKategori:'Pakaian',         limitBulanan:400000,  tipeKebutuhan:'Keinginan' },
-      //   { budgetId:'BDG10', kategori:'Hiburan',       subKategori:'Streaming',       limitBulanan:150000,  tipeKebutuhan:'Keinginan' },
-      //   { budgetId:'BDG11', kategori:'Hiburan',       subKategori:'Rekreasi',        limitBulanan:300000,  tipeKebutuhan:'Keinginan' },
-      //   { budgetId:'BDG12', kategori:'Kesehatan',     subKategori:'Apotek & Dokter', limitBulanan:300000,  tipeKebutuhan:'Kebutuhan' },
-      //   { budgetId:'BDG13', kategori:'Investasi',     subKategori:'Reksa Dana',      limitBulanan:1000000, tipeKebutuhan:'Tabungan'  },
-      //   { budgetId:'BDG14', kategori:'Investasi',     subKategori:'Saham',           limitBulanan:500000,  tipeKebutuhan:'Tabungan'  },
-      //   { budgetId:'BDG15', kategori:'Lain-lain',     subKategori:'Sosial',          limitBulanan:200000,  tipeKebutuhan:'Keinginan' },
-      // ]);
-
-      // /* ── TAGIHAN BERULANG ── */
-      // Store.set(KEYS.tagihan, [
-      //   { tagihanId:'TGH01', namaBill:'Listrik PLN',         kategori:'Tagihan', akunId:'BCA001', nominal:350000,  frekuensi:'Bulanan', tanggalBayar:'5',  tanggalMulai:'2026-03', tanggalSelesai:'', status:'Aktif' },
-      //   { tagihanId:'TGH02', namaBill:'Internet IndiHome',   kategori:'Tagihan', akunId:'BCA001', nominal:350000,  frekuensi:'Bulanan', tanggalBayar:'10', tanggalMulai:'2026-03', tanggalSelesai:'', status:'Aktif' },
-      //   { tagihanId:'TGH03', namaBill:'Air PDAM',            kategori:'Tagihan', akunId:'BCA001', nominal:80000,   frekuensi:'Bulanan', tanggalBayar:'15', tanggalMulai:'2026-03', tanggalSelesai:'', status:'Aktif' },
-      //   { tagihanId:'TGH04', namaBill:'Netflix',             kategori:'Hiburan', akunId:'GPY001', nominal:65000,   frekuensi:'Bulanan', tanggalBayar:'1',  tanggalMulai:'2026-03', tanggalSelesai:'', status:'Aktif' },
-      //   { tagihanId:'TGH05', namaBill:'Spotify',             kategori:'Hiburan', akunId:'GPY001', nominal:29000,   frekuensi:'Bulanan', tanggalBayar:'1',  tanggalMulai:'2026-03', tanggalSelesai:'', status:'Aktif' },
-      //   { tagihanId:'TGH06', namaBill:'iCloud 50GB',         kategori:'Tagihan', akunId:'GPY001', nominal:15000,   frekuensi:'Bulanan', tanggalBayar:'20', tanggalMulai:'2026-03', tanggalSelesai:'', status:'Aktif' },
-      //   { tagihanId:'TGH07', namaBill:'Cicilan KPR BCA',     kategori:'Cicilan', akunId:'BCA001', nominal:3200000, frekuensi:'Bulanan', tanggalBayar:'25', tanggalMulai:'2023-01', tanggalSelesai:'2042-12', status:'Aktif' },
-      //   { tagihanId:'TGH08', namaBill:'Cicilan Mobil Permata',kategori:'Cicilan', akunId:'PRM001', nominal:2800000, frekuensi:'Bulanan', tanggalBayar:'20', tanggalMulai:'2024-06', tanggalSelesai:'2027-05', status:'Aktif' },
-      //   { tagihanId:'TGH09', namaBill:'Asuransi Jiwa',       kategori:'Asuransi',akunId:'MAY001', nominal:450000,  frekuensi:'Bulanan', tanggalBayar:'15', tanggalMulai:'2026-03', tanggalSelesai:'', status:'Aktif' },
-      //   { tagihanId:'TGH10', namaBill:'Asuransi Kendaraan',  kategori:'Asuransi',akunId:'UOB001', nominal:1800000, frekuensi:'Tahunan', tanggalBayar:'1',  tanggalMulai:'2026-03', tanggalSelesai:'', status:'Aktif' },
-      //   { tagihanId:'TGH11', namaBill:'Domain & Hosting',    kategori:'Lain-lain',akunId:'BCA001',nominal:1200000, frekuensi:'Tahunan', tanggalBayar:'15', tanggalMulai:'2024-06', tanggalSelesai:'', status:'Aktif' },
-      //   { tagihanId:'TGH12', namaBill:'GoPay PayLater',      kategori:'Cicilan', akunId:'GPY001', nominal:500000,  frekuensi:'Bulanan', tanggalBayar:'28', tanggalMulai:'2026-03', tanggalSelesai:'', status:'Aktif' },
-      // ]);
-
-      // /* ── GOALS ── */
-      // Store.set(KEYS.goals, [
-      //   { goalId:'GLS01', namaGoal:'Dana Darurat (6x Gaji)', targetNominal:51000000, sudahTerkumpul:12000000, deadline:'2026-12', nabungPerBulan:1500000, ikonGoal:'🛡️', status:'🔄 On Track' },
-      //   { goalId:'GLS02', namaGoal:'Liburan Keluarga',       targetNominal:15000000, sudahTerkumpul:3250000,  deadline:'2026-12', nabungPerBulan:1000000, ikonGoal:'✈️', status:'🔄 On Track' },
-      //   { goalId:'GLS03', namaGoal:'Laptop Baru',            targetNominal:20000000, sudahTerkumpul:4500000,  deadline:'2027-06', nabungPerBulan:800000,  ikonGoal:'💻', status:'✅ Ahead'    },
-      //   { goalId:'GLS04', namaGoal:'Renovasi Rumah',         targetNominal:50000000, sudahTerkumpul:8000000,  deadline:'2027-12', nabungPerBulan:2000000, ikonGoal:'🏠', status:'🔄 On Track' },
-      //   { goalId:'GLS05', namaGoal:'Pendidikan Anak',        targetNominal:100000000,sudahTerkumpul:15000000, deadline:'2032-01', nabungPerBulan:1500000, ikonGoal:'🎓', status:'🔄 On Track' },
-      // ]);
-
-      // /* ── TRANSAKSI ── */
-      // const T = (id,tgl,nama,kat,sub,akun,nom,tipe,cat='') => ({
-      //   txId:id, tanggal:tgl, nama, kategori:kat, subKategori:sub,
-      //   akunId:akun, akunTujuanId:'', nominal:nom, tipe, catatan:cat
-      // });
-
-      // Store.set(KEYS.transaksi, [
-      //   // ── MARET 2026 ──
-      //   T('TX0001','2026-03-01','Gaji Bulan Maret',       'Pemasukan',   'Gaji',           'BCA001', 8500000,'Masuk','Transfer dari kantor'),
-      //   T('TX0002','2026-03-01','Netflix',                 'Hiburan',     'Streaming',      'GPY001', 65000,  'Keluar','Auto-debit'),
-      //   T('TX0003','2026-03-01','Spotify',                 'Hiburan',     'Streaming',      'GPY001', 29000,  'Keluar','Auto-debit'),
-      //   T('TX0004','2026-03-02','Makan Siang Warteg',      'Makan & Minum','Makanan Harian','BCA001', 25000,  'Keluar'),
-      //   T('TX0005','2026-03-02','Bensin Pertamina',        'Transportasi','Bensin',         'BCA001', 150000, 'Keluar','Full tank'),
-      //   T('TX0006','2026-03-03','Kopi Kenangan',           'Makan & Minum','Kopi & Cafe',   'GPY001', 35000,  'Keluar'),
-      //   T('TX0007','2026-03-04','Grab ke Kantor',          'Transportasi','Ojol & Taksi',   'GPY001', 28000,  'Keluar'),
-      //   T('TX0008','2026-03-05','Listrik PLN',             'Tagihan',     'Listrik',        'BCA001', 348000, 'Keluar','Auto-debit'),
-      //   T('TX0009','2026-03-05','Makan Malam Keluarga',    'Makan & Minum','Makanan Harian','BCA001', 180000, 'Keluar','Restoran Padang'),
-      //   T('TX0010','2026-03-06','GoPay TopUp',             'Transfer',    'TopUp',          'BCA001', 300000, 'Transfer'),
-      //   T('TX0011','2026-03-07','Shopee - Kebutuhan Rumah','Belanja',     'Kebutuhan Rumah','GPY001', 215000, 'Keluar','Deterjen, sabun'),
-      //   T('TX0012','2026-03-08','Makan Siang',             'Makan & Minum','Makanan Harian','BCA001', 22000,  'Keluar'),
-      //   T('TX0013','2026-03-09','Alfamart',                'Makan & Minum','Makanan Harian','GPY001', 87500,  'Keluar'),
-      //   T('TX0014','2026-03-10','Internet IndiHome',       'Tagihan',     'Internet',       'BCA001', 350000, 'Keluar','Auto-debit'),
-      //   T('TX0015','2026-03-10','Kopi Starbucks',          'Makan & Minum','Kopi & Cafe',   'GPY001', 75000,  'Keluar','Meeting klien'),
-      //   T('TX0016','2026-03-11','GoFood - Makan Malam',   'Makan & Minum','Makanan Harian','GPY001', 55000,  'Keluar'),
-      //   T('TX0017','2026-03-12','Bensin Pertamina',        'Transportasi','Bensin',         'BCA001', 120000, 'Keluar'),
-      //   T('TX0018','2026-03-14','Charger HP Bukalapak',   'Belanja',     'Kebutuhan Rumah','GPY001', 125000, 'Keluar'),
-      //   T('TX0019','2026-03-15','Air PDAM',                'Tagihan',     'Air',            'BCA001', 78000,  'Keluar'),
-      //   T('TX0020','2026-03-15','Asuransi Jiwa',           'Asuransi',    'Asuransi Jiwa',  'MAY001', 450000, 'Keluar'),
-      //   T('TX0021','2026-03-15','Iuran RT',                'Lain-lain',   'Sosial',         'BCA001', 50000,  'Keluar'),
-      //   T('TX0022','2026-03-16','Indomaret',               'Makan & Minum','Makanan Harian','BCA001', 95000,  'Keluar'),
-      //   T('TX0023','2026-03-17','Obat Vitamin',            'Kesehatan',   'Apotek & Dokter','BCA001', 85000,  'Keluar'),
-      //   T('TX0024','2026-03-18','Grab Motor',              'Transportasi','Ojol & Taksi',   'GPY001', 18000,  'Keluar'),
-      //   T('TX0025','2026-03-19','Makan Siang',             'Makan & Minum','Makanan Harian','BCA001', 35000,  'Keluar'),
-      //   T('TX0026','2026-03-20','Cicilan Mobil Permata',   'Cicilan',     'Cicilan Mobil',  'PRM001', 2800000,'Keluar','Auto-debit'),
-      //   T('TX0027','2026-03-20','iCloud Storage',          'Tagihan',     'Langganan',      'GPY001', 15000,  'Keluar'),
-      //   T('TX0028','2026-03-21','Reksa Dana Bibit',        'Investasi',   'Reksa Dana',     'BCA001', 1000000,'Keluar','Rutin bulanan'),
-      //   T('TX0029','2026-03-22','Nonton Bioskop CGV',      'Hiburan',     'Rekreasi',       'BCA001', 120000, 'Keluar'),
-      //   T('TX0030','2026-03-24','Tokopedia - Kaos',        'Belanja',     'Pakaian',        'GPY001', 285000, 'Keluar'),
-      //   T('TX0031','2026-03-25','Cicilan KPR BCA',         'Cicilan',     'KPR',            'BCA001', 3200000,'Keluar','Auto-debit'),
-      //   T('TX0032','2026-03-26','Bensin',                  'Transportasi','Bensin',         'BCA001', 100000, 'Keluar'),
-      //   T('TX0033','2026-03-28','GoPay PayLater',          'Cicilan',     'PayLater',       'GPY001', 500000, 'Keluar'),
-      //   T('TX0034','2026-03-29','Saham BRI Stockbit',      'Investasi',   'Saham',          'UOB001', 500000, 'Keluar'),
-      //   T('TX0035','2026-03-30','Freelance Project',       'Pemasukan',   'Freelance',      'BCA001', 1500000,'Masuk','Proyek web klien'),
-      //   T('TX0036','2026-03-31','Bensin',                  'Transportasi','Bensin',         'BCA001', 150000, 'Keluar'),
-      //   // ── APRIL 2026 ──
-      //   T('TX0037','2026-04-01','Gaji Bulan April',        'Pemasukan',   'Gaji',           'BCA001', 8500000,'Masuk'),
-      //   T('TX0038','2026-04-01','Netflix',                 'Hiburan',     'Streaming',      'GPY001', 65000,  'Keluar','Auto-debit'),
-      //   T('TX0039','2026-04-01','Spotify',                 'Hiburan',     'Streaming',      'GPY001', 29000,  'Keluar','Auto-debit'),
-      //   T('TX0040','2026-04-04','THR Lebaran',             'Pemasukan',   'Bonus',          'BCA001', 8500000,'Masuk','THR 2026'),
-      //   T('TX0041','2026-04-05','Listrik PLN',             'Tagihan',     'Listrik',        'BCA001', 362000, 'Keluar'),
-      //   T('TX0042','2026-04-05','Oleh-oleh Lebaran',       'Makan & Minum','Makanan Harian','BCA001', 650000, 'Keluar','Kue & parcel'),
-      //   T('TX0043','2026-04-06','Baju Lebaran',            'Belanja',     'Pakaian',        'BCA001', 780000, 'Keluar','Batik keluarga'),
-      //   T('TX0044','2026-04-07','Bensin Mudik',            'Transportasi','Bensin',         'BCA001', 350000, 'Keluar'),
-      //   T('TX0045','2026-04-08','Makan di Jalan',          'Makan & Minum','Makanan Harian','BCA001', 220000, 'Keluar','Sekeluarga'),
-      //   T('TX0046','2026-04-09','Salam Tempel Keponakan',  'Lain-lain',   'Sosial',         'BCA001', 500000, 'Keluar','Lebaran'),
-      //   T('TX0047','2026-04-10','Internet IndiHome',       'Tagihan',     'Internet',       'BCA001', 350000, 'Keluar'),
-      //   T('TX0048','2026-04-11','Bensin Balik',            'Transportasi','Bensin',         'BCA001', 250000, 'Keluar'),
-      //   T('TX0049','2026-04-13','Shopee Promo Lebaran',    'Belanja',     'Kebutuhan Rumah','GPY001', 430000, 'Keluar'),
-      //   T('TX0050','2026-04-15','Air PDAM',                'Tagihan',     'Air',            'BCA001', 82000,  'Keluar'),
-      //   T('TX0051','2026-04-15','Asuransi Jiwa',           'Asuransi',    'Asuransi Jiwa',  'MAY001', 450000, 'Keluar'),
-      //   T('TX0052','2026-04-16','Dokter Umum',             'Kesehatan',   'Apotek & Dokter','SEA001', 150000, 'Keluar'),
-      //   T('TX0053','2026-04-16','Obat Resep',              'Kesehatan',   'Apotek & Dokter','SEA001', 95000,  'Keluar'),
-      //   T('TX0054','2026-04-18','GoFood Makan Malam',      'Makan & Minum','Makanan Harian','GPY001', 75000,  'Keluar'),
-      //   T('TX0055','2026-04-19','Indomaret',               'Makan & Minum','Makanan Harian','BCA001', 112000, 'Keluar'),
-      //   T('TX0056','2026-04-20','Cicilan Mobil Permata',   'Cicilan',     'Cicilan Mobil',  'PRM001', 2800000,'Keluar'),
-      //   T('TX0057','2026-04-20','iCloud Storage',          'Tagihan',     'Langganan',      'GPY001', 15000,  'Keluar'),
-      //   T('TX0058','2026-04-21','Reksa Dana Bibit',        'Investasi',   'Reksa Dana',     'BCA001', 2000000,'Keluar','Extra invest THR'),
-      //   T('TX0059','2026-04-22','Saham BCA Stockbit',      'Investasi',   'Saham',          'UOB001', 1000000,'Keluar'),
-      //   T('TX0060','2026-04-23','Nonton + Makan',          'Hiburan',     'Rekreasi',       'BCA001', 280000, 'Keluar','Outing keluarga'),
-      //   T('TX0061','2026-04-25','Cicilan KPR BCA',         'Cicilan',     'KPR',            'BCA001', 3200000,'Keluar'),
-      //   T('TX0062','2026-04-27','GoPay PayLater',          'Cicilan',     'PayLater',       'GPY001', 500000, 'Keluar'),
-      //   T('TX0063','2026-04-29','Makan Malam',             'Makan & Minum','Makanan Harian','BCA001', 88000,  'Keluar'),
-      //   T('TX0064','2026-04-30','Freelance Design',        'Pemasukan',   'Freelance',      'BCA001', 2000000,'Masuk','Proyek desain'),
-      //   // ── MEI 2026 ──
-      //   T('TX0065','2026-05-01','Gaji Bulan Mei',          'Pemasukan',   'Gaji',           'BCA001', 8500000,'Masuk'),
-      //   T('TX0066','2026-05-01','Netflix',                 'Hiburan',     'Streaming',      'GPY001', 65000,  'Keluar','Auto-debit'),
-      //   T('TX0067','2026-05-01','Spotify',                 'Hiburan',     'Streaming',      'GPY001', 29000,  'Keluar','Auto-debit'),
-      //   T('TX0068','2026-05-02','Makan Siang Warteg',      'Makan & Minum','Makanan Harian','BCA001', 25000,  'Keluar'),
-      //   T('TX0069','2026-05-02','Bensin Pertamina',        'Transportasi','Bensin',         'BCA001', 150000, 'Keluar'),
-      //   T('TX0070','2026-05-03','Kopi Kenangan',           'Makan & Minum','Kopi & Cafe',   'GPY001', 35000,  'Keluar'),
-      //   T('TX0071','2026-05-04','Grab Ojek',               'Transportasi','Ojol & Taksi',   'GPY001', 22000,  'Keluar'),
-      //   T('TX0072','2026-05-05','Listrik PLN',             'Tagihan',     'Listrik',        'BCA001', 335000, 'Keluar'),
-      //   T('TX0073','2026-05-06','Alfamart',                'Makan & Minum','Makanan Harian','BCA001', 95000,  'Keluar'),
-      //   T('TX0074','2026-05-07','Shopee - Alat Dapur',     'Belanja',     'Kebutuhan Rumah','GPY001', 180000, 'Keluar'),
-      //   T('TX0075','2026-05-09','Kopi Starbucks',          'Makan & Minum','Kopi & Cafe',   'GPY001', 58000,  'Keluar'),
-      //   T('TX0076','2026-05-10','Internet IndiHome',       'Tagihan',     'Internet',       'BCA001', 350000, 'Keluar'),
-      //   T('TX0077','2026-05-10','Makan Malam Ultah Istri', 'Makan & Minum','Makanan Harian','BCA001', 220000, 'Keluar','Ulang tahun istri'),
-      //   T('TX0078','2026-05-11','Kado Ulang Tahun',        'Belanja',     'Pakaian',        'BCA001', 450000, 'Keluar','Tas brand'),
-      //   T('TX0079','2026-05-12','Grab Mobil',              'Transportasi','Ojol & Taksi',   'GPY001', 55000,  'Keluar'),
-      //   T('TX0080','2026-05-13','GoFood Makan Malam',      'Makan & Minum','Makanan Harian','GPY001', 68000,  'Keluar'),
-      //   T('TX0081','2026-05-14','Bensin',                  'Transportasi','Bensin',         'BCA001', 120000, 'Keluar'),
-      //   T('TX0082','2026-05-15','Air PDAM',                'Tagihan',     'Air',            'BCA001', 80000,  'Keluar'),
-      //   T('TX0083','2026-05-15','Asuransi Jiwa',           'Asuransi',    'Asuransi Jiwa',  'MAY001', 450000, 'Keluar'),
-      //   T('TX0084','2026-05-15','Iuran RT',                'Lain-lain',   'Sosial',         'BCA001', 50000,  'Keluar'),
-      //   T('TX0085','2026-05-16','Indomaret',               'Makan & Minum','Makanan Harian','BCA001', 87500,  'Keluar'),
-      //   T('TX0086','2026-05-17','Obat Vitamin',            'Kesehatan',   'Apotek & Dokter','SEA001', 65000,  'Keluar'),
-      //   T('TX0087','2026-05-19','Tokopedia Sepatu',        'Belanja',     'Pakaian',        'GPY001', 380000, 'Keluar'),
-      //   T('TX0088','2026-05-20','Cicilan Mobil Permata',   'Cicilan',     'Cicilan Mobil',  'PRM001', 2800000,'Keluar'),
-      //   T('TX0089','2026-05-20','iCloud Storage',          'Tagihan',     'Langganan',      'GPY001', 15000,  'Keluar'),
-      //   T('TX0090','2026-05-21','Reksa Dana Bibit',        'Investasi',   'Reksa Dana',     'BCA001', 1000000,'Keluar'),
-      //   T('TX0091','2026-05-23','Nonton Bioskop',          'Hiburan',     'Rekreasi',       'BCA001', 140000, 'Keluar'),
-      //   T('TX0092','2026-05-24','Bensin',                  'Transportasi','Bensin',         'BCA001', 100000, 'Keluar'),
-      //   T('TX0093','2026-05-25','Cicilan KPR BCA',         'Cicilan',     'KPR',            'BCA001', 3200000,'Keluar'),
-      //   T('TX0094','2026-05-26','GoFood Makan Malam',      'Makan & Minum','Makanan Harian','GPY001', 72000,  'Keluar'),
-      //   T('TX0095','2026-05-27','GoPay PayLater',          'Cicilan',     'PayLater',       'GPY001', 500000, 'Keluar'),
-      //   T('TX0096','2026-05-28','Saham Stockbit',          'Investasi',   'Saham',          'UOB001', 500000, 'Keluar'),
-      //   T('TX0097','2026-05-29','Freelance Design',        'Pemasukan',   'Freelance',      'BCA001', 1800000,'Masuk'),
-      //   T('TX0098','2026-05-30','Makan Siang',             'Makan & Minum','Makanan Harian','BCA001', 28000,  'Keluar'),
-      // ]);
-
-      // refreshAll();
-      // renderCharts();
-      // //toast('Demo data berhasil dimuat — 98 transaksi, 3 bulan', 'success', 4000);
-    }
-
-    /* ════════════════════════════════════════════
-       DATA MANAGEMENT — Reset
-    ════════════════════════════════════════════ */
-    function resetData(moduleKey) {
-      const labels = {
-        [KEYS.transaksi]: 'semua transaksi',
-        [KEYS.akun]     : 'semua akun',
-        [KEYS.budget]   : 'semua budget',
-        [KEYS.tagihan]  : 'semua tagihan berulang',
-        [KEYS.goals]    : 'semua goals',
+      const T = (id,tgl,nama,kat,sub,akun,nom,tipe,cat='') => ({
+        txId:id, tanggal:tgl, nama, kategori:kat, subKategori:sub,
+        akunId:akun, akunTujuanId:'', nominal:nom, tipe, catatan:cat
+      });
+      const allDemo = {
+        akun: [
+          { akunId:'BCA001', namaAkun:'BCA - Tabungan',    tipeAkun:'Bank',     saldoAwal:18500000, warna:'#3B82F6', pemilik:'', aktif:true },
+          { akunId:'PRM001', namaAkun:'Permata - Tabungan', tipeAkun:'Bank',     saldoAwal:7200000,  warna:'#A855F7', pemilik:'', aktif:true },
+          { akunId:'UOB001', namaAkun:'UOB - ONE Account',  tipeAkun:'Bank',     saldoAwal:12000000, warna:'#06B6D4', pemilik:'', aktif:true },
+          { akunId:'SEA001', namaAkun:'SeaBank - Tabungan', tipeAkun:'Bank',     saldoAwal:3800000,  warna:'#22C55E', pemilik:'', aktif:true },
+          { akunId:'MAY001', namaAkun:'Maybank - Tabungan', tipeAkun:'Bank',     saldoAwal:5500000,  warna:'#F59E0B', pemilik:'', aktif:true },
+          { akunId:'GPY001', namaAkun:'GoPay',              tipeAkun:'E-Wallet', saldoAwal:1250000,  warna:'#14B8A6', pemilik:'', aktif:true },
+        ],
+        budget: [
+          { budgetId:'BDG01', kategori:'Makan & Minum', subKategori:'Makanan Harian', limitBulanan:2000000, tipeKebutuhan:'Kebutuhan' },
+          { budgetId:'BDG02', kategori:'Makan & Minum', subKategori:'Kopi & Cafe',    limitBulanan:400000,  tipeKebutuhan:'Keinginan' },
+          { budgetId:'BDG03', kategori:'Transportasi',  subKategori:'Bensin',          limitBulanan:600000,  tipeKebutuhan:'Kebutuhan' },
+          { budgetId:'BDG04', kategori:'Transportasi',  subKategori:'Ojol & Taksi',    limitBulanan:300000,  tipeKebutuhan:'Kebutuhan' },
+          { budgetId:'BDG05', kategori:'Tagihan',        subKategori:'Listrik',         limitBulanan:350000,  tipeKebutuhan:'Kebutuhan' },
+          { budgetId:'BDG06', kategori:'Tagihan',        subKategori:'Internet',        limitBulanan:350000,  tipeKebutuhan:'Kebutuhan' },
+          { budgetId:'BDG07', kategori:'Belanja',        subKategori:'Kebutuhan Rumah', limitBulanan:500000,  tipeKebutuhan:'Kebutuhan' },
+          { budgetId:'BDG08', kategori:'Hiburan',        subKategori:'Streaming',       limitBulanan:150000,  tipeKebutuhan:'Keinginan' },
+          { budgetId:'BDG09', kategori:'Investasi',      subKategori:'Reksa Dana',      limitBulanan:1000000, tipeKebutuhan:'Tabungan'  },
+          { budgetId:'BDG10', kategori:'Lain-lain',      subKategori:'Sosial',          limitBulanan:200000,  tipeKebutuhan:'Keinginan' },
+        ],
+        tagihan: [
+          { tagihanId:'TGH01', namaBill:'Listrik PLN',          kategori:'Tagihan', akunId:'BCA001', nominal:350000,  frekuensi:'Bulanan', tanggalBayar:'5',  tanggalMulai:'2026-03', tanggalSelesai:'',       status:'Aktif' },
+          { tagihanId:'TGH02', namaBill:'Internet IndiHome',    kategori:'Tagihan', akunId:'BCA001', nominal:350000,  frekuensi:'Bulanan', tanggalBayar:'10', tanggalMulai:'2026-03', tanggalSelesai:'',       status:'Aktif' },
+          { tagihanId:'TGH03', namaBill:'Air PDAM',             kategori:'Tagihan', akunId:'BCA001', nominal:80000,   frekuensi:'Bulanan', tanggalBayar:'15', tanggalMulai:'2026-03', tanggalSelesai:'',       status:'Aktif' },
+          { tagihanId:'TGH04', namaBill:'Netflix',              kategori:'Hiburan', akunId:'GPY001', nominal:65000,   frekuensi:'Bulanan', tanggalBayar:'1',  tanggalMulai:'2026-03', tanggalSelesai:'',       status:'Aktif' },
+          { tagihanId:'TGH05', namaBill:'Spotify',              kategori:'Hiburan', akunId:'GPY001', nominal:29000,   frekuensi:'Bulanan', tanggalBayar:'1',  tanggalMulai:'2026-03', tanggalSelesai:'',       status:'Aktif' },
+          { tagihanId:'TGH06', namaBill:'iCloud 50GB',          kategori:'Tagihan', akunId:'GPY001', nominal:15000,   frekuensi:'Bulanan', tanggalBayar:'20', tanggalMulai:'2026-03', tanggalSelesai:'',       status:'Aktif' },
+          { tagihanId:'TGH07', namaBill:'Cicilan KPR BCA',      kategori:'Cicilan', akunId:'BCA001', nominal:3200000, frekuensi:'Bulanan', tanggalBayar:'25', tanggalMulai:'2023-01', tanggalSelesai:'2042-12',status:'Aktif' },
+          { tagihanId:'TGH08', namaBill:'Cicilan Mobil Permata', kategori:'Cicilan', akunId:'PRM001', nominal:2800000, frekuensi:'Bulanan', tanggalBayar:'20', tanggalMulai:'2024-06', tanggalSelesai:'2027-05',status:'Aktif' },
+          { tagihanId:'TGH09', namaBill:'Asuransi Jiwa',        kategori:'Asuransi',akunId:'MAY001', nominal:450000,  frekuensi:'Bulanan', tanggalBayar:'15', tanggalMulai:'2026-03', tanggalSelesai:'',       status:'Aktif' },
+          { tagihanId:'TGH10', namaBill:'Asuransi Kendaraan',   kategori:'Asuransi',akunId:'UOB001', nominal:1800000, frekuensi:'Tahunan', tanggalBayar:'1',  tanggalMulai:'2026-03', tanggalSelesai:'',       status:'Aktif' },
+          { tagihanId:'TGH11', namaBill:'Domain & Hosting',     kategori:'Lain-lain',akunId:'BCA001',nominal:1200000, frekuensi:'Tahunan', tanggalBayar:'15', tanggalMulai:'2024-06', tanggalSelesai:'',       status:'Aktif' },
+          { tagihanId:'TGH12', namaBill:'GoPay PayLater',       kategori:'Cicilan', akunId:'GPY001', nominal:500000,  frekuensi:'Bulanan', tanggalBayar:'28', tanggalMulai:'2026-03', tanggalSelesai:'',       status:'Aktif' },
+        ],
+        goals: [
+          { goalId:'GLS01', namaGoal:'Dana Darurat (6x Gaji)', targetNominal:51000000,  sudahTerkumpul:12000000, deadline:'2026-12', nabungPerBulan:1500000, ikonGoal:'🛡️', status:'🔄 On Track' },
+          { goalId:'GLS02', namaGoal:'Liburan Keluarga',       targetNominal:15000000,  sudahTerkumpul:3250000,  deadline:'2026-12', nabungPerBulan:1000000, ikonGoal:'✈️', status:'🔄 On Track' },
+          { goalId:'GLS03', namaGoal:'Laptop Baru',            targetNominal:20000000,  sudahTerkumpul:4500000,  deadline:'2027-06', nabungPerBulan:800000,  ikonGoal:'💻', status:'✅ Ahead'    },
+          { goalId:'GLS04', namaGoal:'Renovasi Rumah',         targetNominal:50000000,  sudahTerkumpul:8000000,  deadline:'2027-12', nabungPerBulan:2000000, ikonGoal:'🏠', status:'🔄 On Track' },
+          { goalId:'GLS05', namaGoal:'Pendidikan Anak',        targetNominal:100000000, sudahTerkumpul:15000000, deadline:'2032-01', nabungPerBulan:1500000, ikonGoal:'🎓', status:'🔄 On Track' },
+        ],
+        transaksi: [
+          T('TX0001','2026-03-01','Gaji Bulan Maret',       'Pemasukan',   'Gaji',           'BCA001',8500000, 'Masuk'),
+          T('TX0002','2026-03-01','Netflix',                 'Hiburan',     'Streaming',      'GPY001',65000,   'Keluar'),
+          T('TX0003','2026-03-01','Spotify',                 'Hiburan',     'Streaming',      'GPY001',29000,   'Keluar'),
+          T('TX0004','2026-03-02','Makan Siang Warteg',      'Makan & Minum','Makanan Harian','BCA001',25000,   'Keluar'),
+          T('TX0005','2026-03-02','Bensin Pertamina',        'Transportasi','Bensin',         'BCA001',150000,  'Keluar'),
+          T('TX0006','2026-03-05','Listrik PLN',             'Tagihan',     'Listrik',        'BCA001',348000,  'Keluar'),
+          T('TX0007','2026-03-10','Internet IndiHome',       'Tagihan',     'Internet',       'BCA001',350000,  'Keluar'),
+          T('TX0008','2026-03-15','Air PDAM',                'Tagihan',     'Air',            'BCA001',78000,   'Keluar'),
+          T('TX0009','2026-03-20','Cicilan Mobil Permata',   'Cicilan',     'Cicilan Mobil',  'PRM001',2800000, 'Keluar'),
+          T('TX0010','2026-03-21','Reksa Dana Bibit',        'Investasi',   'Reksa Dana',     'BCA001',1000000, 'Keluar'),
+          T('TX0011','2026-03-25','Cicilan KPR BCA',         'Cicilan',     'KPR',            'BCA001',3200000, 'Keluar'),
+          T('TX0012','2026-03-30','Freelance Project',       'Pemasukan',   'Freelance',      'BCA001',1500000, 'Masuk'),
+          T('TX0013','2026-04-01','Gaji Bulan April',        'Pemasukan',   'Gaji',           'BCA001',8500000, 'Masuk'),
+          T('TX0014','2026-04-04','THR Lebaran',             'Pemasukan',   'Bonus',          'BCA001',8500000, 'Masuk'),
+          T('TX0015','2026-04-05','Listrik PLN',             'Tagihan',     'Listrik',        'BCA001',362000,  'Keluar'),
+          T('TX0016','2026-04-06','Baju Lebaran',            'Belanja',     'Pakaian',        'BCA001',780000,  'Keluar'),
+          T('TX0017','2026-04-10','Internet IndiHome',       'Tagihan',     'Internet',       'BCA001',350000,  'Keluar'),
+          T('TX0018','2026-04-15','Air PDAM',                'Tagihan',     'Air',            'BCA001',82000,   'Keluar'),
+          T('TX0019','2026-04-20','Cicilan Mobil Permata',   'Cicilan',     'Cicilan Mobil',  'PRM001',2800000, 'Keluar'),
+          T('TX0020','2026-04-21','Reksa Dana Bibit',        'Investasi',   'Reksa Dana',     'BCA001',2000000, 'Keluar'),
+          T('TX0021','2026-04-25','Cicilan KPR BCA',         'Cicilan',     'KPR',            'BCA001',3200000, 'Keluar'),
+          T('TX0022','2026-04-30','Freelance Design',        'Pemasukan',   'Freelance',      'BCA001',2000000, 'Masuk'),
+          T('TX0023','2026-05-01','Gaji Bulan Mei',          'Pemasukan',   'Gaji',           'BCA001',8500000, 'Masuk'),
+          T('TX0024','2026-05-01','Netflix',                 'Hiburan',     'Streaming',      'GPY001',65000,   'Keluar'),
+          T('TX0025','2026-05-01','Spotify',                 'Hiburan',     'Streaming',      'GPY001',29000,   'Keluar'),
+          T('TX0026','2026-05-02','Makan Siang Warteg',      'Makan & Minum','Makanan Harian','BCA001',25000,   'Keluar'),
+          T('TX0027','2026-05-05','Listrik PLN',             'Tagihan',     'Listrik',        'BCA001',335000,  'Keluar'),
+          T('TX0028','2026-05-10','Internet IndiHome',       'Tagihan',     'Internet',       'BCA001',350000,  'Keluar'),
+          T('TX0029','2026-05-15','Air PDAM',                'Tagihan',     'Air',            'BCA001',80000,   'Keluar'),
+          T('TX0030','2026-05-20','Cicilan Mobil Permata',   'Cicilan',     'Cicilan Mobil',  'PRM001',2800000, 'Keluar'),
+          T('TX0031','2026-05-21','Reksa Dana Bibit',        'Investasi',   'Reksa Dana',     'BCA001',1000000, 'Keluar'),
+          T('TX0032','2026-05-25','Cicilan KPR BCA',         'Cicilan',     'KPR',            'BCA001',3200000, 'Keluar'),
+          T('TX0033','2026-05-29','Freelance Design',        'Pemasukan',   'Freelance',      'BCA001',1800000, 'Masuk'),
+        ],
       };
-      if (!confirm('Hapus ' + (labels[moduleKey] || 'data ini') + '? Tindakan tidak bisa dibatalkan.')) return;
-      Store.clear(moduleKey);
-      refreshAll();
-      renderCharts();
-      //toast('Data berhasil direset', 'warn');
+      showLoading(true);
+      API.post('bulkImport', allDemo)
+        .done(function(res) {
+          if (res.status === 'ok') {
+            Object.entries(allDemo).forEach(([k, v]) => Cache.set(k, v));
+            refreshAll(); renderCharts();
+            toast('Demo data berhasil dimuat — 33 transaksi, 3 bulan', 'success', 4000);
+          } else { toast('Gagal load demo: ' + res.message, 'error'); }
+        })
+        .fail(function() { toast('Koneksi gagal', 'error'); })
+        .always(function() { showLoading(false); });
     }
 
+    /* ── RESET ALL ── */
     function resetAllData() {
       if (!confirm('Hapus SEMUA data?\nTindakan tidak bisa dibatalkan.')) return;
       showLoading(true);
@@ -5433,43 +3919,22 @@ $(function () {
         .done(function(res) {
           if (res.status === 'ok') {
             ['transaksi','akun','budget','tagihan','goals'].forEach(k => Cache.set(k, []));
-            refreshAll();
-            renderCharts();
-            //toast('Semua data berhasil dihapus', 'warn', 4000);
+            refreshAll(); renderCharts();
+            toast('Semua data berhasil dihapus', 'warn', 4000);
           }
         })
         .fail(function() { toast('Koneksi gagal', 'error'); })
         .always(function() { showLoading(false); });
     }
 
-    /* ════════════════════════════════════════════
-       DATA SUMMARY — info jumlah data tersimpan
-    ════════════════════════════════════════════ */
     function showDataSummary() {
-      const tx  = Cache.get('transaksi').length;
-      const akn = Cache.get('akun').length;
-      const bdg = Cache.get('budget').length;
-      const tgh = Cache.get('tagihan').length;
-      const gls = Cache.get('goals').length;
-      //toast(`Data: ${tx} transaksi · ${akn} akun · ${bdg} budget · ${tgh} tagihan · ${gls} goals`, 'info', 5000);
+      toast(`Data: ${Cache.get('transaksi').length} transaksi · ${Cache.get('akun').length} akun · ${Cache.get('budget').length} budget · ${Cache.get('tagihan').length} tagihan · ${Cache.get('goals').length} goals`, 'info', 5000);
     }
 
-    /* ════════════════════════════════════════════
-       EVENT LISTENERS — EXPORT
-    ════════════════════════════════════════════ */
-    // Export CSV (bulan aktif)
+    /* ── EVENT LISTENERS ── */
     $('#btnExportCSV').on('click', function () { exportCSV(false); });
+    $('#btnExportXLSX, #btnExportLaporan, #btnExportFamReport').on('click', exportXLSX);
 
-    // Export XLSX (semua data)
-    $('#btnExportXLSX, #btnExportLaporan').on('click', exportXLSX);
-
-    // Export laporan page button
-    $('#btnExportFamReport').on('click', exportXLSX);
-
-    /* ════════════════════════════════════════════
-       EVENT LISTENERS — DEMO DATA
-    ════════════════════════════════════════════ */
-    // Tombol di sidebar bottom (inject jika belum ada)
     if (!$('#btnLoadDemo').length) {
       $('.sidebarBottom .uploadZone:first').before(`
         <button id="btnLoadDemo" style="
@@ -5485,79 +3950,34 @@ $(function () {
     }
     $(document).on('click', '#btnLoadDemo', function () { loadDemoData(); });
 
-    /* ════════════════════════════════════════════
-       KEYBOARD SHORTCUTS
-    ════════════════════════════════════════════ */
     $(document).on('keydown', function (e) {
-      // Jangan aktif saat user sedang mengetik di input
       if (['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
-      // Jangan aktif saat modal terbuka
       if ($('.modalOverlay.open').length) return;
-
+      if (e.ctrlKey || e.metaKey) return;
       switch (e.key) {
-        case 'n': case 'N':
-          // N → buka form tambah transaksi
-          if (!e.ctrlKey && !e.metaKey) {
-            $('#drawerTx').addClass('open');
-            if (!$('#txTanggal').val()) {
-              $('#txTanggal').val(new Date().toISOString().split('T')[0]);
-            }
-            //toast('Shortcut N — Tambah Transaksi', 'info', 1500);
-          }
-          break;
-        case 'd': case 'D':
-          // D → Dashboard
-          if (!e.ctrlKey && !e.metaKey) {
-            $('.navItem[data-page="dashboard"]').trigger('click');
-          }
-          break;
-        case 't': case 'T':
-          // T → Transaksi
-          if (!e.ctrlKey && !e.metaKey) {
-            $('.navItem[data-page="transaksi"]').trigger('click');
-          }
-          break;
-        case 'i': case 'I':
-          // I → Info data summary
-          if (!e.ctrlKey && !e.metaKey) {
-            showDataSummary();
-          }
-          break;
+        case 'n': case 'N': $('#drawerTx').addClass('open'); if (!$('#txTanggal').val()) $('#txTanggal').val(new Date().toISOString().split('T')[0]); toast('Shortcut N — Tambah Transaksi', 'info', 1500); break;
+        case 'd': case 'D': $('.navItem[data-page="dashboard"]').trigger('click'); break;
+        case 't': case 'T': $('.navItem[data-page="transaksi"]').trigger('click'); break;
+        case 'i': case 'I': showDataSummary(); break;
       }
     });
 
-    /* ════════════════════════════════════════════
-       EXPOSE ke window (untuk integrasi lanjutan)
-    ════════════════════════════════════════════ */
-    window.FK.exportCSV      = exportCSV;
-    window.FK.exportXLSX     = exportXLSX;
-    window.FK.loadDemoData   = loadDemoData;
-    window.FK.resetData      = resetData;
-    window.FK.resetAllData   = resetAllData;
-    window.FK.//toast          = //toast;
-    window.FK.showDataSummary= showDataSummary;
+    window.FK.exportCSV       = exportCSV;
+    window.FK.exportXLSX      = exportXLSX;
+    window.FK.loadDemoData    = loadDemoData;
+    window.FK.resetAllData    = resetAllData;
+    window.FK.showDataSummary = showDataSummary;
 
-    /* ════════════════════════════════════════════
-       INIT — auto-load demo jika localStorage kosong
-    ════════════════════════════════════════════ */
     const hasTx = Cache.get('transaksi').length > 0;
-    if (!hasTx) {
-      // Tunda sedikit supaya semua Part sudah siap
-      setTimeout(() => loadDemoData(true), 400);
-    } else {
-      setTimeout(() => {
-        refreshAll();
-        renderCharts();
-      }, 300);
-    }
+    if (!hasTx) setTimeout(() => loadDemoData(true), 400);
+    else setTimeout(() => { refreshAll(); renderCharts(); }, 300);
 
-    console.log('FinanKu v2 — Export & Demo Data ready');
+    console.log('FinanKu v2 — Export & Demo ready');
     console.log('Shortcuts: N=Tambah Tx · D=Dashboard · T=Transaksi · I=Info Data');
 
-  }); // end waitFK
+  }); // end waitForExport
 
 }); // end $(function)
-
 </script>
 
 </body>
