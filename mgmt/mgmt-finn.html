@@ -1046,6 +1046,7 @@ a { text-decoration: none; color: inherit; }
   .insightRow { grid-template-columns: repeat(2,1fr); }
   .metricValue { font-size: 19px; }
   .grid3 { grid-template-columns: 1fr 1fr; }
+  .grid2{ grid-template-columns: 1fr ; }
 }
 
 /* Mobile ≤768px */
@@ -1135,9 +1136,6 @@ a { text-decoration: none; color: inherit; }
       <button class="btnLogin" id="btnLogin">Masuk →</button>
 
       <div class="loginDivider"><hr><span>info</span><hr></div>
-      <div class="loginHint">
-        Edit bagian <strong>AUTH_CONFIG</strong> di &lt;script&gt; untuk mengatur akun &amp; password.
-      </div>
     </div>
   </div>
 </div>
@@ -2084,7 +2082,8 @@ a { text-decoration: none; color: inherit; }
         </div>
         <div>
           <label class="formLabel">Nominal (Rp)</label>
-          <input class="formInput" type="number" id="txNominal" placeholder="0" min="0">
+          <input class="formInput" type="hidden" id="txNominal" placeholder="0" min="0">
+          <input class="formInput" type="text" id="numtxNominal" placeholder="Rp 1.000.000">
         </div>
       </div>
 
@@ -2171,7 +2170,8 @@ a { text-decoration: none; color: inherit; }
         </div>
         <div>
           <label class="formLabel">Saldo Awal (Rp)</label>
-          <input class="formInput" type="number" id="akunSaldoAwal" placeholder="0" min="0">
+          <input class="formInput" type="hidden" id="akunSaldoAwal" placeholder="0" min="0">
+          <input class="formInput" type="text" id="numakunSaldoAwal" placeholder="Rp 1.000.000">
         </div>
       </div>
 
@@ -2237,7 +2237,8 @@ a { text-decoration: none; color: inherit; }
       <div class="formRow">
         <div>
           <label class="formLabel">Limit Bulanan (Rp)</label>
-          <input class="formInput" type="number" id="budgetLimit" placeholder="0" min="0">
+          <input class="formInput" type="hidden" id="budgetLimit" placeholder="0" min="0">
+          <input class="formInput" type="text" id="numbudgetLimit" placeholder="Rp 1.000.000">
         </div>
         <div>
           <label class="formLabel">Tipe Kebutuhan</label>
@@ -2286,7 +2287,8 @@ a { text-decoration: none; color: inherit; }
         </div>
         <div>
           <label class="formLabel">Nominal (Rp)</label>
-          <input class="formInput" type="number" id="tagihanNominal" placeholder="0" min="0">
+          <input class="formInput" type="hidden" id="tagihanNominal" placeholder="0" min="0">
+          <input class="formInput" type="text" id="numtagihanNominal" placeholder="Rp 1.000.000">
         </div>
       </div>
 
@@ -2362,11 +2364,13 @@ a { text-decoration: none; color: inherit; }
       <div class="formRow">
         <div>
           <label class="formLabel">Target Nominal (Rp)</label>
-          <input class="formInput" type="number" id="goalTarget" placeholder="0" min="0">
+          <input class="formInput" type="hidden" id="goalTarget" placeholder="0" min="0">
+          <input class="formInput" type="text" id="numgoalTarget" placeholder="Rp 1.000.000">
         </div>
         <div>
           <label class="formLabel">Sudah Terkumpul (Rp)</label>
-          <input class="formInput" type="number" id="goalTerkumpul" placeholder="0" min="0">
+          <input class="formInput" type="hidden" id="goalTerkumpul" placeholder="0" min="0">
+          <input class="formInput" type="text" id="numgoalTerkumpul" placeholder="Rp 1.000.000">
         </div>
       </div>
 
@@ -2377,7 +2381,8 @@ a { text-decoration: none; color: inherit; }
         </div>
         <div>
           <label class="formLabel">Tabungan / Bulan (Rp)</label>
-          <input class="formInput" type="number" id="goalPerBulan" placeholder="0" min="0">
+          <input class="formInput" type="hidden" id="goalPerBulan" placeholder="0" min="0">
+          <input class="formInput" type="text" id="numgoalPerBulan" placeholder="Rp 1.000.000">
           <div class="formHint">Akan dihitung otomatis jika kosong</div>
         </div>
       </div>
@@ -2413,11 +2418,13 @@ a { text-decoration: none; color: inherit; }
 
 
 <script>
-  const API_URL = 'https://script.google.com/macros/s/AKfycbwU1tjO4hI4fsGKGiINBHDfKzTMVzREVeqbIQi9GCHg_P6X1NuzuCthpiy8dZ1q8gf3/exec';
+  window.addEventListener("DOMContentLoaded", initRupiahInputs);
+  const API_URL = 'https://script.google.com/macros/s/AKfycbwAw6FhivK84gsMRcjsqkJUQN_P1GuDtkNpUxts3nO8a9WiO60kDEL6yZV_UXuTTCOWLw/exec';
 
 /* ════════════════════════════════════════════
    API HELPER
 ════════════════════════════════════════════ */
+
 const API = {
   get(action, params = {}) {
     return $.get(API_URL, { ...params, action });
@@ -2449,6 +2456,21 @@ const Cache = {
   goals     : [],
   set(key, data) { this[key] = Array.isArray(data) ? data : []; },
   get(key)       { return Array.isArray(this[key]) ? this[key] : []; },
+};
+
+function loadIco() {
+    $.get(API_URL, { action: 'getIcon' })
+      .done(function(res) {
+        if (res.status === 'ok' && res.data.icon) {
+          let link = document.querySelector("link[rel~='icon']");
+          if (!link) {
+            link = document.createElement('link');
+            link.rel = 'icon';
+            document.head.appendChild(link);
+          }
+          link.href = res.data.logo;
+        }
+      })
 };
 
 /* ════════════════════════════════════════════
@@ -2519,6 +2541,25 @@ function showLoading(show) {
   }
 }
 
+function initRupiahInputs() {
+  const inputs = document.querySelectorAll('input[id^="num"]');
+  inputs.forEach(input => {
+    input.addEventListener("input", function () {
+      let raw = this.value.replace(/[^0-9]/g, "");
+      // format ribuan
+      let formatted = raw.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+      this.value = formatted;
+      // cari hidden input (hapus prefix "num")
+      let hiddenId = this.id.replace("num", "");
+      let hidden = document.getElementById(hiddenId);
+      if (hidden) {
+        hidden.value = raw;
+      }
+    });
+
+  });
+}
+
 /* ════════════════════════════════════════════
    INIT FROM SHEETS
 ════════════════════════════════════════════ */
@@ -2555,8 +2596,8 @@ $(function () {
   const AUTH_CONFIG = {
     sessionKey: 'finanku_session',
     users: [
-      { username: 'admin', password: 'admin123', displayName: 'Administrator', role: 'Owner' },
-      { username: 'demo',  password: 'demo',     displayName: 'Demo User',     role: 'Member' },
+      { username: 'shella', password: 'admin123', displayName: 'Shella Lim', role: 'Owner' },
+      { username: 'handy',  password: 'demo',     displayName: 'Handy Pranata',     role: 'Member' },
     ]
   };
 
@@ -2590,6 +2631,8 @@ $(function () {
      AUTH
   ════════════════════════════════════════════ */
   function doLogin() {
+    loadIco() 
+    initRupiahInputs();
     const username = $('#loginUser').val().trim();
     const password = $('#loginPass').val();
     $('#loginErr').removeClass('show');
@@ -2605,21 +2648,42 @@ $(function () {
     const $btn = $('#btnLogin');
     $btn.text('Memverifikasi...').prop('disabled', true).css('opacity', .7);
 
-    setTimeout(function () {
-      const user = AUTH_CONFIG.users.find(u => u.username === username && u.password === password);
-      if (user) {
-        sessionStorage.setItem(AUTH_CONFIG.sessionKey, JSON.stringify({
-          username: user.username, displayName: user.displayName,
-          role: user.role, loginTime: Date.now()
-        }));
-        enterApp(user);
-      } else {
-        $btn.text('Masuk →').prop('disabled', false).css('opacity', 1);
-        $('#loginErr').text('Username atau password salah. Coba lagi.').addClass('show');
-        $('#loginPass').addClass('err').val('').focus();
-      }
-    }, 500);
-  }
+    console.log(API_URL)
+    $.get(API_URL, { action: 'login', password: password })
+      .done(function(res) {
+    console.log(res)
+    if (res.status === 'ok') {
+        const user = AUTH_CONFIG.users.find(u => u.username === username );
+          if (user) {
+            const user = AUTH_CONFIG.users.find(u => u.username === username);
+            sessionStorage.setItem(AUTH_CONFIG.sessionKey, JSON.stringify({
+              username: user.username, displayName: user.displayName,
+              role: user.role, loginTime: Date.now()
+            }));
+            enterApp(user);
+          }
+        } else {
+          $btn.text('Masuk →').prop('disabled', false).css('opacity', 1);
+          $('#loginErr').text('Username atau password salah. Coba lagi.').addClass('show');
+          $('#loginPass').addClass('err').val('').focus();
+        }
+      })
+      .fail(function() { $('#loginErr').text('Gagal koneksi ke server.').show();  });
+  } 
+    // setTimeout(function () {
+    //   const user = AUTH_CONFIG.users.find(u => u.username === username && u.password === password);
+    //   if (user) {
+    //     sessionStorage.setItem(AUTH_CONFIG.sessionKey, JSON.stringify({
+    //       username: user.username, displayName: user.displayName,
+    //       role: user.role, loginTime: Date.now()
+    //     }));
+    //     enterApp(user);
+    //   } else {
+    //     $btn.text('Masuk →').prop('disabled', false).css('opacity', 1);
+    //     $('#loginErr').text('Username atau password salah. Coba lagi.').addClass('show');
+    //     $('#loginPass').addClass('err').val('').focus();
+    //   }
+    // }, 500);
 
   function enterApp(user) {
     currentUser = user;
@@ -3119,12 +3183,13 @@ $(function () {
     if (tipe === 'Transfer' && !akunTujuanId) { $('#txErr').text('Akun tujuan wajib diisi untuk Transfer.').addClass('show'); return; }
     $('#txErr').removeClass('show');
     const tx = {
+      action: 'addTransaksi',
       txId: genId('TX'), tanggal, nama, kategori,
       subKategori: $('#txSubKat').val().trim(), akunId, akunTujuanId,
       nominal: parseInt(nominal) || 0, tipe, catatan: $('#txCatatan').val().trim(),
     };
-    showLoading(true);
-    API.post('addTransaksi', tx)
+    showLoading(true); 
+    $.get(API_URL, tx)
       .done(function(res) {
         if (res.status === 'ok') {
           Cache.get('transaksi').push(tx);
@@ -3145,14 +3210,17 @@ $(function () {
     if (!namaAkun) { $('#akunErr').addClass('show'); return; }
     $('#akunErr').removeClass('show');
     const akun = {
+      action: 'addAkun',
       akunId: genId('AKN'), namaAkun, tipeAkun: $('#akunTipe').val(),
       saldoAwal: parseInt($('#akunSaldoAwal').val()) || 0,
       warna: $('#akunColorPicker .colorDot.selected').data('color') || '#3B82F6',
       pemilik: $('#akunPemilik').val().trim(), aktif: true,
     };
     showLoading(true);
-    API.post('addAkun', akun)
+
+    $.get(API_URL, akun)
       .done(function(res) {
+        console.log(res);
         if (res.status === 'ok') {
           Cache.get('akun').push(akun);
           $('#drawerAkun').removeClass('open');
@@ -3172,12 +3240,13 @@ $(function () {
     $('#budgetErr').removeClass('show');
     const existing = Cache.get('budget').find(b => b.kategori === kategori);
     const budgetData = {
+      action: existing ? 'updateBudget' : 'addBudget',
       budgetId: existing ? existing.budgetId : genId('BDG'),
       kategori, subKategori: $('#budgetSubKat').val().trim(),
       limitBulanan: parseInt(limitBulanan) || 0, tipeKebutuhan: $('#budgetTipe').val(),
     };
-    showLoading(true);
-    API.post(existing ? 'updateBudget' : 'addBudget', budgetData)
+    showLoading(true); 
+    $.get(API_URL, budgetData)
       .done(function(res) {
         if (res.status === 'ok') {
           if (existing) {
@@ -3200,13 +3269,14 @@ $(function () {
     if (!namaBill || !nominal || !akunId) { $('#tagihanErr').addClass('show'); return; }
     $('#tagihanErr').removeClass('show');
     const tagihanData = {
+      action: 'addTagihan',
       tagihanId: genId('TGH'), namaBill, kategori: $('#tagihanKategori').val(),
       akunId, nominal: parseInt(nominal) || 0, frekuensi: $('#tagihanFrekuensi').val(),
       tanggalBayar: $('#tagihanTglBayar').val(), tanggalMulai: $('#tagihanMulai').val(),
       tanggalSelesai: $('#tagihanSelesai').val(), status: $('#tagihanStatus').val(),
     };
-    showLoading(true);
-    API.post('addTagihan', tagihanData)
+    showLoading(true); 
+    $.get(API_URL, tagihanData)
       .done(function(res) {
         if (res.status === 'ok') {
           Cache.get('tagihan').push(tagihanData);
@@ -3234,11 +3304,12 @@ $(function () {
       nabung = Math.ceil(((parseInt(targetNominal)||0) - sudahTerkumpul) / months);
     }
     const goalData = {
+      action: 'addGoal',
       goalId: genId('GLS'), namaGoal, targetNominal: parseInt(targetNominal)||0,
       sudahTerkumpul, deadline, nabungPerBulan: nabung, ikonGoal: '🎯', status: '🔄 On Track',
     };
-    showLoading(true);
-    API.post('addGoal', goalData)
+    showLoading(true); 
+    $.get(API_URL, goalData)
       .done(function(res) {
         if (res.status === 'ok') {
           Cache.get('goals').push(goalData);
@@ -3259,8 +3330,12 @@ $(function () {
     e.stopPropagation();
     if (!confirm('Hapus transaksi ini?')) return;
     const id = $(this).data('txid');
-    showLoading(true);
-    API.get('deleteTransaksi', { id })
+    const params = {
+      action: 'deleteTransaksi',
+      id: id,
+    };
+    showLoading(true); 
+    $.get(API_URL, params)
       .done(function(res) {
         if (res.status === 'ok') {
           Cache.set('transaksi', Cache.get('transaksi').filter(t => t.txId !== id));
@@ -3275,8 +3350,12 @@ $(function () {
     e.stopPropagation();
     if (!confirm('Hapus tagihan ini?')) return;
     const id = $(this).data('tagihanid');
-    showLoading(true);
-    API.get('deleteTagihan', { id })
+    const params = {
+      action: 'deleteTagihan',
+      id: id,
+    };
+    showLoading(true); 
+    $.get(API_URL, params)
       .done(function(res) {
         if (res.status === 'ok') {
           Cache.set('tagihan', Cache.get('tagihan').filter(t => t.tagihanId !== id));
@@ -3291,8 +3370,12 @@ $(function () {
     e.stopPropagation();
     if (!confirm('Hapus goal ini?')) return;
     const id = $(this).data('goalid');
-    showLoading(true);
-    API.get('deleteGoal', { id })
+    const params = {
+      action: 'deleteGoal',
+      id: id,
+    };
+    showLoading(true); 
+    $.get(API_URL, params)
       .done(function(res) {
         if (res.status === 'ok') {
           Cache.set('goals', Cache.get('goals').filter(g => g.goalId !== id));
@@ -3371,15 +3454,16 @@ $(function () {
         }
 
         const importData = {
+          action: 'bulkImport',
           akun      : newAkun.length   ? newAkun   : Cache.get('akun'),
           transaksi : newTx.length     ? newTx     : Cache.get('transaksi'),
           budget    : budgets.length   ? budgets   : Cache.get('budget'),
           tagihan   : tagihans.length  ? tagihans  : Cache.get('tagihan'),
           goals     : goals.length     ? goals     : Cache.get('goals'),
         };
-
-        showLoading(true);
-        API.post('bulkImport', importData)
+ 
+        showLoading(true); 
+        $.get(API_URL, params)
           .done(function(res) {
             if (res.status === 'ok') {
               Object.entries(importData).forEach(([k, v]) => Cache.set(k, v));
