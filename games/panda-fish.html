@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panda Fishing Adventure</title>
+    <style>
+        :root {
+            --primary: #2d3436;
+            --accent: #00cec9;
+            --gold: #fdcb6e;
+            --common: #bdc3c7;
+            --uncommon: #55efc4;
+            --rare: #74b9ff;
+            --epic: #a29bfe;
+            --legendary: #fab1a0;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Comic Sans MS', 'Chalkboard SE', sans-serif; }
+        
+        body { background-color: #f0f2f5; color: var(--primary); height: 100vh; display: flex; justify-content: center; }
+
+        #game-wrapper {
+            width: 100%; max-width: 1200px; height: 100vh;
+            background: white; display: grid; grid-template-rows: auto 1fr auto;
+        }
+
+        @media (min-width: 992px) {
+            #main-content { display: grid; grid-template-columns: 280px 1fr 320px; gap: 1px; background: #dfe6e9; overflow: hidden; }
+            .sidebar { display: block !important; background: white; overflow-y: auto; padding: 20px; }
+            .mobile-only { display: none !important; }
+        }
+
+        @media (max-width: 991px) {
+            #main-content { display: block; overflow-y: auto; }
+            .sidebar { display: none; }
+            .mobile-only { display: block; }
+        }
+
+        header {
+            background: var(--primary); color: white; padding: 15px 25px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        /* --- PANDA ANIMATION --- */
+        #panda-container {
+            position: relative; width: 200px; height: 200px; margin: 20px auto;
+            font-size: 80px; transition: transform 0.3s;
+        }
+
+        .panda-body { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); }
+        .fishing-rod { 
+            position: absolute; bottom: 60px; right: -20px; font-size: 50px; 
+            transform-origin: bottom left; transition: 0.3s;
+        }
+
+        .float-anim { animation: float 2s infinite ease-in-out; }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        
+        .shake-anim { animation: shake 0.1s infinite; }
+        @keyframes shake { 0% { transform: translate(1px, 1px) rotate(0deg); } 10% { transform: translate(-1px, -2px) rotate(-1deg); } }
+
+        /* --- AQUARIUM --- */
+        .aquarium {
+            width: 100%; height: 180px; background: #e1f5fe; border: 4px solid #81d4fa;
+            border-radius: 15px; position: relative; overflow: hidden; margin-top: 10px;
+        }
+        .pet-fish { position: absolute; transition: 3s linear; font-size: 24px; cursor: pointer; }
+
+        /* --- BUTTONS & SLOTS --- */
+        .btn {
+            border: none; padding: 12px; border-radius: 25px; cursor: pointer;
+            font-weight: bold; transition: 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .btn-cast { background: var(--accent); color: white; width: 200px; font-size: 1.1rem; }
+        .btn-sell { background: #ff7675; color: white; font-size: 0.8rem; padding: 5px 10px; }
+
+        .fish-slot {
+            aspect-ratio: 1/1; background: #f1f2f6; border-radius: 12px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-size: 1.2rem; position: relative; border: 2px solid transparent;
+        }
+        .price-tag { font-size: 0.6rem; color: #2ecc71; font-weight: bold; }
+        
+        #toast {
+            position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.8); color: white; padding: 10px 25px;
+            border-radius: 30px; display: none; z-index: 1000;
+        }
+
+        .tab-bar { display: flex; background: #fff; border-top: 1px solid #ddd; }
+        .tab-item { flex: 1; padding: 12px; text-align: center; color: #636e72; cursor: pointer; }
+        .tab-item.active { color: var(--accent); border-top: 3px solid var(--accent); }
+    </style>
+</head>
+<body>
+
+<div id="game-wrapper">
+    <header>
+        <div>🐼 <span id="lvl-txt">Lv. 1</span></div>
+        <div style="color: var(--gold)">💰 <span id="money-txt">0</span></div>
+    </header>
+
+    <div id="main-content">
+        <!-- Sidebar: Areas & Pets -->
+        <aside class="sidebar" style="border-right: 1px solid #dfe6e9;">
+            <h3>📍 Locations</h3>
+            <div id="area-list" style="margin: 15px 0;"></div>
+            
+            <h3 style="margin-top: 25px;">🐠 My Aquarium</h3>
+            <div class="aquarium" id="aquarium-view">
+                <!-- Pet fish swim here -->
+            </div>
+            <p style="font-size: 0.7rem; color: #636e72; margin-top: 5px;">Click a fish in your bag to keep it as a pet!</p>
+        </aside>
+
+        <!-- Center: Panda & Gameplay -->
+        <main style="display: flex; flex-direction: column; align-items: center; padding: 20px; background: linear-gradient(#e1f5fe, #fff);">
+            <div id="area-label" style="font-size: 1.5rem; font-weight: bold; color: #0984e3;">VILLAGE POND</div>
+            
+            <div id="panda-container">
+                <div id="panda-emoji" class="panda-body">🐼</div>
+                <div id="rod-emoji" class="fishing-rod">🎣</div>
+            </div>
+
+            <button id="cast-btn" class="btn btn-cast" onclick="handleAction()">CAST LINE</button>
+            <p id="status-text" style="margin-top: 15px; font-weight: bold;">Ready to fish!</p>
+
+            <div style="margin-top: auto; width: 100%; height: 60px; background: #eee; border-radius: 10px; padding: 10px;">
+                <div style="display:flex; justify-content:space-between; font-size:0.8rem">
+                    <span>XP Progress</span>
+                    <span id="exp-val">0/100</span>
+                </div>
+                <div style="background:#fff; height:10px; border-radius:5px; margin-top:5px;">
+                    <div id="exp-bar" style="width:0%; height:100%; background:var(--accent); border-radius:5px;"></div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Sidebar: Inventory & Shop -->
+        <aside class="sidebar" style="border-left: 1px solid #dfe6e9;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3>🎒 Bag (<span id="inv-count">0</span>/12)</h3>
+                <button onclick="sellAll()" class="btn btn-sell">SELL ALL</button>
+            </div>
+            <div id="inventory-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;"></div>
+            
+            <h3 style="margin-top: 25px;">🛒 Shop</h3>
+            <div id="shop-list"></div>
+        </aside>
+
+        <!-- Mobile Views -->
+        <div id="mobile-views" class="mobile-only" style="padding: 20px; display: none;"></div>
+    </div>
+
+    <nav class="tab-bar mobile-only">
+        <div class="tab-item active" onclick="switchTab('main')">🎣<br>Fish</div>
+        <div class="tab-item" onclick="switchTab('bag')">🎒<br>Bag</div>
+        <div class="tab-item" onclick="switchTab('shop')">🛒<br>Shop</div>
+        <div class="tab-item" onclick="switchTab('aqua')">🐠<br>Tank</div>
+    </nav>
+</div>
+
+<div id="toast">Got a Fish!</div>
+
+<script>
+    // --- DATABASE ---
+    const fishData = [];
+    const rarities = {
+        Common: { color: '#bdc3c7', price: [15, 30] },
+        Uncommon: { color: '#55efc4', price: [40, 85] },
+        Rare: { color: '#74b9ff', price: [120, 280] },
+        Epic: { color: '#a29bfe', price: [500, 1100] },
+        Legendary: { color: '#fab1a0', price: [2000, 6000] }
+    };
+
+    const names = {
+        Common: ["Carp", "Catfish", "Tilapia", "Mackerel", "Sardine", "Perch", "Bass", "Minnow", "Bream", "Dace"],
+        Uncommon: ["Silver Arowana", "Koi", "Discus", "Clownfish", "Puffer", "Eel", "Salmon", "Trout", "Angel Fish", "Goby"],
+        Rare: ["Red Snapper", "Barracuda", "Mahi Mahi", "Sturgeon", "Electric Eel", "Vampire Fish", "Trigger Fish", "Manta Ray", "Lion Fish", "Piranha"],
+        Epic: ["Panda Shark 🐼🦈", "Golden Whale", "Giant Squid", "Hammerhead", "Sunfish", "Marlin", "Sawfish", "Oarfish", "Swordfish", "Ghost Ray"],
+        Legendary: ["Dragon Fish 🐉", "Leviathan 🌊", "Phoenix Koi", "Galaxy Whale 🌌", "Ancient Kraken", "Golden King", "Neptune's Pet", "Crystal Shark", "Abyssal God", "Poseidon's Bass"]
+    };
+
+    // Generate 100 fish
+    Object.keys(names).forEach(r => {
+        for(let i=0; i<20; i++) {
+            const n = names[r][i % names[r].length] + (i > 9 ? " II" : "");
+            fishData.push({
+                id: fishData.length,
+                name: n,
+                rarity: r,
+                price: Math.floor(Math.random() * (rarities[r].price[1] - rarities[r].price[0])) + rarities[r].price[0],
+                area: Math.floor(fishData.length / 20),
+                emoji: r === 'Legendary' ? '✨' : '🐟'
+            });
+        }
+    });
+
+    const areas = [
+        { name: "Village Pond", lvl: 1, color: "#55efc4" },
+        { name: "Blue River", lvl: 5, color: "#74b9ff" },
+        { name: "Ocean Pier", lvl: 12, color: "#0984e3" },
+        { name: "Deep Abyss", lvl: 25, color: "#2d3436" },
+        { name: "Cosmic Sea", lvl: 50, color: "#6c5ce7" }
+    ];
+
+    // --- STATE ---
+    let state = {
+        money: 0, xp: 0, level: 1, inventory: [], pets: [],
+        upgrades: { rod: 0, bait: 0 }, currentArea: 0
+    };
+
+    let isFishing = false;
+
+    // --- CORE LOGIC ---
+    function init() {
+        const saved = localStorage.getItem('pandaFishSave');
+        if(saved) state = JSON.parse(saved);
+        updateUI();
+        renderShop();
+        renderAreas();
+        renderInventory();
+        startAquarium();
+    }
+
+    function save() { localStorage.setItem('pandaFishSave', JSON.stringify(state)); }
+
+    function updateUI() {
+        document.getElementById('money-txt').innerText = state.money.toLocaleString();
+        document.getElementById('lvl-txt').innerText = `Lv. ${state.level}`;
+        document.getElementById('exp-val').innerText = `${state.xp}/${state.level * 100}`;
+        document.getElementById('exp-bar').style.width = `${(state.xp/(state.level*100))*100}%`;
+        document.getElementById('area-label').innerText = areas[state.currentArea].name;
+        document.getElementById('area-label').style.color = areas[state.currentArea].color;
+        document.getElementById('inv-count').innerText = state.inventory.length;
+    }
+
+    function handleAction() {
+        if(isFishing) return;
+        if(state.inventory.length >= 12) { showToast("Bag is full!"); return; }
+
+        isFishing = true;
+        const btn = document.getElementById('cast-btn');
+        const panda = document.getElementById('panda-emoji');
+        const rod = document.getElementById('rod-emoji');
+        const status = document.getElementById('status-text');
+
+        // Cast Animation
+        btn.disabled = true;
+        status.innerText = "Waiting for a bite...";
+        panda.innerText = "😴";
+        rod.style.transform = "rotate(-20deg)";
+        
+        const wait = Math.max(1500, 5000 - (state.upgrades.bait * 500));
+
+        setTimeout(() => {
+            // Surprise Animation
+            panda.innerText = "😲";
+            panda.classList.add('shake-anim');
+            rod.classList.add('shake-anim');
+            btn.disabled = false;
+            btn.innerText = "PULL!!";
+            btn.style.background = "#ff7675";
+            status.innerText = "SOMETHING IS BITING!";
+
+            btn.onclick = () => {
+                const fish = catchFish();
+                panda.classList.remove('shake-anim');
+                rod.classList.remove('shake-anim');
+                panda.innerText = "😊"; // Happy Panda
+                btn.innerText = "CAST LINE";
+                btn.style.background = "var(--accent)";
+                btn.onclick = handleAction;
+                isFishing = false;
+                showToast(`You caught a ${fish.name}! $${fish.price}`);
+            };
+
+            setTimeout(() => {
+                if(isFishing) {
+                    panda.innerText = "😭"; // Sad Panda
+                    panda.classList.remove('shake-anim');
+                    rod.classList.remove('shake-anim');
+                    resetFishing();
+                    showToast("Fish got away...");
+                }
+            }, 1000 + (state.upgrades.rod * 150));
+
+        }, wait + Math.random() * 2000);
+    }
+
+    function resetFishing() {
+        isFishing = false;
+        const btn = document.getElementById('cast-btn');
+        btn.innerText = "CAST LINE";
+        btn.disabled = false;
+        btn.style.background = "var(--accent)";
+        btn.onclick = handleAction;
+        document.getElementById('status-text').innerText = "Ready to fish!";
+    }
+
+    function catchFish() {
+        const roll = Math.random() * 100;
+        const luck = state.upgrades.rod * 2;
+        let rarity = "Common";
+
+        if(roll < (1 + luck/5)) rarity = "Legendary";
+        else if(roll < (5 + luck/2)) rarity = "Epic";
+        else if(roll < (15 + luck)) rarity = "Rare";
+        else if(roll < (40 + luck)) rarity = "Uncommon";
+
+        const pool = fishData.filter(f => f.rarity === rarity && f.area <= state.currentArea);
+        const fish = pool[Math.floor(Math.random() * pool.length)] || fishData[0];
+
+        state.inventory.push({...fish, instanceId: Date.now()});
+        state.xp += (Object.keys(rarities).indexOf(fish.rarity) + 1) * 20;
+        
+        if(state.xp >= state.level * 100) {
+            state.xp = 0;
+            state.level++;
+            showToast("LEVEL UP! 🎋");
+        }
+
+        updateUI();
+        renderInventory();
+        save();
+        return fish;
+    }
+
+    function sellAll() {
+        let total = 0;
+        state.inventory.forEach(f => total += f.price);
+        state.money += total;
+        state.inventory = [];
+        updateUI();
+        renderInventory();
+        save();
+        showToast(`Sold all for $${total}`);
+    }
+
+    function renderInventory() {
+        const grid = document.getElementById('inventory-grid');
+        grid.innerHTML = '';
+        for(let i=0; i<12; i++) {
+            const fish = state.inventory[i];
+            const slot = document.createElement('div');
+            slot.className = 'fish-slot';
+            if(fish) {
+                slot.style.borderColor = rarities[fish.rarity].color;
+                slot.innerHTML = `<span>${fish.emoji}</span><span class="price-tag">$${fish.price}</span>`;
+                slot.onclick = () => makePet(i);
+            }
+            grid.appendChild(slot);
+        }
+    }
+
+    function makePet(index) {
+        if(state.pets.length >= 5) {
+            showToast("Aquarium full! (Max 5)");
+            return;
+        }
+        const fish = state.inventory.splice(index, 1)[0];
+        state.pets.push(fish);
+        renderInventory();
+        renderAquarium();
+        save();
+        showToast(`Added ${fish.name} to Tank!`);
+    }
+
+    function startAquarium() {
+        renderAquarium();
+        setInterval(() => {
+            const fishes = document.querySelectorAll('.pet-fish');
+            fishes.forEach(f => {
+                f.style.left = Math.random() * 80 + "%";
+                f.style.top = Math.random() * 70 + "%";
+            });
+        }, 3000);
+    }
+
+    function renderAquarium() {
+        const tank = document.getElementById('aquarium-view');
+        tank.innerHTML = '';
+        state.pets.forEach((p, i) => {
+            const f = document.createElement('div');
+            f.className = 'pet-fish';
+            f.innerText = p.emoji;
+            f.style.left = "50%"; f.style.top = "50%";
+            f.title = p.name;
+            f.onclick = () => {
+                state.money += Math.floor(p.price * 0.1); // Small pet bonus
+                showToast(`Petted ${p.name}! Found $${Math.floor(p.price * 0.1)}`);
+                updateUI();
+            }
+            tank.appendChild(f);
+        });
+    }
+
+    function renderShop() {
+        const shop = document.getElementById('shop-list');
+        const rodCost = (state.upgrades.rod + 1) * 300;
+        const baitCost = (state.upgrades.bait + 1) * 250;
+        shop.innerHTML = `
+            <div style="background:#f8f9fa; padding:10px; border-radius:10px; margin-bottom:10px;">
+                <b>Rod Upgrade (Lv.${state.upgrades.rod})</b><br>
+                <small>Better luck & reaction time</small>
+                <button onclick="buy('rod', ${rodCost})" class="btn" style="width:100%; background:var(--accent); color:white; margin-top:5px;">$${rodCost}</button>
+            </div>
+            <div style="background:#f8f9fa; padding:10px; border-radius:10px;">
+                <b>Bait Upgrade (Lv.${state.upgrades.bait})</b><br>
+                <small>Faster bites</small>
+                <button onclick="buy('bait', ${baitCost})" class="btn" style="width:100%; background:var(--accent); color:white; margin-top:5px;">$${baitCost}</button>
+            </div>
+        `;
+    }
+
+    function buy(type, cost) {
+        if(state.money >= cost) {
+            state.money -= cost;
+            state.upgrades[type]++;
+            updateUI(); renderShop(); save();
+            showToast("Upgrade purchased!");
+        } else showToast("Not enough money!");
+    }
+
+    function renderAreas() {
+        const list = document.getElementById('area-list');
+        areas.forEach((a, i) => {
+            const locked = state.level < a.lvl;
+            const btn = document.createElement('button');
+            btn.className = 'btn';
+            btn.style.width = '100%';
+            btn.style.marginBottom = '5px';
+            btn.style.background = locked ? '#ccc' : a.color;
+            btn.style.color = 'white';
+            btn.innerText = locked ? `🔒 Level ${a.lvl}` : a.name;
+            btn.onclick = () => {
+                if(!locked) { state.currentArea = i; updateUI(); save(); }
+            };
+            list.appendChild(btn);
+        });
+    }
+
+    function showToast(m) {
+        const t = document.getElementById('toast');
+        t.innerText = m; t.style.display = 'block';
+        setTimeout(() => t.style.display = 'none', 2000);
+    }
+
+    function switchTab(t) {
+        const main = document.querySelector('main');
+        const mobile = document.getElementById('mobile-views');
+        document.querySelectorAll('.tab-item').forEach(el => el.classList.remove('active'));
+        
+        if(t === 'main') { main.style.display = 'flex'; mobile.style.display = 'none'; }
+        else {
+            main.style.display = 'none'; mobile.style.display = 'block';
+            if(t === 'bag') {
+                mobile.innerHTML = `<h3>🎒 Bag</h3><div id="m-inv" style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:10px;"></div><button onclick="sellAll()" class="btn" style="width:100%; margin-top:20px; background:#ff7675; color:white;">SELL ALL</button>`;
+                renderInventory();
+                document.getElementById('m-inv').innerHTML = document.getElementById('inventory-grid').innerHTML;
+            } else if(t === 'shop') {
+                mobile.innerHTML = `<h3>🛒 Shop</h3><div id="m-shop" style="margin-top:10px;"></div>`;
+                document.getElementById('m-shop').innerHTML = document.getElementById('shop-list').innerHTML;
+            } else if(t === 'aqua') {
+                mobile.innerHTML = `<h3>🐠 Aquarium</h3><div class="aquarium" style="height:300px;" id="m-aqua"></div>`;
+                renderAquarium();
+                document.getElementById('m-aqua').innerHTML = document.getElementById('aquarium-view').innerHTML;
+            }
+        }
+    }
+    function renderInventory() {
+    const grid = document.getElementById('inventory-grid');
+    const mobileGrid = document.getElementById('m-inv'); // Check for mobile grid
+    
+    const renderTo = (target) => {
+        if (!target) return;
+        target.innerHTML = '';
+        for(let i=0; i<12; i++) {
+            const fish = state.inventory[i];
+            const slot = document.createElement('div');
+            slot.className = 'fish-slot';
+            if(fish) {
+                slot.style.cursor = 'pointer';
+                slot.style.borderColor = rarities[fish.rarity].color;
+                slot.innerHTML = `<span>${fish.emoji}</span><span class="price-tag">$${fish.price}</span>`;
+                // IMPORTANT: This makes the click work!
+                slot.onclick = () => makePet(i);
+            }
+            target.appendChild(slot);
+        }
+    };
+
+    renderTo(grid);
+    renderTo(mobileGrid);
+    document.getElementById('inv-count').innerText = state.inventory.length;
+}
+
+function makePet(index) {
+    if (state.pets.length >= 5) {
+        showToast("Aquarium is full! (Max 5)");
+        return;
+    }
+    
+    // Remove from inventory and add to pets
+    const fish = state.inventory.splice(index, 1)[0];
+    state.pets.push(fish);
+    
+    // Refresh everything
+    renderInventory();
+    renderAquarium();
+    save();
+    showToast(`Added ${fish.name} to Tank! 🐠`);
+}
+
+    init();
+</script>
+</body>
+</html>
