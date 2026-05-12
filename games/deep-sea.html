@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Signal from the Deep</title>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
@@ -29,8 +29,10 @@
     font-family: 'Share Tech Mono', monospace;
     color: var(--glow);
     min-height: 100vh;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto; 
     cursor: crosshair;
+    display: block; /* Memastikan flow dokumen normal */
   }
 
   /* === OCEAN BACKGROUND === */
@@ -500,6 +502,100 @@
     .panel-box { flex: 1; min-width: 140px; }
     .cell { width: 44px; height: 44px; }
   }
+
+  /* === RESPONSIVE UPDATES === */
+
+/* Tablet (Portrait) */
+@media (max-width: 992px) {
+  #hud {
+    max-width: 100%;
+    padding: 10px;
+  }
+  
+  #game-area {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #grid-panel {
+    width: 100%;
+    padding: 15px;
+  }
+
+  #side-panel {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Membagi dua kolom di tablet */
+    gap: 10px;
+  }
+
+  .panel-box:last-child {
+    grid-column: span 2; /* Tombol kontrol memenuhi lebar bawah */
+  }
+}
+
+/* Mobile (HP) */
+@media (max-width: 600px) {
+  #game-wrapper {
+    padding: 10px;
+  }
+
+  #title-logo {
+    font-size: 11px;
+    letter-spacing: 2px;
+  }
+
+  .hud-value {
+    font-size: 14px;
+  }
+
+  /* Perkecil ukuran cell agar grid 7x7 tidak keluar layar */
+  .cell {
+    width: 40px; 
+    height: 40px;
+    font-size: 14px;
+  }
+
+  #grid-container {
+    /* Script JS akan menimpa ini, tapi kita set fallback */
+    gap: 3px;
+  }
+
+  /* Reset side panel ke satu kolom di HP */
+  #side-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .panel-box:last-child {
+    grid-column: span 1;
+  }
+
+  /* Sembunyikan sonar di HP yang layarnya sangat kecil jika mengganggu */
+  #sonar-display {
+    width: 100px;
+    height: 100px;
+  }
+
+  .overlay-box {
+    padding: 20px;
+  }
+
+  .overlay-title {
+    font-size: 18px;
+  }
+}
+
+/* Khusus layar sangat kecil (iPhone SE / Fold) */
+@media (max-width: 360px) {
+  .cell {
+    width: 35px;
+    height: 35px;
+  }
+  
+  #puzzle-title {
+    font-size: 9px;
+  }
+}
 </style>
 </head>
 <body>

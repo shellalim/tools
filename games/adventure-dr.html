@@ -1,0 +1,1518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Dark Realm — Chronicles of the Fallen</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #0a0608;
+  --bg2:      #110d0f;
+  --panel:    rgba(15,8,12,0.92);
+  --gold:     #c9933a;
+  --gold2:    #e8b84b;
+  --blood:    #8b1a1a;
+  --blood2:   #c0392b;
+  --ash:      #3a2d35;
+  --mist:     #6b5a63;
+  --light:    #e8ddd5;
+  --dim:      #7a6b72;
+  --green:    #2d6b3a;
+  --green2:   #3d9b50;
+  --blue:     #1a3a6b;
+  --blue2:    #2a5a9b;
+  --border:   rgba(201,147,58,0.25);
+  --border2:  rgba(201,147,58,0.6);
+  --shadow:   rgba(0,0,0,0.8);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;}
+body{
+  background:var(--bg);
+  font-family:'Crimson Text',serif;
+  color:var(--light);
+  touch-action:manipulation;
+}
+
+/* ── CANVAS BG ── */
+#bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none;}
+
+/* ── SCREENS ── */
+.screen{
+  position:fixed;inset:0;z-index:10;
+  display:none;flex-direction:column;
+  overflow-y:auto;overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;
+}
+.screen.active{display:flex;}
+
+/* ══════════════════════════════
+   TITLE SCREEN
+══════════════════════════════ */
+#screen-title{
+  align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at 50% 30%,#1a0a0e 0%,#0a0608 70%);
+  padding:40px 20px;
+  gap:20px;
+}
+.title-crest{font-size:clamp(50px,12vw,90px);animation:float 4s ease-in-out infinite;filter:drop-shadow(0 0 20px rgba(201,147,58,0.6));}
+@keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
+.title-main{
+  font-family:'Cinzel',serif;font-weight:900;
+  font-size:clamp(28px,7vw,56px);
+  letter-spacing:6px;text-align:center;
+  color:var(--gold2);
+  text-shadow:0 0 30px rgba(201,147,58,0.7),0 0 60px rgba(201,147,58,0.3);
+  animation:title-glow 3s ease-in-out infinite;
+}
+@keyframes title-glow{0%,100%{text-shadow:0 0 30px rgba(201,147,58,0.7),0 0 60px rgba(201,147,58,0.3);}50%{text-shadow:0 0 50px rgba(201,147,58,1),0 0 90px rgba(201,147,58,0.5);}}
+.title-sub{font-size:clamp(11px,2.5vw,14px);letter-spacing:5px;color:var(--mist);text-align:center;font-style:italic;}
+.title-divider{width:200px;height:1px;background:linear-gradient(to right,transparent,var(--gold),transparent);margin:8px 0;}
+.title-btns{display:flex;flex-direction:column;gap:12px;width:100%;max-width:320px;}
+.btn-rune{
+  padding:14px 24px;
+  font-family:'Cinzel',serif;font-size:clamp(12px,3vw,15px);letter-spacing:3px;
+  border:1px solid var(--border2);border-radius:2px;
+  background:rgba(201,147,58,0.08);color:var(--gold2);
+  cursor:pointer;transition:all 0.2s;
+  position:relative;overflow:hidden;
+}
+.btn-rune::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(201,147,58,0.1),transparent);opacity:0;transition:opacity 0.2s;}
+.btn-rune:hover::before,.btn-rune:active::before{opacity:1;}
+.btn-rune:hover,.btn-rune:active{background:rgba(201,147,58,0.18);box-shadow:0 0 20px rgba(201,147,58,0.3);transform:translateY(-1px);}
+.btn-rune.primary{background:rgba(139,26,26,0.3);border-color:rgba(192,57,43,0.6);color:#e8a09a;}
+.btn-rune.primary:hover,.btn-rune.primary:active{background:rgba(139,26,26,0.5);box-shadow:0 0 20px rgba(192,57,43,0.4);}
+
+/* ══════════════════════════════
+   GAME SCREEN
+══════════════════════════════ */
+#screen-game{
+  background:radial-gradient(ellipse at 50% 0%,#1a0d10 0%,#0a0608 60%);
+  padding:0;
+  justify-content:flex-start;
+}
+
+/* TOP HUD */
+#hud{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px;
+  background:rgba(8,5,7,0.9);
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+  gap:8px;
+  position:sticky;top:0;z-index:50;
+}
+.hud-hero{display:flex;align-items:center;gap:10px;flex:1;}
+.hero-avatar{font-size:28px;filter:drop-shadow(0 0 8px rgba(201,147,58,0.5));}
+.hero-info{display:flex;flex-direction:column;gap:3px;}
+.hero-name{font-family:'Cinzel',serif;font-size:clamp(11px,2.5vw,14px);color:var(--gold2);letter-spacing:1px;}
+.bar-wrap{display:flex;align-items:center;gap:5px;}
+.bar-label{font-size:9px;letter-spacing:1px;color:var(--mist);width:16px;text-align:right;}
+.bar{height:6px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,0.08);}
+.bar-hp{width:clamp(70px,18vw,120px);}
+.bar-mp{width:clamp(50px,12vw,80px);}
+.bar-fill{height:100%;border-radius:3px;transition:width 0.5s ease;}
+.bar-fill.hp{background:linear-gradient(to right,#8b1a1a,#e74c3c);}
+.bar-fill.mp{background:linear-gradient(to right,#1a3a6b,#3498db);}
+.bar-val{font-size:9px;color:var(--dim);}
+
+.hud-center{display:flex;flex-direction:column;align-items:center;gap:2px;}
+.hud-chapter{font-family:'Cinzel',serif;font-size:clamp(8px,2vw,11px);letter-spacing:2px;color:var(--mist);}
+.hud-zone{font-size:clamp(9px,2.2vw,12px);color:var(--gold);text-align:center;max-width:120px;}
+
+.hud-right{display:flex;align-items:center;gap:10px;}
+.hud-gold{display:flex;align-items:center;gap:4px;font-family:'Cinzel',serif;font-size:clamp(12px,3vw,16px);color:var(--gold2);}
+.btn-menu{background:none;border:1px solid var(--border);border-radius:2px;color:var(--mist);padding:6px 10px;cursor:pointer;font-size:12px;transition:all 0.2s;}
+.btn-menu:hover,.btn-menu:active{color:var(--gold);border-color:var(--border2);}
+
+/* CONTENT AREA */
+#game-content{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:14px;}
+
+/* ── STORY PANEL ── */
+#story-panel{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:4px;
+  padding:16px;
+  margin-bottom:14px;
+  position:relative;
+  overflow:hidden;
+}
+#story-panel::before{
+  content:'';position:absolute;inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 24px,rgba(201,147,58,0.02) 25px);
+  pointer-events:none;
+}
+.story-location{
+  font-family:'Cinzel',serif;font-size:clamp(9px,2.2vw,11px);
+  letter-spacing:4px;color:var(--gold);
+  margin-bottom:8px;opacity:0.8;
+}
+.story-art{text-align:center;font-size:clamp(40px,10vw,70px);margin:10px 0;animation:scene-float 5s ease-in-out infinite;}
+@keyframes scene-float{0%,100%{transform:translateY(0) scale(1);}50%{transform:translateY(-6px) scale(1.03);}}
+.story-text{
+  font-size:clamp(14px,3.5vw,17px);line-height:1.75;
+  color:var(--light);font-style:italic;
+  min-height:60px;
+}
+.story-cursor{display:inline-block;width:2px;height:14px;background:var(--gold);animation:blink 1s step-end infinite;vertical-align:middle;margin-left:2px;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
+
+/* CHOICES */
+#choices{display:flex;flex-direction:column;gap:8px;margin-top:12px;}
+.choice-btn{
+  padding:12px 16px;
+  font-family:'Crimson Text',serif;font-size:clamp(13px,3.2vw,16px);
+  border:1px solid var(--border);border-radius:3px;
+  background:rgba(201,147,58,0.05);color:var(--light);
+  cursor:pointer;text-align:left;
+  transition:all 0.2s;line-height:1.4;
+  display:flex;align-items:center;gap:10px;
+}
+.choice-btn:hover,.choice-btn:active{background:rgba(201,147,58,0.12);border-color:var(--border2);transform:translateX(4px);}
+.choice-icon{font-size:18px;flex-shrink:0;}
+
+/* ── COMBAT SCREEN ── */
+#combat-panel{display:none;flex-direction:column;gap:10px;}
+
+/* Enemy */
+.enemy-display{
+  background:var(--panel);border:1px solid rgba(139,26,26,0.4);
+  border-radius:4px;padding:14px;text-align:center;
+  position:relative;overflow:hidden;
+}
+.enemy-display::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 0%,rgba(139,26,26,0.1),transparent 70%);pointer-events:none;}
+.enemy-art{font-size:clamp(50px,12vw,80px);animation:enemy-idle 2s ease-in-out infinite;display:block;margin:0 auto 8px;}
+@keyframes enemy-idle{0%,100%{transform:translateY(0) scaleX(1);}50%{transform:translateY(-5px) scaleX(1.02);}}
+.enemy-name{font-family:'Cinzel',serif;font-size:clamp(14px,3.5vw,18px);color:#e8a09a;letter-spacing:2px;margin-bottom:6px;}
+.enemy-bars{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;}
+.enemy-bar-wrap{display:flex;align-items:center;gap:5px;}
+.enemy-hp-bar{width:clamp(100px,35vw,200px);height:8px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;}
+.enemy-hp-fill{height:100%;background:linear-gradient(to right,#5a0a0a,#c0392b);border-radius:4px;transition:width 0.5s ease;}
+.enemy-intent{font-size:clamp(10px,2.5vw,12px);color:var(--mist);font-style:italic;margin-top:4px;}
+
+/* Battlefield effects */
+.hit-effect{animation:hit-shake 0.3s ease;}
+@keyframes hit-shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-6px);}75%{transform:translateX(6px);}}'
+
+/* Player combat stats */
+.player-combat{
+  display:flex;gap:8px;flex-wrap:wrap;
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:4px;padding:10px 14px;
+  align-items:center;
+}
+.stat-pill{
+  display:flex;align-items:center;gap:5px;
+  background:rgba(255,255,255,0.04);border:1px solid var(--border);
+  border-radius:20px;padding:4px 10px;
+  font-size:clamp(11px,2.8vw,13px);
+}
+.stat-pill span:first-child{font-size:15px;}
+
+/* Energy */
+.energy-display{display:flex;gap:5px;align-items:center;}
+.energy-orb{width:22px;height:22px;border-radius:50%;border:1px solid rgba(52,152,219,0.4);background:rgba(52,152,219,0.08);transition:all 0.3s;flex-shrink:0;}
+.energy-orb.full{background:radial-gradient(circle,#5dade2,#1a5276);border-color:#3498db;box-shadow:0 0 8px rgba(52,152,219,0.5);}
+
+/* Hand */
+#hand-area{
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:4px;padding:10px;
+}
+.hand-label{font-family:'Cinzel',serif;font-size:9px;letter-spacing:3px;color:var(--mist);margin-bottom:8px;display:flex;justify-content:space-between;}
+#hand-cards{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(clamp(80px,20vw,110px),1fr));
+  gap:8px;
+}
+
+/* CARD */
+.card{
+  background:linear-gradient(160deg,#1a0f14,#120a0d);
+  border:1px solid var(--border);border-radius:6px;
+  padding:8px 6px;cursor:pointer;
+  transition:all 0.2s;
+  position:relative;overflow:hidden;
+  display:flex;flex-direction:column;gap:4px;
+  min-height:clamp(100px,25vw,130px);
+  user-select:none;
+}
+.card::before{content:'';position:absolute;inset:0;background:linear-gradient(160deg,rgba(201,147,58,0.05),transparent);opacity:0;transition:opacity 0.2s;}
+.card:hover::before,.card:active::before{opacity:1;}
+.card:hover,.card:active:not(.disabled){transform:translateY(-6px) scale(1.03);border-color:var(--border2);box-shadow:0 8px 24px rgba(0,0,0,0.6),0 0 12px rgba(201,147,58,0.2);}
+.card.disabled{opacity:0.4;cursor:not-allowed;filter:grayscale(0.5);}
+.card.attack{border-top:2px solid #c0392b;}
+.card.defend{border-top:2px solid #2980b9;}
+.card.skill{border-top:2px solid #8e44ad;}
+.card.item{border-top:2px solid #27ae60;}
+.card-cost{
+  position:absolute;top:5px;right:6px;
+  width:20px;height:20px;border-radius:50%;
+  background:radial-gradient(circle,#5dade2,#1a5276);
+  border:1px solid #3498db;
+  font-size:11px;font-weight:700;color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 6px rgba(52,152,219,0.4);
+}
+.card-icon{font-size:clamp(22px,5.5vw,28px);text-align:center;line-height:1;}
+.card-name{font-family:'Cinzel',serif;font-size:clamp(9px,2.2vw,11px);letter-spacing:1px;color:var(--gold);text-align:center;line-height:1.2;}
+.card-desc{font-size:clamp(8px,2vw,10px);color:var(--dim);text-align:center;line-height:1.3;flex:1;}
+.card-type{font-size:8px;letter-spacing:2px;color:var(--mist);text-align:center;text-transform:uppercase;}
+
+/* Combat Buttons */
+.combat-btns{display:flex;gap:8px;flex-wrap:wrap;}
+.btn-combat{
+  flex:1;min-width:80px;padding:10px 8px;
+  font-family:'Cinzel',serif;font-size:clamp(9px,2.2vw,11px);letter-spacing:2px;
+  border:1px solid var(--border);border-radius:3px;
+  background:rgba(201,147,58,0.08);color:var(--gold2);
+  cursor:pointer;transition:all 0.2s;
+}
+.btn-combat:hover,.btn-combat:active{background:rgba(201,147,58,0.2);border-color:var(--border2);}
+.btn-combat.end{background:rgba(139,26,26,0.2);border-color:rgba(192,57,43,0.5);color:#e8a09a;}
+.btn-combat.end:hover,.btn-combat.end:active{background:rgba(139,26,26,0.4);}
+
+/* ── STATUS LOG ── */
+#combat-log{
+  background:rgba(8,5,7,0.8);border:1px solid var(--border);
+  border-radius:3px;padding:8px 12px;
+  max-height:80px;overflow-y:auto;
+  font-size:clamp(10px,2.5vw,12px);color:var(--mist);
+  font-style:italic;
+}
+.log-entry{padding:1px 0;border-bottom:1px solid rgba(255,255,255,0.03);}
+.log-entry.good{color:var(--green2);}
+.log-entry.bad{color:#e74c3c;}
+.log-entry.info{color:var(--gold);}
+
+/* ── SHOP / REWARD ── */
+#reward-panel{display:none;flex-direction:column;gap:12px;}
+.reward-title{font-family:'Cinzel',serif;font-size:clamp(16px,4vw,22px);letter-spacing:4px;color:var(--gold2);text-align:center;text-shadow:0 0 20px rgba(201,147,58,0.5);}
+.reward-cards{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(clamp(90px,22vw,130px),1fr));
+  gap:10px;
+}
+.reward-card-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;}
+.btn-take{
+  width:100%;padding:8px;font-family:'Cinzel',serif;font-size:clamp(9px,2.2vw,10px);
+  letter-spacing:2px;border:1px solid var(--border2);border-radius:3px;
+  background:rgba(201,147,58,0.12);color:var(--gold2);cursor:pointer;transition:all 0.2s;
+}
+.btn-take:hover,.btn-take:active{background:rgba(201,147,58,0.25);}
+
+/* ── DECK VIEW ── */
+#deck-panel{display:none;flex-direction:column;gap:10px;}
+.deck-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(clamp(80px,20vw,110px),1fr));
+  gap:8px;
+}
+
+/* ── OVERLAYS ── */
+.overlay{
+  position:fixed;inset:0;z-index:100;
+  background:rgba(5,3,4,0.93);
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  padding:20px;
+  backdrop-filter:blur(6px);
+}
+.overlay.active{display:flex;}
+.overlay-box{
+  background:rgba(15,8,12,0.97);
+  border:1px solid var(--border);border-radius:6px;
+  padding:clamp(24px,5vw,40px);
+  text-align:center;width:100%;max-width:400px;
+  animation:pop-in 0.35s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes pop-in{from{transform:scale(0.85) translateY(20px);opacity:0;}to{transform:scale(1) translateY(0);opacity:1;}}
+.overlay-icon{font-size:clamp(40px,10vw,64px);margin-bottom:12px;display:block;}
+.overlay-title{font-family:'Cinzel',serif;font-size:clamp(18px,4.5vw,26px);font-weight:900;letter-spacing:4px;color:var(--gold2);margin-bottom:8px;}
+.overlay-text{font-size:clamp(13px,3.2vw,16px);color:var(--mist);line-height:1.7;margin-bottom:20px;font-style:italic;}
+.overlay-btns{display:flex;flex-direction:column;gap:10px;}
+
+/* ── FLOATING DAMAGE ── */
+.dmg-float{
+  position:fixed;font-family:'Cinzel',serif;font-size:clamp(18px,4vw,24px);font-weight:700;
+  pointer-events:none;z-index:200;
+  animation:dmg-rise 1s ease forwards;
+}
+.dmg-float.red{color:#e74c3c;text-shadow:0 0 10px rgba(231,76,60,0.8);}
+.dmg-float.green{color:#2ecc71;text-shadow:0 0 10px rgba(46,204,113,0.8);}
+.dmg-float.blue{color:#3498db;text-shadow:0 0 10px rgba(52,152,219,0.8);}
+.dmg-float.gold{color:var(--gold2);text-shadow:0 0 10px rgba(201,147,58,0.8);}
+@keyframes dmg-rise{0%{transform:translateY(0);opacity:1;}100%{transform:translateY(-60px);opacity:0;}}
+
+/* Particles */
+.particle{
+  position:fixed;pointer-events:none;z-index:199;
+  border-radius:50%;animation:particle-burst 0.6s ease forwards;
+}
+@keyframes particle-burst{0%{transform:scale(0) translate(0,0);opacity:1;}100%{transform:scale(1) translate(var(--tx),var(--ty));opacity:0;}}
+
+/* SCROLL CUSTOM */
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(201,147,58,0.3);border-radius:3px;}
+
+/* RESPONSIVE */
+@media(min-width:600px){
+  #hand-cards{grid-template-columns:repeat(auto-fill,minmax(100px,1fr));}
+  .card{min-height:120px;}
+}
+@media(min-width:900px){
+  #game-content{max-width:720px;margin:0 auto;padding:18px;}
+  #hud{padding:12px 20px;}
+}
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+
+<!-- ════════ TITLE SCREEN ════════ -->
+<div class="screen active" id="screen-title">
+  <div class="title-crest">⚔️</div>
+  <div class="title-main">DARK REALM</div>
+  <div class="title-sub">CHRONICLES OF THE FALLEN</div>
+  <div class="title-divider"></div>
+  <div class="title-btns">
+    <button class="btn-rune primary" onclick="newGame()">⚔ BEGIN YOUR QUEST</button>
+    <button class="btn-rune" id="btn-continue" onclick="loadGame()" style="display:none">📜 CONTINUE JOURNEY</button>
+    <button class="btn-rune" onclick="showHowToPlay()">📖 HOW TO PLAY</button>
+  </div>
+  <div style="margin-top:20px;font-size:11px;color:var(--ash);letter-spacing:2px;text-align:center;">YOUR SOUL AWAITS, TRAVELLER</div>
+</div>
+
+<!-- ════════ GAME SCREEN ════════ -->
+<div class="screen" id="screen-game">
+  <!-- HUD -->
+  <div id="hud">
+    <div class="hud-hero">
+      <div class="hero-avatar" id="hud-avatar">🧙</div>
+      <div class="hero-info">
+        <div class="hero-name" id="hud-name">???</div>
+        <div class="bar-wrap">
+          <span class="bar-label">HP</span>
+          <div class="bar bar-hp"><div class="bar-fill hp" id="bar-hp" style="width:100%"></div></div>
+          <span class="bar-val" id="val-hp">??</span>
+        </div>
+        <div class="bar-wrap">
+          <span class="bar-label">MP</span>
+          <div class="bar bar-mp"><div class="bar-fill mp" id="bar-mp" style="width:100%"></div></div>
+          <span class="bar-val" id="val-mp">??</span>
+        </div>
+      </div>
+    </div>
+    <div class="hud-center">
+      <div class="hud-chapter" id="hud-chapter">ACT I</div>
+      <div class="hud-zone" id="hud-zone">The Dark Realm</div>
+    </div>
+    <div class="hud-right">
+      <div class="hud-gold">🪙<span id="hud-gold">0</span></div>
+      <button class="btn-menu" onclick="showMenu()">☰</button>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div id="game-content">
+
+    <!-- STORY MODE -->
+    <div id="story-panel">
+      <div class="story-location" id="story-location">📍 UNKNOWN LANDS</div>
+      <div class="story-art" id="story-art">🌑</div>
+      <div class="story-text" id="story-text"></div>
+      <div id="choices"></div>
+    </div>
+
+    <!-- COMBAT MODE -->
+    <div id="combat-panel">
+      <div class="enemy-display" id="enemy-display">
+        <span class="enemy-art" id="enemy-art">👹</span>
+        <div class="enemy-name" id="enemy-name">???</div>
+        <div class="enemy-bars">
+          <div class="enemy-bar-wrap">
+            <span style="font-size:11px;color:var(--mist)">HP</span>
+            <div class="enemy-hp-bar"><div class="enemy-hp-fill" id="enemy-hp-fill" style="width:100%"></div></div>
+            <span style="font-size:11px;color:var(--mist)" id="enemy-hp-val">?/?</span>
+          </div>
+          <div class="stat-pill" id="enemy-shield-pill" style="display:none">🛡 <span id="enemy-shield-val">0</span></div>
+        </div>
+        <div class="enemy-intent" id="enemy-intent"></div>
+      </div>
+
+      <div class="player-combat">
+        <div class="stat-pill">🛡 <span id="player-shield">0</span></div>
+        <div class="stat-pill">⚡<span id="player-str">0</span></div>
+        <div class="stat-pill">🃏 <span id="deck-count">0</span></div>
+        <div class="stat-pill">🗑 <span id="discard-count">0</span></div>
+        <div style="flex:1"></div>
+        <div class="energy-display" id="energy-orbs"></div>
+      </div>
+
+      <div id="hand-area">
+        <div class="hand-label">
+          <span>✋ HAND</span>
+          <span id="hand-count">0/5 cards</span>
+        </div>
+        <div id="hand-cards"></div>
+      </div>
+
+      <div id="combat-log"></div>
+
+      <div class="combat-btns">
+        <button class="btn-combat" onclick="drawCard()">📥 DRAW</button>
+        <button class="btn-combat" onclick="viewDeck()">📚 DECK</button>
+        <button class="btn-combat end" onclick="endTurn()">⚔ END TURN</button>
+      </div>
+    </div>
+
+    <!-- REWARD MODE -->
+    <div id="reward-panel">
+      <div class="reward-title">⚜ SPOILS OF WAR ⚜</div>
+      <div style="text-align:center;font-style:italic;color:var(--mist);font-size:clamp(12px,3vw,14px)" id="reward-desc"></div>
+      <div class="reward-cards" id="reward-cards"></div>
+      <button class="btn-rune" onclick="skipReward()" style="margin-top:4px">CONTINUE WITHOUT REWARD</button>
+    </div>
+
+    <!-- DECK VIEW MODE -->
+    <div id="deck-panel">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div class="reward-title" style="font-size:clamp(14px,3.5vw,18px)">📚 YOUR DECK</div>
+        <button class="btn-menu" onclick="closeDeck()">✕</button>
+      </div>
+      <div class="deck-grid" id="deck-grid"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════ OVERLAYS ════════ -->
+<!-- GAME OVER -->
+<div class="overlay" id="overlay-death">
+  <div class="overlay-box">
+    <span class="overlay-icon">💀</span>
+    <div class="overlay-title">THOU ART SLAIN</div>
+    <div class="overlay-text" id="death-text">The darkness claims your soul.<br>Your journey ends here.</div>
+    <div class="overlay-btns">
+      <button class="btn-rune" onclick="respawnCheckpoint()">⚓ RETURN TO CHECKPOINT</button>
+      <button class="btn-rune primary" onclick="newGame()">↺ NEW JOURNEY</button>
+    </div>
+  </div>
+</div>
+
+<!-- VICTORY -->
+<div class="overlay" id="overlay-victory">
+  <div class="overlay-box">
+    <span class="overlay-icon">👑</span>
+    <div class="overlay-title">VICTORY!</div>
+    <div class="overlay-text" id="victory-text">The enemy falls before your might.</div>
+    <div class="overlay-btns">
+      <button class="btn-rune primary" onclick="continueAfterVictory()">⚔ PRESS ONWARD</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHECKPOINT -->
+<div class="overlay" id="overlay-checkpoint">
+  <div class="overlay-box">
+    <span class="overlay-icon">🏕</span>
+    <div class="overlay-title">CAMP FOUND</div>
+    <div class="overlay-text">You rest by the fire. Progress saved.<br>Your wounds begin to mend.</div>
+    <div class="overlay-btns">
+      <button class="btn-rune primary" onclick="closeCheckpoint()">🔥 PRESS ONWARD</button>
+    </div>
+  </div>
+</div>
+
+<!-- MENU -->
+<div class="overlay" id="overlay-menu">
+  <div class="overlay-box">
+    <span class="overlay-icon">⚜</span>
+    <div class="overlay-title">PAUSE</div>
+    <div class="overlay-btns">
+      <button class="btn-rune" onclick="saveGame();closeMenu()">💾 SAVE PROGRESS</button>
+      <button class="btn-rune" onclick="viewDeck();closeMenu()">📚 VIEW DECK</button>
+      <button class="btn-rune primary" onclick="closeMenu()">✕ RESUME</button>
+      <button class="btn-rune" onclick="confirmQuit()">🏠 TITLE SCREEN</button>
+    </div>
+  </div>
+</div>
+
+<!-- HOW TO PLAY -->
+<div class="overlay" id="overlay-howto">
+  <div class="overlay-box" style="max-width:460px">
+    <span class="overlay-icon">📖</span>
+    <div class="overlay-title">HOW TO PLAY</div>
+    <div class="overlay-text" style="text-align:left;font-size:clamp(12px,3vw,14px)">
+      <b style="color:var(--gold)">⚔ QUEST</b><br>
+      Make choices to navigate the story. Each decision shapes your path.<br><br>
+      <b style="color:var(--gold)">🃏 CARD COMBAT</b><br>
+      You start with 3 energy per turn. Play cards from your hand — each card costs energy. Draw more cards as needed. End your turn to let the enemy act.<br><br>
+      <b style="color:var(--gold)">🛡 DEFENCE</b><br>
+      Shield absorbs damage but resets each turn. Stack it early.<br><br>
+      <b style="color:var(--gold)">⚜ REWARDS</b><br>
+      After battles, choose new cards to add to your deck. Build your perfect build!<br><br>
+      <b style="color:var(--gold)">🏕 CHECKPOINTS</b><br>
+      Rest sites save your progress and restore some HP.
+    </div>
+    <button class="btn-rune primary" onclick="closeOverlay('overlay-howto')" style="margin-top:8px">UNDERSTOOD</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════
+//   CANVAS BACKGROUND
+// ══════════════════════════════
+const canvas = document.getElementById('bg-canvas');
+const ctx = canvas.getContext('2d');
+let particles = [];
+
+function resizeCanvas(){canvas.width=innerWidth;canvas.height=innerHeight;}
+resizeCanvas();
+window.addEventListener('resize',resizeCanvas);
+
+class Ember{
+  constructor(){this.reset();}
+  reset(){
+    this.x=Math.random()*canvas.width;
+    this.y=canvas.height+10;
+    this.vx=(Math.random()-0.5)*0.4;
+    this.vy=-(0.3+Math.random()*0.8);
+    this.life=1;this.decay=0.003+Math.random()*0.005;
+    this.size=1+Math.random()*2;
+    this.hue=Math.random()<0.5?30:0;
+  }
+  update(){
+    this.x+=this.vx;this.y+=this.vy;
+    this.life-=this.decay;
+    if(this.life<=0||this.y<-10)this.reset();
+  }
+  draw(){
+    ctx.save();
+    ctx.globalAlpha=this.life*0.7;
+    ctx.fillStyle=`hsl(${this.hue},80%,${50+this.life*20}%)`;
+    ctx.shadowBlur=6;ctx.shadowColor=`hsl(${this.hue},80%,50%)`;
+    ctx.beginPath();ctx.arc(this.x,this.y,this.size,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  }
+}
+
+for(let i=0;i<60;i++)particles.push(new Ember());
+
+function bgLoop(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  particles.forEach(p=>{p.update();p.draw();});
+  requestAnimationFrame(bgLoop);
+}
+bgLoop();
+
+// ══════════════════════════════
+//   GAME DATA
+// ══════════════════════════════
+const SAVE_KEY='darkrealm_v2';
+
+// All available cards in the game
+const ALL_CARDS = {
+  // Starter cards
+  strike:   {id:'strike',  name:'Strike',    icon:'⚔',type:'attack', cost:1,desc:'Deal 6 damage.',effect:{dmg:6}},
+  slash:    {id:'slash',   name:'Slash',     icon:'🗡',type:'attack', cost:1,desc:'Deal 8 damage.',effect:{dmg:8}},
+  guard:    {id:'guard',   name:'Guard',     icon:'🛡',type:'defend', cost:1,desc:'Gain 5 Shield.',effect:{shield:5}},
+  bash:     {id:'bash',    name:'Bash',      icon:'🪓',type:'attack', cost:2,desc:'Deal 12 damage. Weaken enemy.',effect:{dmg:12,weak:1}},
+  // Advanced attack
+  executioner:{id:'executioner',name:'Executioner',icon:'💀',type:'attack',cost:3,desc:'Deal 20 damage. Gain 2 STR.',effect:{dmg:20,str:2}},
+  twin_strike:{id:'twin_strike',name:'Twin Strike',icon:'⚔',type:'attack',cost:1,desc:'Deal 5 damage twice.',effect:{dmg:5,hits:2}},
+  heavy_blow:{id:'heavy_blow',name:'Heavy Blow',icon:'🔨',type:'attack',cost:2,desc:'Deal 14+STR damage.',effect:{dmg:14,useStr:true}},
+  whirlwind:{id:'whirlwind',name:'Whirlwind',icon:'🌀',type:'attack',cost:2,desc:'Deal 8 damage. Draw 1.',effect:{dmg:8,draw:1}},
+  // Defend
+  fortress: {id:'fortress', name:'Fortress',  icon:'🏰',type:'defend', cost:2,desc:'Gain 12 Shield.',effect:{shield:12}},
+  iron_skin:{id:'iron_skin',name:'Iron Skin', icon:'🪖',type:'defend', cost:1,desc:'Gain 4 Shield. Gain 1 STR.',effect:{shield:4,str:1}},
+  parry:    {id:'parry',   name:'Parry',     icon:'🤺',type:'defend', cost:0,desc:'Gain 3 Shield. Draw 1.',effect:{shield:3,draw:1}},
+  // Skills
+  bloodlust:{id:'bloodlust',name:'Bloodlust',icon:'🩸',type:'skill', cost:1,desc:'Gain 3 STR for this battle.',effect:{str:3}},
+  rally:    {id:'rally',   name:'Rally',     icon:'✨',type:'skill', cost:2,desc:'Restore 8 HP.',effect:{heal:8}},
+  meditation:{id:'meditation',name:'Meditate',icon:'🧘',type:'skill',cost:1,desc:'Gain +1 Energy next turn.',effect:{energy:1}},
+  adrenaline:{id:'adrenaline',name:'Adrenaline',icon:'⚡',type:'skill',cost:0,desc:'Draw 2 cards.',effect:{draw:2}},
+  curse:    {id:'curse',   name:'Hex Curse', icon:'🔮',type:'skill', cost:1,desc:'Weaken enemy 2 turns. -2 ATK.',effect:{weak:2}},
+  // Items
+  potion:   {id:'potion',  name:'Life Potion',icon:'🧪',type:'item',  cost:0,desc:'Restore 15 HP.',effect:{heal:15}},
+  elixir:   {id:'elixir',  name:'Power Elixir',icon:'💊',type:'item', cost:1,desc:'Gain 4 STR this battle.',effect:{str:4}},
+  tome:     {id:'tome',    name:'Dark Tome',  icon:'📕',type:'skill', cost:2,desc:'Draw 3 cards.',effect:{draw:3}},
+};
+
+const STARTER_DECK = ['strike','strike','slash','guard','guard','bash','adrenaline','parry'];
+
+const ENEMIES = [
+  {id:'goblin',    name:'Cave Goblin',    icon:'👺',hp:28, atk:6,  shield:0, reward:20, desc:'A wretched creature wielding a rusty blade.'},
+  {id:'skeleton',  name:'Skeleton Knight',icon:'💀',hp:35, atk:8,  shield:4, reward:30, desc:'Bones held together by dark magic.'},
+  {id:'wolf',      name:'Dire Wolf',      icon:'🐺',hp:32, atk:10, shield:0, reward:25, desc:'A massive wolf with glowing red eyes.'},
+  {id:'witch',     name:'Dark Witch',     icon:'🧙‍♀️',hp:30,atk:7,  shield:2, reward:35, desc:'She channels forbidden shadow spells.'},
+  {id:'orc',       name:'Orc Warlord',    icon:'👹',hp:55, atk:12, shield:6, reward:50, desc:'A hulking brute armored in iron.'},
+  {id:'golem',     name:'Stone Golem',    icon:'🗿',hp:70, atk:10, shield:10,reward:60, desc:'Ancient guardian of the ruins.'},
+  {id:'vampire',   name:'Vampire Lord',   icon:'🧛',hp:65, atk:14, shield:0, reward:70, desc:'Immortal. Feeds on the living.'},
+  {id:'dragon',    name:'Shadow Dragon',  icon:'🐉',hp:100,atk:18, shield:8, reward:100,desc:'The ancient terror. Few survive its wrath.'},
+];
+
+// Story chapters
+const STORY = [
+  // Chapter 0 - Intro
+  {
+    id:0, act:'ACT I', zone:'The Blighted Crossroads',
+    art:'🌑', location:'📍 THE BLIGHTED CROSSROADS',
+    text:"You awaken at a crumbling crossroads. Dark clouds choke the sky. A foul stench fills the air — the stench of death. Three roads stretch before you. A half-dead traveller whispers: *\"Turn back... the realm is cursed...\"*",
+    choices:[
+      {text:'Take the forest path. (Danger lurks within)',icon:'🌲',next:1},
+      {text:'Aid the dying traveller',icon:'🤝',next:'event_traveller'},
+      {text:'Search the ruins for supplies',icon:'🏚',next:'event_ruins'},
+    ]
+  },
+  // Chapter 1 - Forest
+  {
+    id:1, act:'ACT I', zone:'Darkwood Forest',
+    art:'🌲', location:'📍 DARKWOOD FOREST',
+    text:"The forest swallows you whole. Ancient trees twist like tortured souls. Suddenly — movement in the shadows. A pair of burning eyes fix upon you. A Cave Goblin lunges from the brush, blade raised!",
+    choices:[
+      {text:'Draw your weapon! ⚔ COMBAT',icon:'⚔',next:'combat',enemy:'goblin'},
+    ]
+  },
+  // Event - traveller
+  {
+    id:'event_traveller', act:'ACT I', zone:'The Blighted Crossroads',
+    art:'🤕', location:'📍 DYING TRAVELLER',
+    text:"You kneel beside the traveller. With trembling hands he presses a vial into your palm: a healing potion. *\"The Goblin King... he rules the forest now. The old castle... avoid the east road...\"* He breathes his last.",
+    reward_card:'potion',
+    choices:[
+      {text:'Head into the forest', icon:'🌲', next:1},
+      {text:'Take the castle road instead',icon:'🏰',next:3},
+    ]
+  },
+  // Event - ruins
+  {
+    id:'event_ruins', act:'ACT I', zone:'Ruined Outpost',
+    art:'🏚', location:'📍 RUINED OUTPOST',
+    text:"Among the rubble you find a dusty tome and a few scattered gold coins. The pages crackle as you open it — ancient battle techniques. You feel knowledge seep into your mind.",
+    reward_card:'tome', gold:15,
+    choices:[
+      {text:'Head into the forest',icon:'🌲',next:1},
+      {text:'Head to the dark castle',icon:'🏰',next:3},
+    ]
+  },
+  // Chapter 2 - After forest combat
+  {
+    id:2, act:'ACT I', zone:'Darkwood Clearing',
+    art:'🍂', location:'📍 FOREST CLEARING',
+    text:"The goblin falls. You stand in a moonlit clearing, blood on your blade. Through the trees you glimpse two routes: a crumbling watchtower to the north, and a merchant's campfire to the west.",
+    choices:[
+      {text:'Investigate the watchtower',icon:'🗼',next:'event_tower'},
+      {text:'Approach the merchant',icon:'🧑‍💼',next:'event_merchant'},
+      {text:'Press on to the dark castle',icon:'🏰',next:3},
+    ]
+  },
+  // Event tower
+  {
+    id:'event_tower', act:'ACT I', zone:'Crumbling Watchtower',
+    art:'🗼', location:'📍 CRUMBLING WATCHTOWER',
+    text:"You climb the tower's winding stairs. A skeleton knight guards the top — waiting, patient as death itself. But atop its bony fist rests a glowing iron shield. You must fight for it.",
+    choices:[
+      {text:'Fight the Skeleton Knight ⚔ COMBAT',icon:'💀',next:'combat',enemy:'skeleton'},
+      {text:'Leave and head to the castle',icon:'🏰',next:3},
+    ]
+  },
+  // Event merchant
+  {
+    id:'event_merchant', act:'ACT I', zone:"Merchant's Camp",
+    art:'🧑‍💼', location:"📍 MERCHANT'S CAMP",
+    text:"A hooded figure stirs a bubbling pot. *\"Ah, a brave soul! I have rare wares — for the right price.\"* He offers: a power elixir or a fortification scroll.",
+    choices:[
+      {text:'Buy Power Elixir (25 gold)',icon:'💊',next:'buy_elixir'},
+      {text:'Buy Fortress Card (20 gold)',icon:'🏰',next:'buy_fortress'},
+      {text:'Continue to the castle',icon:'🏰',next:3},
+    ]
+  },
+  // Buy events
+  {
+    id:'buy_elixir', act:'ACT I', zone:"Merchant's Camp",
+    art:'💊', location:"📍 PURCHASE COMPLETE",
+    text:"The merchant grins as you hand over the gold. The elixir gleams with inner fire. You tuck it into your satchel. *\"May fortune favour your blade, warrior.\"*",
+    buy:{card:'elixir',cost:25},
+    choices:[{text:'Head to the dark castle',icon:'🏰',next:3}]
+  },
+  {
+    id:'buy_fortress', act:'ACT I', zone:"Merchant's Camp",
+    art:'🏰', location:"📍 PURCHASE COMPLETE",
+    text:"The merchant produces a heavy scroll. As you read it, battle formations fill your mind — walls of stone and iron will. *\"An unbreakable fortress, that technique.\"*",
+    buy:{card:'fortress',cost:20},
+    choices:[{text:'Head to the dark castle',icon:'🏰',next:3}]
+  },
+  // Chapter 3 - Castle approach
+  {
+    id:3, act:'ACT I', zone:'Gates of Duskmore Keep',
+    art:'🏰', location:'📍 DUSKMORE KEEP',
+    text:"The castle rises before you — black stone bleeding shadow. The gates hang open, a wound in iron. Inside, a massive Orc Warlord bellows a war cry, brandishing twin axes. *\"NONE SHALL PASS!\"*",
+    choices:[
+      {text:'Charge! ⚔ COMBAT',icon:'⚔',next:'combat',enemy:'orc'},
+    ]
+  },
+  // CHECKPOINT after orc
+  {
+    id:'checkpoint_1', act:'ACT I', zone:'Castle Courtyard — Campfire',
+    art:'🔥', location:'📍 CAMPFIRE — CHECKPOINT',
+    checkpoint:true,
+    text:"Beyond the warlord's corpse you find a sheltered courtyard. A dying fire still glows in the hearth. You collapse beside it, cleaning your wounds. The warmth is almost enough to forget the darkness ahead.",
+    choices:[
+      {text:'Rest and press deeper into the castle',icon:'🏰',next:4},
+    ]
+  },
+  // Chapter 4 - Castle interior
+  {
+    id:4, act:'ACT II', zone:'The Cursed Halls',
+    art:'🕯', location:'📍 THE CURSED HALLS',
+    text:"Torches flicker in the cursed halls. Tapestries depict a terrible ritual — a lord consuming darkness to gain immortal power. A robed figure blocks the corridor. *\"The master expected you.\"* A Dark Witch raises her staff!",
+    choices:[
+      {text:'Face the witch ⚔ COMBAT',icon:'🔮',next:'combat',enemy:'witch'},
+    ]
+  },
+  // Chapter 5 - Upper halls
+  {
+    id:5, act:'ACT II', zone:'The Upper Ramparts',
+    art:'🌙', location:'📍 UPPER RAMPARTS',
+    text:"You emerge onto the ramparts beneath a blood-red moon. The view is stunning — and terrifying. Across the battlements, a Stone Golem animated by dark runes stands guard at the tower door.",
+    choices:[
+      {text:'Battle the Golem ⚔ COMBAT',icon:'🗿',next:'combat',enemy:'golem'},
+      {text:'Seek another path (search for secret passage)',icon:'🔍',next:'event_secret'},
+    ]
+  },
+  // Secret passage
+  {
+    id:'event_secret', act:'ACT II', zone:'Hidden Passage',
+    art:'🗝', location:'📍 SECRET PASSAGE',
+    text:"Behind a cracked stone you find a narrow passage. Inside: a locked chest and the glint of gold. You pry it open — inside rests a powerful blade technique and coin enough for a feast.",
+    reward_card:'heavy_blow', gold:40,
+    choices:[
+      {text:'Face the Golem now',icon:'🗿',next:'combat',enemy:'golem'},
+    ]
+  },
+  // Chapter 6 - Tower summit
+  {
+    id:6, act:'ACT II', zone:'The Black Summit',
+    art:'🧛', location:'📍 THE BLACK SUMMIT',
+    text:"The tower summit. Lightning splits the sky. A pale figure in dark armour turns slowly. *\"You... actually made it.\"* The Vampire Lord steps forward, eyes red as coals. *\"I shall drain every last drop of your courage.\"*",
+    choices:[
+      {text:'Final battle begins ⚔ COMBAT',icon:'🧛',next:'combat',enemy:'vampire'},
+    ]
+  },
+  // CHECKPOINT 2
+  {
+    id:'checkpoint_2', act:'ACT II', zone:'The Sealed Vault',
+    art:'🔥', location:'📍 SEALED VAULT — CHECKPOINT',
+    checkpoint:true,
+    text:"The Vampire Lord's dust settles. You discover a sealed vault behind the throne. Within: a weapon rack, ancient scrolls, and a campfire still burning from enchantment. You rest, preparing for the final confrontation.",
+    choices:[
+      {text:'Descend to the Shadow Crypt',icon:'🐉',next:7},
+    ]
+  },
+  // Final chapter
+  {
+    id:7, act:'ACT III', zone:'The Shadow Crypt',
+    art:'🐉', location:'📍 THE SHADOW CRYPT',
+    text:"Deep beneath the castle the earth trembles. A colossal Shadow Dragon uncurls from the dark, its scales like living night. *\"At last — a worthy soul to consume.\"* The air burns with its breath. This is where legends are forged — or broken.",
+    choices:[
+      {text:'Face your destiny ⚔ FINAL BATTLE',icon:'🐉',next:'combat',enemy:'dragon'},
+    ]
+  },
+  // Ending
+  {
+    id:'ending', act:'FIN', zone:'The Realm Reborn',
+    art:'🌅', location:'📍 DAWN BREAKS',
+    text:"The dragon falls. A roar that shook mountains dies to silence. Light — true, warm, golden light — pierces the eternal dark for the first time in centuries. The curse is broken. The realm breathes again.\n\nThey will write songs of your name.",
+    choices:[
+      {text:'🏆 PLAY AGAIN',icon:'⚔',next:'restart'},
+    ]
+  },
+];
+
+const STORY_MAP = {};
+STORY.forEach(s=>STORY_MAP[s.id]=s);
+
+// Story flow map: what comes after combat/event
+const AFTER_COMBAT = {
+  goblin:     2,
+  skeleton:   2,
+  orc:        'checkpoint_1',
+  witch:      5,
+  golem:      6,
+  vampire:    'checkpoint_2',
+  dragon:     'ending',
+};
+
+// ══════════════════════════════
+//   GAME STATE
+// ══════════════════════════════
+let G = {};
+
+function defaultState(){
+  return {
+    heroName:'The Wanderer',
+    heroAvatar:'🧙',
+    hp:80, maxHp:80,
+    mp:30, maxMp:30,
+    gold:10,
+    str:0,
+    deck:[...STARTER_DECK],
+    deckCards:[...STARTER_DECK], // full deck
+    discardPile:[],
+    storyId:0,
+    checkpointId:0,
+    combatActive:false,
+    enemy:null,
+    hand:[],
+    energy:3,maxEnergy:3,
+    playerShield:0,
+    enemyShield:0,
+    enemyHp:0,enemyMaxHp:0,
+    turn:1,
+    battleStr:0,
+    nextEnergyBonus:0,
+  };
+}
+
+// ══════════════════════════════
+//   SAVE / LOAD
+// ══════════════════════════════
+function saveGame(){
+  const data={
+    ...G,
+    savedAt:new Date().toISOString()
+  };
+  localStorage.setItem(SAVE_KEY,JSON.stringify(data));
+  showFloating('💾 Saved!','gold',document.getElementById('hud'));
+}
+
+function loadGame(){
+  const raw=localStorage.getItem(SAVE_KEY);
+  if(!raw)return;
+  G=JSON.parse(raw);
+  showScreen('screen-game');
+  updateHUD();
+  if(G.combatActive&&G.enemy){
+    startCombatFromState();
+  } else {
+    showStoryNode(G.storyId);
+  }
+}
+
+function newGame(){
+  G=defaultState();
+  closeAllOverlays();
+  showScreen('screen-game');
+  updateHUD();
+  showStoryNode(0);
+}
+
+// ══════════════════════════════
+//   SCREENS & OVERLAYS
+// ══════════════════════════════
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.getElementById('game-content').scrollTop=0;
+}
+
+function showOverlay(id){document.getElementById(id).classList.add('active');}
+function closeOverlay(id){document.getElementById(id).classList.remove('active');}
+function closeAllOverlays(){document.querySelectorAll('.overlay').forEach(o=>o.classList.remove('active'));}
+function closeMenu(){closeOverlay('overlay-menu');}
+function showMenu(){showOverlay('overlay-menu');}
+function confirmQuit(){
+  closeAllOverlays();
+  saveGame();
+  setTimeout(()=>{
+    showScreen('screen-title');
+    checkSave();
+  },300);
+}
+function showHowToPlay(){showOverlay('overlay-howto');}
+
+// ══════════════════════════════
+//   HUD
+// ══════════════════════════════
+function updateHUD(){
+  document.getElementById('hud-avatar').textContent=G.heroAvatar;
+  document.getElementById('hud-name').textContent=G.heroName;
+  document.getElementById('bar-hp').style.width=(G.hp/G.maxHp*100)+'%';
+  document.getElementById('val-hp').textContent=G.hp+'/'+G.maxHp;
+  document.getElementById('bar-mp').style.width=(G.mp/G.maxMp*100)+'%';
+  document.getElementById('val-mp').textContent=G.mp+'/'+G.maxMp;
+  document.getElementById('hud-gold').textContent=G.gold;
+}
+
+function updateHudZone(act,zone){
+  document.getElementById('hud-chapter').textContent=act;
+  document.getElementById('hud-zone').textContent=zone;
+}
+
+// ══════════════════════════════
+//   STORY
+// ══════════════════════════════
+let typeTimer=null;
+
+function showStoryNode(id){
+  // Reset combat UI
+  document.getElementById('combat-panel').style.display='none';
+  document.getElementById('reward-panel').style.display='none';
+  document.getElementById('deck-panel').style.display='none';
+  document.getElementById('story-panel').style.display='block';
+
+  const node=STORY_MAP[id];
+  if(!node){console.error('No story node:',id);return;}
+  G.storyId=id;
+  G.combatActive=false;
+
+  updateHudZone(node.act,node.zone);
+
+  document.getElementById('story-location').textContent=node.location;
+  document.getElementById('story-art').textContent=node.art;
+
+  // Checkpoint handling
+  if(node.checkpoint){
+    G.checkpointId=id;
+    // Heal 30%
+    G.hp=Math.min(G.maxHp,G.hp+Math.floor(G.maxHp*0.3));
+    updateHUD();
+    saveGame();
+    showOverlay('overlay-checkpoint');
+  }
+
+  // Reward card
+  if(node.reward_card){
+    G.deck.push(node.reward_card);
+    G.deckCards.push(node.reward_card);
+    showFloating('📜 +'+ALL_CARDS[node.reward_card].name,'gold');
+  }
+
+  // Gold
+  if(node.gold){
+    G.gold+=node.gold;
+    updateHUD();
+    showFloating('🪙 +'+node.gold,'gold');
+  }
+
+  // Buy
+  if(node.buy){
+    const {card,cost}=node.buy;
+    if(G.gold>=cost){
+      G.gold-=cost;
+      G.deck.push(card);
+      G.deckCards.push(card);
+      updateHUD();
+      showFloating('🛒 Purchased!','gold');
+    }
+  }
+
+  typeText(node.text,()=>{});
+  renderChoices(node.choices);
+}
+
+function typeText(text,cb){
+  const el=document.getElementById('story-text');
+  el.innerHTML='';
+  clearTimeout(typeTimer);
+  let i=0;
+  const cursor=document.createElement('span');
+  cursor.className='story-cursor';
+
+  function type(){
+    if(i<text.length){
+      if(text[i]==='\n'){
+        el.appendChild(document.createElement('br'));
+      } else {
+        el.appendChild(document.createTextNode(text[i]));
+      }
+      i++;
+      typeTimer=setTimeout(type,18);
+    } else {
+      cursor.remove();
+      if(cb)cb();
+    }
+  }
+  el.appendChild(cursor);
+  type();
+}
+
+function renderChoices(choices){
+  const el=document.getElementById('choices');
+  el.innerHTML='';
+  choices.forEach(c=>{
+    const btn=document.createElement('button');
+    btn.className='choice-btn';
+    btn.innerHTML=`<span class="choice-icon">${c.icon}</span><span>${c.text}</span>`;
+    btn.onclick=()=>handleChoice(c);
+    el.appendChild(btn);
+  });
+}
+
+function handleChoice(c){
+  if(c.next==='restart'){newGame();return;}
+  if(c.next==='combat'){
+    startCombat(c.enemy);
+  } else {
+    showStoryNode(c.next);
+  }
+}
+
+// ══════════════════════════════
+//   COMBAT
+// ══════════════════════════════
+function startCombat(enemyId){
+  const edef=ENEMIES.find(e=>e.id===enemyId);
+  G.enemy={...edef};
+  G.enemyHp=edef.hp;
+  G.enemyMaxHp=edef.hp;
+  G.enemyShield=edef.shield;
+  G.combatActive=true;
+  G.playerShield=0;
+  G.battleStr=G.str;
+  G.hand=[];
+  G.deck=[...G.deckCards];
+  shuffleDeck();
+  G.discardPile=[];
+  G.energy=G.maxEnergy+G.nextEnergyBonus;
+  G.nextEnergyBonus=0;
+
+  showCombatUI();
+  drawCards(5);
+  logMsg(`⚔ Combat begins! ${edef.name} appears!`,'info');
+  logMsg(edef.desc,'');
+  updateCombatUI();
+}
+
+function startCombatFromState(){
+  showCombatUI();
+  updateCombatUI();
+  renderHand();
+}
+
+function showCombatUI(){
+  document.getElementById('story-panel').style.display='none';
+  document.getElementById('reward-panel').style.display='none';
+  document.getElementById('deck-panel').style.display='none';
+  document.getElementById('combat-panel').style.display='flex';
+  document.getElementById('combat-panel').style.flexDirection='column';
+  document.getElementById('combat-panel').style.gap='10px';
+
+  const e=G.enemy;
+  document.getElementById('enemy-art').textContent=e.icon;
+  document.getElementById('enemy-name').textContent=e.name;
+  updateHudZone('COMBAT',e.name);
+}
+
+function updateCombatUI(){
+  const e=G.enemy;
+  // Enemy HP
+  const pct=G.enemyHp/G.enemyMaxHp*100;
+  document.getElementById('enemy-hp-fill').style.width=pct+'%';
+  document.getElementById('enemy-hp-val').textContent=G.enemyHp+'/'+G.enemyMaxHp;
+
+  // Enemy shield
+  const shieldPill=document.getElementById('enemy-shield-pill');
+  if(G.enemyShield>0){
+    shieldPill.style.display='flex';
+    document.getElementById('enemy-shield-val').textContent=G.enemyShield;
+  } else {
+    shieldPill.style.display='none';
+  }
+
+  // Enemy intent
+  document.getElementById('enemy-intent').textContent=`⚠ Will attack for ${e.atk} damage`;
+
+  // Player
+  document.getElementById('player-shield').textContent=G.playerShield;
+  document.getElementById('player-str').textContent=G.battleStr;
+  document.getElementById('deck-count').textContent=G.deck.length;
+  document.getElementById('discard-count').textContent=G.discardPile.length;
+
+  // Energy orbs
+  const orbsEl=document.getElementById('energy-orbs');
+  orbsEl.innerHTML='';
+  for(let i=0;i<G.maxEnergy;i++){
+    const orb=document.createElement('div');
+    orb.className='energy-orb'+(i<G.energy?' full':'');
+    orbsEl.appendChild(orb);
+  }
+
+  // HUD
+  updateHUD();
+  renderHand();
+}
+
+function shuffleDeck(){
+  for(let i=G.deck.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [G.deck[i],G.deck[j]]=[G.deck[j],G.deck[i]];
+  }
+}
+
+function drawCards(n){
+  for(let i=0;i<n;i++) drawCard();
+}
+
+function drawCard(){
+  if(G.hand.length>=8){logMsg('Hand is full!','');return;}
+  if(G.deck.length===0){
+    if(G.discardPile.length===0){logMsg('No cards left!','');return;}
+    G.deck=[...G.discardPile];
+    G.discardPile=[];
+    shuffleDeck();
+    logMsg('Deck reshuffled from discard.','info');
+  }
+  const card=G.deck.shift();
+  G.hand.push(card);
+  updateCombatUI();
+}
+
+function renderHand(){
+  const el=document.getElementById('hand-cards');
+  el.innerHTML='';
+  document.getElementById('hand-count').textContent=G.hand.length+'/8 cards';
+
+  G.hand.forEach((cardId,i)=>{
+    const card=ALL_CARDS[cardId];
+    const div=document.createElement('div');
+    div.className=`card ${card.type}`;
+    const canPlay=G.energy>=card.cost;
+    if(!canPlay)div.classList.add('disabled');
+    div.innerHTML=`
+      <div class="card-cost">${card.cost}</div>
+      <div class="card-icon">${card.icon}</div>
+      <div class="card-name">${card.name}</div>
+      <div class="card-desc">${card.desc}</div>
+      <div class="card-type">${card.type}</div>
+    `;
+    div.onclick=()=>{if(canPlay)playCard(i);};
+    el.appendChild(div);
+  });
+}
+
+function playCard(idx){
+  const cardId=G.hand[idx];
+  const card=ALL_CARDS[cardId];
+  if(G.energy<card.cost)return;
+  G.energy-=card.cost;
+  G.hand.splice(idx,1);
+  G.discardPile.push(cardId);
+
+  const eff=card.effect;
+  let logText=`Played ${card.icon} ${card.name}`;
+
+  // Apply effects
+  if(eff.dmg){
+    const hits=eff.hits||1;
+    let totalDmg=0;
+    for(let h=0;h<hits;h++){
+      let d=eff.dmg+(eff.useStr?G.battleStr:0);
+      // Weakness debuff
+      if(G.enemy._weak&&G.enemy._weak>0) d=Math.floor(d*0.75);
+      // Apply to enemy shield first
+      let rem=d;
+      if(G.enemyShield>0){
+        const absorbed=Math.min(G.enemyShield,rem);
+        G.enemyShield-=absorbed;
+        rem-=absorbed;
+      }
+      G.enemyHp=Math.max(0,G.enemyHp-rem);
+      totalDmg+=d;
+    }
+    logText+=` → ${totalDmg} dmg`;
+    showFloating('-'+totalDmg,'red',document.getElementById('enemy-art'));
+    spawnParticles(document.getElementById('enemy-art'),'#c0392b');
+  }
+  if(eff.shield){
+    G.playerShield+=eff.shield;
+    logText+=` +${eff.shield} shield`;
+    showFloating('+'+eff.shield+'🛡','blue',document.getElementById('hud'));
+  }
+  if(eff.heal){
+    const healed=Math.min(eff.heal,G.maxHp-G.hp);
+    G.hp+=healed;
+    logText+=` +${healed} HP`;
+    showFloating('+'+healed+'❤','green',document.getElementById('hud'));
+  }
+  if(eff.str){
+    G.battleStr+=eff.str;
+    logText+=` +${eff.str} STR`;
+  }
+  if(eff.draw){
+    drawCards(eff.draw);
+    logText+=` draw ${eff.draw}`;
+  }
+  if(eff.energy){
+    G.nextEnergyBonus+=eff.energy;
+    logText+=` +${eff.energy} energy next turn`;
+  }
+  if(eff.weak){
+    G.enemy._weak=(G.enemy._weak||0)+eff.weak;
+    logText+=` enemy weakened`;
+  }
+
+  logMsg(logText,'good');
+  updateCombatUI();
+
+  // Check enemy death
+  if(G.enemyHp<=0){
+    setTimeout(()=>enemyDied(),400);
+  }
+}
+
+function endTurn(){
+  // Enemy attacks
+  logMsg(`${G.enemy.name} attacks!`,'bad');
+  let dmg=G.enemy.atk;
+  // Weak debuff
+  if(G.enemy._weak&&G.enemy._weak>0){
+    dmg=Math.floor(dmg*0.75);
+    G.enemy._weak--;
+  }
+  let rem=dmg;
+  if(G.playerShield>0){
+    const absorbed=Math.min(G.playerShield,rem);
+    G.playerShield-=absorbed;
+    rem-=absorbed;
+    logMsg(`Shield absorbed ${absorbed} damage.`,'');
+  }
+  G.hp=Math.max(0,G.hp-rem);
+  if(rem>0){
+    showFloating('-'+rem,'red',document.getElementById('hud-avatar'));
+    document.getElementById('hud-avatar').classList.add('hit-effect');
+    setTimeout(()=>document.getElementById('hud-avatar').classList.remove('hit-effect'),400);
+  }
+  logMsg(`You took ${rem} damage.`,rem>0?'bad':'');
+
+  // Reset for next turn
+  G.playerShield=0;
+  G.turn++;
+  G.energy=G.maxEnergy+G.nextEnergyBonus;
+  G.nextEnergyBonus=0;
+
+  // Discard hand and draw fresh
+  G.discardPile.push(...G.hand);
+  G.hand=[];
+  drawCards(5);
+
+  updateCombatUI();
+  updateHUD();
+
+  if(G.hp<=0){
+    setTimeout(()=>playerDied(),400);
+  }
+}
+
+function enemyDied(){
+  G.combatActive=false;
+  G.gold+=G.enemy.reward;
+  updateHUD();
+  logMsg(`${G.enemy.name} defeated! +${G.enemy.reward} gold`,'info');
+  document.getElementById('victory-text').textContent=
+    `${G.enemy.name} has been slain.\n+${G.enemy.reward} gold earned.`;
+  showOverlay('overlay-victory');
+}
+
+function continueAfterVictory(){
+  closeOverlay('overlay-victory');
+  // Show card reward
+  const nextId=AFTER_COMBAT[G.enemy.id];
+  showReward(nextId);
+}
+
+function playerDied(){
+  G.combatActive=false;
+  showOverlay('overlay-death');
+}
+
+function respawnCheckpoint(){
+  closeAllOverlays();
+  G.hp=Math.floor(G.maxHp*0.5);
+  G.combatActive=false;
+  updateHUD();
+  showStoryNode(G.checkpointId);
+}
+
+// ══════════════════════════════
+//   REWARD SYSTEM
+// ══════════════════════════════
+function showReward(nextStoryId){
+  document.getElementById('combat-panel').style.display='none';
+  document.getElementById('story-panel').style.display='none';
+  document.getElementById('deck-panel').style.display='none';
+  document.getElementById('reward-panel').style.display='flex';
+  document.getElementById('reward-panel').style.flexDirection='column';
+
+  document.getElementById('reward-desc').textContent='Choose a card to add to your deck:';
+
+  // Pick 3 random reward cards
+  const pool=Object.keys(ALL_CARDS).filter(k=>!['strike','guard'].includes(k));
+  const picks=[];
+  const shuffled=[...pool].sort(()=>Math.random()-0.5);
+  for(let i=0;i<3&&i<shuffled.length;i++) picks.push(shuffled[i]);
+
+  const el=document.getElementById('reward-cards');
+  el.innerHTML='';
+  picks.forEach(cardId=>{
+    const card=ALL_CARDS[cardId];
+    const wrap=document.createElement('div');
+    wrap.className='reward-card-wrap';
+    const cdiv=document.createElement('div');
+    cdiv.className=`card ${card.type}`;
+    cdiv.style.cursor='default';
+    cdiv.innerHTML=`
+      <div class="card-cost">${card.cost}</div>
+      <div class="card-icon">${card.icon}</div>
+      <div class="card-name">${card.name}</div>
+      <div class="card-desc">${card.desc}</div>
+      <div class="card-type">${card.type}</div>
+    `;
+    const btn=document.createElement('button');
+    btn.className='btn-take';
+    btn.textContent='✦ TAKE';
+    btn.onclick=()=>{
+      G.deckCards.push(cardId);
+      showFloating('📜 +'+card.name,'gold');
+      showStoryNode(nextStoryId);
+    };
+    wrap.appendChild(cdiv);
+    wrap.appendChild(btn);
+    el.appendChild(wrap);
+  });
+
+  // Store nextId for skip
+  document.getElementById('reward-panel').dataset.next=nextStoryId;
+}
+
+function skipReward(){
+  const nextId=document.getElementById('reward-panel').dataset.next;
+  showStoryNode(nextId);
+}
+
+// ══════════════════════════════
+//   DECK VIEW
+// ══════════════════════════════
+function viewDeck(){
+  document.getElementById('combat-panel').style.display='none';
+  document.getElementById('story-panel').style.display='none';
+  document.getElementById('reward-panel').style.display='none';
+  document.getElementById('deck-panel').style.display='flex';
+  document.getElementById('deck-panel').style.flexDirection='column';
+
+  const el=document.getElementById('deck-grid');
+  el.innerHTML='';
+  const counts={};
+  G.deckCards.forEach(id=>counts[id]=(counts[id]||0)+1);
+  Object.entries(counts).forEach(([id,cnt])=>{
+    const card=ALL_CARDS[id];
+    const div=document.createElement('div');
+    div.className=`card ${card.type}`;
+    div.style.cursor='default';
+    div.innerHTML=`
+      <div class="card-cost">${card.cost}</div>
+      <div class="card-icon">${card.icon}</div>
+      <div class="card-name">${card.name}</div>
+      <div class="card-desc">${card.desc}</div>
+      <div style="font-size:9px;color:var(--gold);text-align:center">×${cnt}</div>
+    `;
+    el.appendChild(div);
+  });
+}
+
+function closeDeck(){
+  document.getElementById('deck-panel').style.display='none';
+  if(G.combatActive){
+    showCombatUI();
+    updateCombatUI();
+  } else {
+    document.getElementById('story-panel').style.display='block';
+  }
+}
+
+// ══════════════════════════════
+//   COMBAT LOG
+// ══════════════════════════════
+function logMsg(text,type){
+  const el=document.getElementById('combat-log');
+  const div=document.createElement('div');
+  div.className='log-entry '+(type||'');
+  div.textContent=text;
+  el.appendChild(div);
+  el.scrollTop=el.scrollHeight;
+  // Keep log trim
+  while(el.children.length>20) el.removeChild(el.firstChild);
+}
+
+// ══════════════════════════════
+//   CHECKPOINT OVERLAY
+// ══════════════════════════════
+function closeCheckpoint(){
+  closeOverlay('overlay-checkpoint');
+}
+
+// ══════════════════════════════
+//   VISUAL EFFECTS
+// ══════════════════════════════
+function showFloating(text,type,anchor){
+  const div=document.createElement('div');
+  div.className=`dmg-float ${type||''}`;
+  div.textContent=text;
+  let x=innerWidth/2, y=innerHeight/2;
+  if(anchor){
+    const r=anchor.getBoundingClientRect();
+    x=r.left+r.width/2;
+    y=r.top;
+  }
+  div.style.left=x+'px';
+  div.style.top=y+'px';
+  document.body.appendChild(div);
+  setTimeout(()=>div.remove(),1100);
+}
+
+function spawnParticles(anchor,color){
+  if(!anchor)return;
+  const r=anchor.getBoundingClientRect();
+  const cx=r.left+r.width/2;
+  const cy=r.top+r.height/2;
+  for(let i=0;i<8;i++){
+    const p=document.createElement('div');
+    p.className='particle';
+    const angle=Math.random()*Math.PI*2;
+    const dist=30+Math.random()*50;
+    p.style.cssText=`
+      left:${cx}px;top:${cy}px;
+      width:${4+Math.random()*4}px;height:${4+Math.random()*4}px;
+      background:${color};
+      --tx:${Math.cos(angle)*dist}px;
+      --ty:${Math.sin(angle)*dist}px;
+      box-shadow:0 0 6px ${color};
+    `;
+    document.body.appendChild(p);
+    setTimeout(()=>p.remove(),700);
+  }
+}
+
+// ══════════════════════════════
+//   INIT
+// ══════════════════════════════
+function checkSave(){
+  const raw=localStorage.getItem(SAVE_KEY);
+  const btn=document.getElementById('btn-continue');
+  if(raw){
+    const d=JSON.parse(raw);
+    btn.style.display='block';
+    btn.textContent=`📜 CONTINUE — ${d.heroName} (${d.hp}/${d.maxHp} HP)`;
+  } else {
+    btn.style.display='none';
+  }
+}
+
+checkSave();
+</script>
+</body>
+</html>
