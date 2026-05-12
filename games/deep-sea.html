@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signal from the Deep</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --deep: #020b14;
+    --abyss: #010810;
+    --water1: #0a2a4a;
+    --water2: #0d3d6b;
+    --glow: #00e5ff;
+    --glow2: #00b4d8;
+    --sonar: #00ff88;
+    --danger: #ff4444;
+    --warn: #ffaa00;
+    --pearl: #e0f7ff;
+    --dim: #1a4060;
+    --panel: rgba(0,20,40,0.85);
+    --border: rgba(0,229,255,0.3);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--abyss);
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--glow);
+    min-height: 100vh;
+    overflow: hidden;
+    cursor: crosshair;
+  }
+
+  /* === OCEAN BACKGROUND === */
+  #ocean-bg {
+    position: fixed; inset: 0; z-index: 0;
+    background: radial-gradient(ellipse at 50% 0%, #0a3060 0%, #031525 40%, #010810 100%);
+    overflow: hidden;
+  }
+
+  .bubble {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(0,229,255,0.4), rgba(0,180,216,0.1));
+    border: 1px solid rgba(0,229,255,0.2);
+    animation: rise linear infinite;
+    pointer-events: none;
+  }
+
+  @keyframes rise {
+    0%   { transform: translateY(100vh) translateX(0) scale(1); opacity: 0; }
+    10%  { opacity: 1; }
+    90%  { opacity: 0.6; }
+    100% { transform: translateY(-80px) translateX(30px) scale(1.2); opacity: 0; }
+  }
+
+  .ray {
+    position: absolute;
+    top: -10%;
+    width: 2px;
+    height: 60vh;
+    background: linear-gradient(to bottom, rgba(0,229,255,0.15), transparent);
+    transform-origin: top center;
+    animation: sway ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  @keyframes sway {
+    0%, 100% { transform: rotate(-8deg) scaleY(1); }
+    50%       { transform: rotate(8deg) scaleY(1.1); }
+  }
+
+  /* === SONAR RING === */
+  #sonar-ring {
+    position: fixed;
+    border-radius: 50%;
+    border: 2px solid var(--sonar);
+    pointer-events: none;
+    opacity: 0;
+    z-index: 100;
+    box-shadow: 0 0 20px var(--sonar);
+    transform: translate(-50%, -50%);
+  }
+
+  @keyframes sonar-pulse {
+    0%   { width: 10px; height: 10px; opacity: 0.9; }
+    100% { width: 300px; height: 300px; opacity: 0; }
+  }
+
+  /* === LAYOUT === */
+  #game-wrapper {
+    position: relative; z-index: 10;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  /* === HUD TOP === */
+  #hud {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%; max-width: 900px;
+    padding: 12px 20px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-bottom: 18px;
+    backdrop-filter: blur(10px);
+  }
+
+  .hud-block { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .hud-label { font-size: 9px; letter-spacing: 3px; color: var(--glow2); opacity: 0.7; }
+  .hud-value { font-family: 'Orbitron', monospace; font-size: 18px; font-weight: 700; color: var(--glow); text-shadow: 0 0 12px var(--glow); }
+
+  #title-logo {
+    font-family: 'Orbitron', monospace;
+    font-size: 14px; font-weight: 900;
+    letter-spacing: 4px;
+    color: var(--glow);
+    text-shadow: 0 0 20px var(--glow), 0 0 40px var(--glow2);
+    animation: flicker 4s ease-in-out infinite;
+  }
+
+  @keyframes flicker {
+    0%,95%,100% { opacity: 1; }
+    96% { opacity: 0.6; }
+    98% { opacity: 0.9; }
+  }
+
+  /* === DEPTH METER === */
+  #depth-bar-wrap {
+    width: 100%; max-width: 900px;
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 16px;
+  }
+  #depth-label { font-size: 9px; letter-spacing: 2px; color: var(--glow2); white-space: nowrap; }
+  #depth-bar { flex: 1; height: 4px; background: rgba(0,229,255,0.1); border-radius: 2px; overflow: hidden; }
+  #depth-fill { height: 100%; background: linear-gradient(to right, var(--sonar), var(--glow)); border-radius: 2px; transition: width 0.8s ease; box-shadow: 0 0 8px var(--sonar); }
+  #checkpoint-label { font-size: 9px; letter-spacing: 2px; color: var(--sonar); white-space: nowrap; }
+
+  /* === MAIN GAME AREA === */
+  #game-area {
+    width: 100%; max-width: 900px;
+    display: flex; gap: 16px;
+    flex: 1;
+  }
+
+  /* === GRID === */
+  #grid-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 20px;
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+    flex: 1;
+    backdrop-filter: blur(10px);
+    position: relative;
+    overflow: hidden;
+  }
+
+  #grid-panel::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(0,229,255,0.04) 40px),
+                repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(0,229,255,0.04) 40px);
+    pointer-events: none;
+  }
+
+  #puzzle-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 11px; letter-spacing: 3px;
+    color: var(--glow2); opacity: 0.8;
+  }
+
+  #grid-container {
+    display: grid;
+    gap: 4px;
+    position: relative;
+  }
+
+  .cell {
+    width: 52px; height: 52px;
+    border: 1px solid rgba(0,229,255,0.15);
+    border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    background: rgba(0,20,40,0.6);
+    transition: all 0.15s ease;
+    position: relative;
+    overflow: hidden;
+    font-size: 18px;
+    user-select: none;
+  }
+
+  .cell::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at center, transparent 40%, rgba(0,229,255,0.05) 100%);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .cell:hover { border-color: var(--glow); box-shadow: 0 0 12px rgba(0,229,255,0.3); transform: scale(1.04); }
+  .cell:hover::after { opacity: 1; }
+
+  .cell.selected {
+    border-color: var(--glow);
+    background: rgba(0,229,255,0.12);
+    box-shadow: 0 0 16px rgba(0,229,255,0.5), inset 0 0 8px rgba(0,229,255,0.1);
+    transform: scale(1.06);
+  }
+
+  .cell.path {
+    background: rgba(0,255,136,0.12);
+    border-color: var(--sonar);
+    box-shadow: 0 0 10px rgba(0,255,136,0.4);
+  }
+
+  .cell.obstacle {
+    background: rgba(255,40,40,0.08);
+    border-color: rgba(255,80,80,0.4);
+    cursor: not-allowed;
+    box-shadow: inset 0 0 10px rgba(255,0,0,0.1);
+  }
+
+  .cell.start {
+    background: rgba(0,255,136,0.2);
+    border-color: var(--sonar);
+    box-shadow: 0 0 20px rgba(0,255,136,0.5);
+  }
+
+  .cell.end {
+    background: rgba(0,180,216,0.2);
+    border-color: var(--glow);
+    box-shadow: 0 0 20px rgba(0,229,255,0.5);
+    animation: pulse-end 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse-end {
+    0%, 100% { box-shadow: 0 0 20px rgba(0,229,255,0.5); }
+    50%       { box-shadow: 0 0 40px rgba(0,229,255,0.9), 0 0 60px rgba(0,229,255,0.3); }
+  }
+
+  .cell.correct-path {
+    animation: path-flash 0.4s ease forwards;
+  }
+
+  @keyframes path-flash {
+    0%   { background: rgba(0,255,136,0.8); box-shadow: 0 0 30px var(--sonar); }
+    100% { background: rgba(0,255,136,0.2); box-shadow: 0 0 12px rgba(0,255,136,0.4); }
+  }
+
+  .cell.wrong {
+    animation: wrong-shake 0.4s ease;
+    border-color: var(--danger) !important;
+    background: rgba(255,44,44,0.2) !important;
+  }
+
+  @keyframes wrong-shake {
+    0%, 100% { transform: translateX(0); }
+    25%       { transform: translateX(-4px); }
+    75%       { transform: translateX(4px); }
+  }
+
+  .cell-icon { font-size: 20px; line-height: 1; pointer-events: none; }
+
+  /* === SIDE PANEL === */
+  #side-panel {
+    display: flex; flex-direction: column; gap: 12px;
+    width: 200px;
+  }
+
+  .panel-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 14px;
+    backdrop-filter: blur(10px);
+  }
+
+  .panel-box h3 {
+    font-family: 'Orbitron', monospace;
+    font-size: 9px; letter-spacing: 3px;
+    color: var(--glow2);
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* === SONAR DISPLAY === */
+  #sonar-display {
+    width: 140px; height: 140px;
+    border-radius: 50%;
+    border: 2px solid rgba(0,255,136,0.4);
+    margin: 0 auto;
+    position: relative;
+    background: radial-gradient(circle, rgba(0,40,20,0.9) 0%, rgba(0,10,5,0.95) 100%);
+    overflow: hidden;
+    box-shadow: 0 0 20px rgba(0,255,136,0.2), inset 0 0 20px rgba(0,0,0,0.5);
+  }
+
+  #sonar-sweep {
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, transparent 0deg, rgba(0,255,136,0.3) 30deg, transparent 60deg);
+    animation: sweep 3s linear infinite;
+    transform-origin: center;
+  }
+
+  @keyframes sweep { to { transform: rotate(360deg); } }
+
+  .sonar-ring-d {
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid rgba(0,255,136,0.15);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  #sonar-center {
+    position: absolute; top: 50%; left: 50%;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--sonar);
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 10px var(--sonar);
+    animation: center-pulse 3s ease-in-out infinite;
+  }
+
+  @keyframes center-pulse {
+    0%, 100% { box-shadow: 0 0 10px var(--sonar); }
+    50%       { box-shadow: 0 0 20px var(--sonar), 0 0 30px var(--sonar); }
+  }
+
+  .sonar-blip {
+    position: absolute;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--glow);
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 8px var(--glow);
+    animation: blip-fade 3s ease-out infinite;
+  }
+
+  @keyframes blip-fade {
+    0%   { opacity: 1; }
+    60%  { opacity: 0.8; }
+    100% { opacity: 0.2; }
+  }
+
+  /* === INSTRUCTIONS === */
+  .instruction-item {
+    display: flex; align-items: flex-start; gap: 8px;
+    font-size: 10px; line-height: 1.5;
+    color: rgba(0,229,255,0.7);
+    margin-bottom: 6px;
+  }
+  .instruction-item .dot { color: var(--sonar); font-size: 14px; line-height: 1.2; flex-shrink: 0; }
+
+  /* === BUTTONS === */
+  .btn {
+    width: 100%;
+    padding: 10px;
+    font-family: 'Orbitron', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: rgba(0,229,255,0.05);
+    color: var(--glow);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+  }
+
+  .btn:hover {
+    background: rgba(0,229,255,0.15);
+    border-color: var(--glow);
+    box-shadow: 0 0 16px rgba(0,229,255,0.3);
+  }
+
+  .btn.primary {
+    border-color: var(--sonar);
+    color: var(--sonar);
+    background: rgba(0,255,136,0.05);
+  }
+
+  .btn.primary:hover {
+    background: rgba(0,255,136,0.15);
+    box-shadow: 0 0 16px rgba(0,255,136,0.3);
+  }
+
+  /* === OVERLAYS === */
+  .overlay {
+    position: fixed; inset: 0;
+    background: rgba(1,8,16,0.92);
+    z-index: 200;
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(8px);
+  }
+
+  .overlay-box {
+    background: rgba(2,20,40,0.95);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 40px;
+    text-align: center;
+    max-width: 480px; width: 90%;
+    position: relative;
+    overflow: hidden;
+    animation: overlay-in 0.4s ease;
+  }
+
+  @keyframes overlay-in {
+    from { transform: scale(0.9) translateY(20px); opacity: 0; }
+    to   { transform: scale(1) translateY(0); opacity: 1; }
+  }
+
+  .overlay-box::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(0,229,255,0.03) 40px);
+    pointer-events: none;
+  }
+
+  .overlay-icon { font-size: 60px; margin-bottom: 16px; display: block; }
+  .overlay-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 22px; font-weight: 900;
+    letter-spacing: 4px;
+    color: var(--glow);
+    text-shadow: 0 0 20px var(--glow);
+    margin-bottom: 10px;
+  }
+  .overlay-sub {
+    font-size: 11px; letter-spacing: 2px;
+    color: var(--glow2); opacity: 0.7;
+    margin-bottom: 24px; line-height: 1.8;
+  }
+  .overlay-btns { display: flex; flex-direction: column; gap: 10px; }
+
+  /* === CHECKPOINT FLASH === */
+  #checkpoint-flash {
+    position: fixed; inset: 0; z-index: 150;
+    background: radial-gradient(circle, rgba(0,255,136,0.15) 0%, transparent 70%);
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  @keyframes checkpoint-anim {
+    0%   { opacity: 0; }
+    20%  { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
+  /* === LIVES / HINTS === */
+  .pip { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin: 0 2px; }
+  .pip.alive { background: var(--sonar); box-shadow: 0 0 8px var(--sonar); }
+  .pip.dead  { background: rgba(255,80,80,0.4); border: 1px solid rgba(255,80,80,0.3); }
+
+  /* === TOAST === */
+  #toast {
+    position: fixed;
+    bottom: 30px; left: 50%; transform: translateX(-50%);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 10px 24px;
+    font-size: 11px; letter-spacing: 2px;
+    color: var(--glow);
+    z-index: 300;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  #toast.show { opacity: 1; }
+
+  /* === FISH DECORATIONS === */
+  .fish {
+    position: fixed;
+    font-size: 20px;
+    pointer-events: none;
+    animation: swim linear infinite;
+    z-index: 1;
+  }
+
+  @keyframes swim {
+    0%   { transform: translateX(-60px) translateY(0); opacity: 0; }
+    5%   { opacity: 0.6; }
+    95%  { opacity: 0.4; }
+    100% { transform: translateX(110vw) translateY(-30px); opacity: 0; }
+  }
+
+  /* === RESPONSIVE === */
+  @media (max-width: 700px) {
+    #game-area { flex-direction: column; }
+    #side-panel { width: 100%; flex-direction: row; flex-wrap: wrap; }
+    .panel-box { flex: 1; min-width: 140px; }
+    .cell { width: 44px; height: 44px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Ocean Background -->
+<div id="ocean-bg" aria-hidden="true"></div>
+<div id="sonar-ring"></div>
+<div id="checkpoint-flash"></div>
+<div id="toast"></div>
+
+<!-- Main Game -->
+<div id="game-wrapper">
+  <div id="hud">
+    <div class="hud-block">
+      <span class="hud-label">DEPTH</span>
+      <span class="hud-value" id="hud-depth">0m</span>
+    </div>
+    <div id="title-logo">SIGNAL FROM THE DEEP</div>
+    <div class="hud-block">
+      <span class="hud-label">SCORE</span>
+      <span class="hud-value" id="hud-score">0</span>
+    </div>
+  </div>
+
+  <div id="depth-bar-wrap">
+    <span id="depth-label">ZONE PROGRESS ▸</span>
+    <div id="depth-bar"><div id="depth-fill" style="width:0%"></div></div>
+    <span id="checkpoint-label">CHECKPOINT: <span id="cp-num">1</span></span>
+  </div>
+
+  <div id="game-area">
+    <div id="grid-panel">
+      <div id="puzzle-title">// SONAR NAVIGATION PUZZLE //</div>
+      <div id="grid-container"></div>
+      <div style="font-size:10px;color:rgba(0,229,255,0.4);letter-spacing:1px;" id="grid-hint">TRACE PATH FROM 🟢 TO 🎯</div>
+    </div>
+
+    <div id="side-panel">
+      <div class="panel-box">
+        <h3>◈ SONAR</h3>
+        <div id="sonar-display">
+          <div id="sonar-sweep"></div>
+          <div class="sonar-ring-d" style="width:40%;height:40%"></div>
+          <div class="sonar-ring-d" style="width:70%;height:70%"></div>
+          <div class="sonar-ring-d" style="width:95%;height:95%"></div>
+          <div id="sonar-center"></div>
+        </div>
+      </div>
+
+      <div class="panel-box">
+        <h3>◈ SIGNAL</h3>
+        <div style="margin-bottom:8px;font-size:10px;color:rgba(0,229,255,0.6);">HULL INTEGRITY</div>
+        <div id="lives-display" style="margin-bottom:12px;"></div>
+        <div style="margin-bottom:8px;font-size:10px;color:rgba(0,229,255,0.6);">MOVES LEFT</div>
+        <div id="hud-moves" style="font-family:'Orbitron',monospace;font-size:20px;color:var(--warn);text-shadow:0 0 10px var(--warn);">—</div>
+      </div>
+
+      <div class="panel-box">
+        <h3>◈ INSTRUCTIONS</h3>
+        <div class="instruction-item"><span class="dot">▸</span><span>Click cells to trace a path from START to TARGET</span></div>
+        <div class="instruction-item"><span class="dot">▸</span><span>Avoid red obstacles — sonar mines!</span></div>
+        <div class="instruction-item"><span class="dot">▸</span><span>Stay within move limit to conserve oxygen</span></div>
+        <div class="instruction-item"><span class="dot">▸</span><span>Checkpoints auto-save your progress</span></div>
+      </div>
+
+      <div class="panel-box" style="display:flex;flex-direction:column;gap:8px;">
+        <h3>◈ CONTROLS</h3>
+        <button class="btn primary" onclick="submitPath()">▶ TRANSMIT PATH</button>
+        <button class="btn" onclick="clearPath()">↺ RESET PATH</button>
+        <button class="btn" onclick="showHint()">⚡ HINT (−50pts)</button>
+        <button class="btn" onclick="saveGame()">💾 SAVE DIVE</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- START SCREEN -->
+<div class="overlay" id="start-overlay">
+  <div class="overlay-box">
+    <span class="overlay-icon">🌊</span>
+    <div class="overlay-title">SIGNAL FROM THE DEEP</div>
+    <div class="overlay-sub">
+      Your submarine has detected ancient signals<br>
+      from a lost civilization beneath the ocean floor.<br><br>
+      Navigate through sonar puzzles to decode<br>
+      each transmission and descend deeper into the abyss.
+    </div>
+    <div class="overlay-btns">
+      <button class="btn primary" onclick="startGame(false)">▶ NEW DIVE</button>
+      <button class="btn" id="continue-btn" onclick="startGame(true)" style="display:none">⚓ CONTINUE DIVE</button>
+    </div>
+  </div>
+</div>
+
+<!-- SUCCESS OVERLAY -->
+<div class="overlay" id="success-overlay" style="display:none">
+  <div class="overlay-box">
+    <span class="overlay-icon" id="success-icon">✅</span>
+    <div class="overlay-title" id="success-title">PATH LOCKED</div>
+    <div class="overlay-sub" id="success-sub"></div>
+    <div class="overlay-btns">
+      <button class="btn primary" onclick="nextPuzzle()">▶▶ DESCEND DEEPER</button>
+    </div>
+  </div>
+</div>
+
+<!-- GAME OVER OVERLAY -->
+<div class="overlay" id="gameover-overlay" style="display:none">
+  <div class="overlay-box">
+    <span class="overlay-icon">💀</span>
+    <div class="overlay-title">HULL BREACH</div>
+    <div class="overlay-sub" id="gameover-sub">The submarine has been destroyed.<br>All crew lost to the deep.</div>
+    <div class="overlay-btns">
+      <button class="btn primary" onclick="startGame(true)">⚓ LOAD LAST CHECKPOINT</button>
+      <button class="btn" onclick="startGame(false)">↺ NEW DIVE</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================
+//   OCEAN BACKGROUND SETUP
+// ============================
+function buildOcean() {
+  const bg = document.getElementById('ocean-bg');
+
+  // Rays
+  for (let i = 0; i < 8; i++) {
+    const r = document.createElement('div');
+    r.className = 'ray';
+    r.style.left = (10 + i * 12) + '%';
+    r.style.animationDuration = (6 + Math.random() * 4) + 's';
+    r.style.animationDelay = (-Math.random() * 6) + 's';
+    r.style.opacity = (0.3 + Math.random() * 0.4);
+    bg.appendChild(r);
+  }
+
+  // Bubbles
+  for (let i = 0; i < 20; i++) spawnBubble(bg);
+
+  // Fish
+  const fishes = ['🐟','🐠','🐡','🦑','🐙','🐚'];
+  for (let i = 0; i < 4; i++) spawnFish(fishes);
+}
+
+function spawnBubble(bg) {
+  const b = document.createElement('div');
+  b.className = 'bubble';
+  const size = 4 + Math.random() * 14;
+  b.style.cssText = `
+    width:${size}px; height:${size}px;
+    left:${Math.random()*100}%;
+    bottom:${-size}px;
+    animation-duration:${8+Math.random()*12}s;
+    animation-delay:${-Math.random()*12}s;
+  `;
+  bg.appendChild(b);
+  setTimeout(() => { b.remove(); spawnBubble(bg); }, (20+Math.random()*12)*1000);
+}
+
+function spawnFish(fishes) {
+  const f = document.createElement('div');
+  f.className = 'fish';
+  f.textContent = fishes[Math.floor(Math.random()*fishes.length)];
+  const top = 10 + Math.random() * 80;
+  const dur = 18 + Math.random() * 20;
+  f.style.cssText = `top:${top}%; animation-duration:${dur}s; animation-delay:${-Math.random()*dur}s;`;
+  document.body.appendChild(f);
+  setTimeout(() => { f.remove(); spawnFish(fishes); }, dur * 1000);
+}
+
+// Sonar click ripple
+document.addEventListener('click', (e) => {
+  if (e.target.closest('.cell') || e.target.closest('.btn') || e.target.closest('.overlay-box')) return;
+  const ring = document.getElementById('sonar-ring');
+  ring.style.left = e.clientX + 'px';
+  ring.style.top  = e.clientY + 'px';
+  ring.style.animation = 'none';
+  ring.offsetWidth;
+  ring.style.animation = 'sonar-pulse 1.2s ease-out forwards';
+});
+
+// ============================
+//   GAME STATE
+// ============================
+const SAVE_KEY = 'signal_deep_save';
+
+let state = {
+  level: 1,
+  checkpoint: 1,
+  score: 0,
+  lives: 3,
+  totalDepth: 0,
+};
+
+let currentPuzzle = null;
+let playerPath = [];
+let hintUsed = false;
+
+// ============================
+//   PUZZLE GENERATOR
+// ============================
+function generatePuzzle(level) {
+  // Grid grows every 5 levels, max 7
+  const size = Math.min(4 + Math.floor(level / 5), 7);
+  // More obstacles and shorter move limit as level grows
+  const obstacleCount = Math.min(2 + Math.floor(level * 0.8), Math.floor(size * size * 0.3));
+  const solution = generateSolution(size);
+  const moveLimit  = solution.length + Math.max(2, 5 - Math.floor(level / 4));
+
+  const grid = [];
+  for (let r = 0; r < size; r++) {
+    grid.push([]);
+    for (let c = 0; c < size; c++) grid[r].push({ type: 'empty' });
+  }
+
+  // Place obstacles avoiding solution path
+  const solutionSet = new Set(solution.map(([r,c]) => `${r},${c}`));
+  let placed = 0;
+  let tries = 0;
+  while (placed < obstacleCount && tries < 200) {
+    tries++;
+    const r = Math.floor(Math.random() * size);
+    const c = Math.floor(Math.random() * size);
+    if (!solutionSet.has(`${r},${c}`)) {
+      grid[r][c].type = 'obstacle';
+      placed++;
+    }
+  }
+
+  // Mark start/end
+  const [sr, sc] = solution[0];
+  const [er, ec] = solution[solution.length - 1];
+  grid[sr][sc].type = 'start';
+  grid[er][ec].type = 'end';
+
+  // Assign icons to empty cells
+  const emptyIcons = ['🐟','🐠','🐡','🦈','🐙','🦐','🦞','🦀','🐚','🪸','🐋','🐬'];
+  for (let r = 0; r < size; r++)
+    for (let c = 0; c < size; c++)
+      if (grid[r][c].type === 'empty')
+        grid[r][c].icon = emptyIcons[Math.floor(Math.random() * emptyIcons.length)];
+
+  return { size, grid, solution, moveLimit, start: [sr, sc], end: [er, ec] };
+}
+
+function generateSolution(size) {
+  // Random walk from top-left-ish to bottom-right-ish
+  const startR = Math.floor(Math.random() * 2);
+  const startC = Math.floor(Math.random() * 2);
+  const endR = size - 1 - Math.floor(Math.random() * 2);
+  const endC = size - 1 - Math.floor(Math.random() * 2);
+
+  let path = [[startR, startC]];
+  let r = startR, c = startC;
+  const visited = new Set([`${r},${c}`]);
+
+  for (let attempts = 0; attempts < 300; attempts++) {
+    if (r === endR && c === endC) break;
+
+    // Bias toward end
+    const dirs = [];
+    if (r < endR) dirs.push([1,0],[1,0]);
+    if (r > endR) dirs.push([-1,0]);
+    if (c < endC) dirs.push([0,1],[0,1]);
+    if (c > endC) dirs.push([0,-1]);
+    dirs.push([1,0],[-1,0],[0,1],[0,-1]);
+
+    let moved = false;
+    const shuffled = dirs.sort(() => Math.random()-0.5);
+    for (const [dr, dc] of shuffled) {
+      const nr = r+dr, nc = c+dc;
+      if (nr>=0 && nr<size && nc>=0 && nc<size && !visited.has(`${nr},${nc}`)) {
+        r = nr; c = nc;
+        path.push([r,c]);
+        visited.add(`${r},${c}`);
+        moved = true;
+        break;
+      }
+    }
+    if (!moved) break;
+  }
+
+  // If didn't reach end, just go there
+  if (r !== endR || c !== endC) {
+    while (r !== endR) { r += r < endR ? 1 : -1; path.push([r,c]); }
+    while (c !== endC) { c += c < endC ? 1 : -1; path.push([r,c]); }
+  }
+
+  return path;
+}
+
+// ============================
+//   RENDER
+// ============================
+function renderGrid() {
+  const { size, grid, start, end } = currentPuzzle;
+  const container = document.getElementById('grid-container');
+  container.style.gridTemplateColumns = `repeat(${size}, 52px)`;
+  container.innerHTML = '';
+
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.r = r;
+      cell.dataset.c = c;
+
+      const t = grid[r][c].type;
+      if (t === 'start') {
+        cell.classList.add('start');
+        cell.innerHTML = '<span class="cell-icon">🟢</span>';
+      } else if (t === 'end') {
+        cell.classList.add('end');
+        cell.innerHTML = '<span class="cell-icon">🎯</span>';
+      } else if (t === 'obstacle') {
+        cell.classList.add('obstacle');
+        cell.innerHTML = '<span class="cell-icon">💣</span>';
+      } else {
+        cell.innerHTML = `<span class="cell-icon">${grid[r][c].icon}</span>`;
+      }
+
+      cell.addEventListener('click', () => onCellClick(r, c));
+      container.appendChild(cell);
+    }
+  }
+
+  updatePathDisplay();
+  updateSonarBlips();
+}
+
+function getCellEl(r, c) {
+  return document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+}
+
+function updatePathDisplay() {
+  // Clear all path highlights
+  document.querySelectorAll('.cell.path, .cell.selected').forEach(el => {
+    el.classList.remove('path', 'selected');
+  });
+
+  playerPath.forEach(([r, c], i) => {
+    const el = getCellEl(r, c);
+    if (!el) return;
+    if (i === playerPath.length - 1) {
+      el.classList.add('selected');
+    } else {
+      const t = currentPuzzle.grid[r][c].type;
+      if (t !== 'start') el.classList.add('path');
+    }
+  });
+
+  // Update moves display
+  const movesEl = document.getElementById('hud-moves');
+  const remaining = currentPuzzle.moveLimit - playerPath.length + 1;
+  movesEl.textContent = Math.max(0, remaining);
+  movesEl.style.color = remaining <= 3 ? 'var(--danger)' : remaining <= 6 ? 'var(--warn)' : 'var(--sonar)';
+  movesEl.style.textShadow = `0 0 10px ${remaining <= 3 ? 'var(--danger)' : 'var(--sonar)'}`;
+}
+
+function updateSonarBlips() {
+  // Show random blips on sonar screen
+  const sonar = document.getElementById('sonar-display');
+  sonar.querySelectorAll('.sonar-blip').forEach(b => b.remove());
+  const count = 3 + Math.floor(Math.random() * 4);
+  for (let i = 0; i < count; i++) {
+    const b = document.createElement('div');
+    b.className = 'sonar-blip';
+    const angle = Math.random() * Math.PI * 2;
+    const dist  = 20 + Math.random() * 45;
+    b.style.left = (50 + Math.cos(angle) * dist) + '%';
+    b.style.top  = (50 + Math.sin(angle) * dist) + '%';
+    b.style.animationDelay = (Math.random() * 2) + 's';
+    sonar.appendChild(b);
+  }
+}
+
+// ============================
+//   PLAYER INTERACTION
+// ============================
+function onCellClick(r, c) {
+  const cell = currentPuzzle.grid[r][c];
+  if (cell.type === 'obstacle') {
+    flashWrong(r, c);
+    loseLife();
+    return;
+  }
+
+  // If clicked start, reset
+  const [sr, sc] = currentPuzzle.start;
+  if (r === sr && c === sc) {
+    playerPath = [[sr, sc]];
+    updatePathDisplay();
+    return;
+  }
+
+  // Must start from green
+  if (playerPath.length === 0) {
+    showToast('START FROM 🟢 FIRST');
+    return;
+  }
+
+  // Check adjacency to last cell
+  const [lr, lc] = playerPath[playerPath.length - 1];
+  const dr = Math.abs(r - lr), dc = Math.abs(c - lc);
+  if ((dr === 1 && dc === 0) || (dr === 0 && dc === 1)) {
+    // Remove if already in path (backtrack)
+    const idx = playerPath.findIndex(([pr,pc]) => pr===r && pc===c);
+    if (idx !== -1) {
+      playerPath = playerPath.slice(0, idx + 1);
+    } else {
+      // Check move limit
+      if (playerPath.length >= currentPuzzle.moveLimit) {
+        showToast('⚠ OXYGEN LIMIT REACHED');
+        return;
+      }
+      playerPath.push([r, c]);
+    }
+    updatePathDisplay();
+    // Check if reached end
+    const [er, ec] = currentPuzzle.end;
+    if (r === er && c === ec) submitPath();
+  } else {
+    showToast('MUST MOVE ADJACENT CELL');
+  }
+}
+
+function flashWrong(r, c) {
+  const el = getCellEl(r, c);
+  if (!el) return;
+  el.classList.add('wrong');
+  setTimeout(() => el.classList.remove('wrong'), 500);
+}
+
+// ============================
+//   PATH SUBMISSION
+// ============================
+function submitPath() {
+  if (playerPath.length < 2) { showToast('TRACE A PATH FIRST'); return; }
+  const [er, ec] = currentPuzzle.end;
+  const [lr, lc] = playerPath[playerPath.length - 1];
+  if (lr !== er || lc !== ec) { showToast('PATH MUST REACH 🎯'); return; }
+
+  // Compare to solution (accept any valid path, just check no obstacles)
+  const valid = playerPath.every(([r, c]) => currentPuzzle.grid[r][c].type !== 'obstacle');
+  if (!valid) { showToast('PATH HITS A MINE!'); return; }
+
+  // Calculate score
+  const solutionLen = currentPuzzle.solution.length;
+  const playerLen   = playerPath.length;
+  const bonus = Math.max(0, solutionLen - playerLen) * 20;
+  const base  = 100 + state.level * 10;
+  const pts   = base + bonus + (hintUsed ? 0 : 50);
+
+  state.score += pts;
+  hintUsed = false;
+
+  // Animate path
+  animateSuccess(() => {
+    document.getElementById('hud-score').textContent = state.score;
+    showSuccess(pts, bonus);
+  });
+}
+
+function animateSuccess(cb) {
+  playerPath.forEach(([r, c], i) => {
+    setTimeout(() => {
+      const el = getCellEl(r, c);
+      if (el) el.classList.add('correct-path');
+    }, i * 80);
+  });
+  setTimeout(cb, playerPath.length * 80 + 300);
+}
+
+function showSuccess(pts, bonus) {
+  const isCheckpoint = state.level % 5 === 0;
+
+  if (isCheckpoint) {
+    triggerCheckpointFlash();
+    state.checkpoint = Math.floor(state.level / 5) + 1;
+    saveCheckpoint();
+    document.getElementById('success-icon').textContent = '🏁';
+    document.getElementById('success-title').textContent = 'CHECKPOINT REACHED';
+    document.getElementById('success-sub').innerHTML =
+      `DEPTH: ${state.level * 50}m<br>SIGNAL DECODED<br><br>+${pts} pts ${bonus ? `(+${bonus} EFFICIENCY BONUS)` : ''}<br><br>⚓ Progress auto-saved`;
+  } else {
+    document.getElementById('success-icon').textContent = '📡';
+    document.getElementById('success-title').textContent = 'SIGNAL DECODED';
+    document.getElementById('success-sub').innerHTML =
+      `+${pts} pts ${bonus ? `(+${bonus} EFFICIENCY BONUS)` : ''}<br>Descending further...`;
+  }
+  document.getElementById('success-overlay').style.display = 'flex';
+}
+
+function nextPuzzle() {
+  document.getElementById('success-overlay').style.display = 'none';
+  state.level++;
+  state.totalDepth = state.level * 50;
+  loadPuzzle();
+}
+
+// ============================
+//   LIVES
+// ============================
+function loseLife() {
+  state.lives = Math.max(0, state.lives - 1);
+  renderLives();
+  showToast('💥 MINE HIT! HULL DAMAGE');
+  if (state.lives <= 0) {
+    setTimeout(() => {
+      document.getElementById('gameover-sub').innerHTML =
+        `Destroyed at ${state.level * 50}m depth.<br>Score: ${state.score}`;
+      document.getElementById('gameover-overlay').style.display = 'flex';
+    }, 600);
+  }
+}
+
+function renderLives() {
+  const el = document.getElementById('lives-display');
+  el.innerHTML = '';
+  for (let i = 0; i < 3; i++) {
+    const pip = document.createElement('span');
+    pip.className = 'pip ' + (i < state.lives ? 'alive' : 'dead');
+    el.appendChild(pip);
+  }
+}
+
+// ============================
+//   HINT
+// ============================
+function showHint() {
+  if (hintUsed) { showToast('HINT ALREADY USED'); return; }
+  hintUsed = true;
+  state.score = Math.max(0, state.score - 50);
+  document.getElementById('hud-score').textContent = state.score;
+
+  // Briefly show the first 3 steps of solution
+  const sol = currentPuzzle.solution;
+  const steps = Math.min(4, sol.length - 1);
+  for (let i = 1; i <= steps; i++) {
+    const [r, c] = sol[i];
+    const el = getCellEl(r, c);
+    if (el && currentPuzzle.grid[r][c].type === 'empty') {
+      el.style.boxShadow = '0 0 20px rgba(255,170,0,0.8)';
+      el.style.borderColor = 'var(--warn)';
+      setTimeout(() => {
+        el.style.boxShadow = '';
+        el.style.borderColor = '';
+      }, 1500);
+    }
+  }
+  showToast('⚡ SONAR PING ACTIVE');
+}
+
+// ============================
+//   CLEAR PATH
+// ============================
+function clearPath() {
+  const [sr, sc] = currentPuzzle.start;
+  playerPath = [[sr, sc]];
+  updatePathDisplay();
+  showToast('↺ PATH CLEARED');
+}
+
+// ============================
+//   SAVE / LOAD
+// ============================
+function saveCheckpoint() {
+  const data = {
+    level: state.level,
+    checkpoint: state.checkpoint,
+    score: state.score,
+    lives: state.lives,
+    totalDepth: state.totalDepth,
+    savedAt: new Date().toISOString(),
+  };
+  localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+}
+
+function saveGame() {
+  saveCheckpoint();
+  showToast('💾 DIVE DATA SAVED');
+}
+
+function loadSave() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+// ============================
+//   CHECKPOINT FLASH
+// ============================
+function triggerCheckpointFlash() {
+  const el = document.getElementById('checkpoint-flash');
+  el.style.animation = 'none';
+  el.offsetWidth;
+  el.style.animation = 'checkpoint-anim 1.5s ease forwards';
+}
+
+// ============================
+//   HUD UPDATE
+// ============================
+function updateHUD() {
+  document.getElementById('hud-depth').textContent = (state.level * 50) + 'm';
+  document.getElementById('hud-score').textContent = state.score;
+  document.getElementById('cp-num').textContent = state.checkpoint;
+  const progress = ((state.level % 5) / 5) * 100;
+  document.getElementById('depth-fill').style.width = progress + '%';
+  renderLives();
+}
+
+// ============================
+//   LOAD PUZZLE
+// ============================
+function loadPuzzle() {
+  currentPuzzle = generatePuzzle(state.level);
+  playerPath = [currentPuzzle.start.slice()];
+  hintUsed = false;
+  updateHUD();
+  renderGrid();
+}
+
+// ============================
+//   GAME START
+// ============================
+function startGame(useSave) {
+  document.getElementById('start-overlay').style.display = 'none';
+  document.getElementById('gameover-overlay').style.display = 'none';
+
+  if (useSave) {
+    const saved = loadSave();
+    if (saved) {
+      state = { ...state, ...saved };
+    }
+  } else {
+    state = { level: 1, checkpoint: 1, score: 0, lives: 3, totalDepth: 0 };
+  }
+
+  loadPuzzle();
+}
+
+// ============================
+//   TOAST
+// ============================
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+// ============================
+//   INIT
+// ============================
+buildOcean();
+
+// Check for save on load
+const saved = loadSave();
+if (saved) {
+  document.getElementById('continue-btn').style.display = 'block';
+  document.getElementById('continue-btn').textContent =
+    `⚓ CONTINUE (Depth: ${saved.level * 50}m, Score: ${saved.score})`;
+}
+</script>
+</body>
+</html>
