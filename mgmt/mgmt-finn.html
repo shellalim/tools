@@ -2419,15 +2419,25 @@ a { text-decoration: none; color: inherit; }
 
 <script>
   window.addEventListener("DOMContentLoaded", initRupiahInputs);
-  const API_URL = 'https://script.google.com/macros/s/AKfycbwAw6FhivK84gsMRcjsqkJUQN_P1GuDtkNpUxts3nO8a9WiO60kDEL6yZV_UXuTTCOWLw/exec';
+  // const API_URL = 'https://script.google.com/macros/s/AKfycbwAw6FhivK84gsMRcjsqkJUQN_P1GuDtkNpUxts3nO8a9WiO60kDEL6yZV_UXuTTCOWLw/exec';
+  const API_URL = 'https://script.google.com/macros/s/AKfycbwxRUH3tHRH9kNdYhQrvQNRSvZ_7JG3Wv5fqDMQjlfhKsvpPqoS4F4rwbSYu4cpx3Rt/exec';
 
 /* ════════════════════════════════════════════
    API HELPER
 ════════════════════════════════════════════ */
+function getCurrentUserId() {
+  try {
+    const session = JSON.parse(sessionStorage.getItem('finanku_session'));
+    console.log(session?.userId )
+    return session?.userId || '';
+  } catch { return ''; }
+}
 
 const API = {
   get(action, params = {}) {
-    return $.get(API_URL, { ...params, action });
+    return $.get(API_URL, { ...params, action ,
+      userId: getCurrentUserId()
+    });
   },
   post(action, data) {
     return $.ajax({
@@ -2437,10 +2447,20 @@ const API = {
       data       : JSON.stringify({ action, data }),
     });
   },
-  add   (module, data) { return this.post('add'    + cap(module), data); },
-  update(module, data) { return this.post('update' + cap(module), data); },
-  delete(module, id)   { return this.get ('delete' + cap(module), { id }); },
-  getAll()             { return this.get ('getAll'); },
+  // CRUD — semua pakai GET sekarang
+  add   (module, data) { return this.get('add'    + cap(module), data); },
+  update(module, data) { return this.get('update' + cap(module), data); },
+  delete(module, id)   { return this.get('delete' + cap(module), { id }); },
+  getAll()             { return this.get('getAll'); },
+
+  // Family
+  getFamilyAll()              { return this.get('getFamilyAll'); },
+  addFamilyGoal(data)         { return this.get('addFamilyGoal', data); },
+  addFamilyBill(data)         { return this.get('addFamilyBill', data); },
+  updateFamilyGoal(data)      { return this.get('updateFamilyGoal', data); },
+  updateFamilyBill(data)      { return this.get('updateFamilyBill', data); },
+  deleteFamilyGoal(id)        { return this.get('deleteFamilyGoal', { id }); },
+  deleteFamilyBill(id)        { return this.get('deleteFamilyBill', { id }); },
 };
 
 function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
@@ -2596,8 +2616,8 @@ $(function () {
   const AUTH_CONFIG = {
     sessionKey: 'finanku_session',
     users: [
-      { username: 'shella', password: 'admin123', displayName: 'Shella Lim', role: 'Owner' },
-      { username: 'handy',  password: 'demo',     displayName: 'Handy Pranata',     role: 'Member' },
+      { username: 'shella', userId: 'admin', displayName: 'Shella Lim', role: 'Owner' },
+      { username: 'handy',  userId: 'handy',  displayName: 'Handy Pranata',     role: 'Member' },
     ]
   };
 
@@ -2653,14 +2673,18 @@ $(function () {
       .done(function(res) {
     console.log(res)
     if (res.status === 'ok') {
-        const user = AUTH_CONFIG.users.find(u => u.username === username );
-          if (user) {
-            const user = AUTH_CONFIG.users.find(u => u.username === username);
+      debugger
+        const user = AUTH_CONFIG.users.find(u => u.username.toLowerCase() === username.toLowerCase());
+        if (user) {
             sessionStorage.setItem(AUTH_CONFIG.sessionKey, JSON.stringify({
-              username: user.username, displayName: user.displayName,
+              username: user.username, displayName: user.displayName, userId: user.userId,
               role: user.role, loginTime: Date.now()
             }));
             enterApp(user);
+          }else{
+            $btn.text('Masuk →').prop('disabled', false).css('opacity', 1);
+            $('#loginErr').text('Username atau password salah. Coba lagi.').addClass('show');
+            $('#loginPass').addClass('err').val('').focus();
           }
         } else {
           $btn.text('Masuk →').prop('disabled', false).css('opacity', 1);
@@ -2844,6 +2868,1063 @@ $(function () {
   });
   $('#fabBtn').show();
 
+
+/**
+ * FinanKu — Family Dashboard
+ *
+ * Letakkan kode ini setelah fungsi setMode() di file JS utama.
+ *
+ * Mencakup:
+ *  - Load data dari getFamilyAll
+ *  - Render metrics gabungan
+ *  - Render kartu per member
+ *  - Render Family Goals + progress split bar
+ *  - Render Tagihan Split
+ *  - Chart porsi pengeluaran & tren keluarga
+ *  - Auto-load saat masuk mode keluarga
+ */
+
+/* ════════════════════════════════════════════
+   FAMILY STATE — cache data keluarga
+════════════════════════════════════════════ */
+var FamilyData = {
+  loaded      : false,
+  members     : [],
+  byMember    : {},
+  familyGoals : [],
+  familyBills : [],
+};
+
+/* ════════════════════════════════════════════
+   LOAD DATA DARI API
+════════════════════════════════════════════ */
+function loadFamilyData(forceRefresh) {
+  // Pakai cache kecuali diminta refresh
+  if (FamilyData.loaded && !forceRefresh) {
+    renderFamilyDashboard();
+    return;
+  }
+
+  showLoading(true);
+  API.get('getFamilyAll')
+    .done(function (res) {
+      if (res.status === 'ok') {
+        FamilyData.members     = res.data.members     || [];
+        FamilyData.byMember    = res.data.byMember    || {};
+        FamilyData.familyGoals = res.data.familyGoals || [];
+        FamilyData.familyBills = res.data.familyBills || [];
+        FamilyData.loaded      = true;
+        renderFamilyDashboard();
+        renderFamilyGoals();
+        renderFamilyBills();
+        renderFamilyCharts();
+      } else {
+        toast('Gagal load data keluarga: ' + res.message, 'error');
+      }
+    })
+    .fail(function () { toast('Koneksi gagal', 'error'); })
+    .always(function () { showLoading(false); });
+}
+
+/* ════════════════════════════════════════════
+   HELPERS
+════════════════════════════════════════════ */
+function fmtRpF(n, compact) {
+  var num = parseInt(n) || 0;
+  if (compact) {
+    if (num >= 1000000000) return 'Rp ' + (num/1000000000).toFixed(1) + ' M';
+    if (num >= 1000000)    return 'Rp ' + (num/1000000).toFixed(1) + ' jt';
+    if (num >= 1000)       return 'Rp ' + (num/1000).toFixed(0) + ' rb';
+  }
+  return 'Rp ' + num.toLocaleString('id-ID');
+}
+
+function getMY() {
+  return {
+    m: window.fkCurrentMonth || (new Date().getMonth() + 1),
+    y: window.fkCurrentYear  || new Date().getFullYear(),
+  };
+}
+
+function txThisMonth(txList) {
+  var ref = getMY();
+  return (txList || []).filter(function (t) {
+    var d = new Date(t.tanggal);
+    return d.getMonth() + 1 === ref.m && d.getFullYear() === ref.y;
+  });
+}
+
+function sumMasuk(txList) {
+  return (txList || []).filter(function (t) { return t.tipe === 'Masuk'; })
+    .reduce(function (s, t) { return s + (parseInt(t.nominal) || 0); }, 0);
+}
+
+function sumKeluar(txList) {
+  return (txList || []).filter(function (t) { return t.tipe === 'Keluar'; })
+    .reduce(function (s, t) { return s + (parseInt(t.nominal) || 0); }, 0);
+}
+
+function getSaldoMember(memberData) {
+  var akun = memberData.akun || [];
+  var tx   = memberData.transaksi || [];
+  return akun.reduce(function (total, a) {
+    var delta = 0;
+    tx.forEach(function (t) {
+      if (t.akunId === a.akunId) {
+        if (t.tipe === 'Masuk')    delta += parseInt(t.nominal) || 0;
+        if (t.tipe === 'Keluar')   delta -= parseInt(t.nominal) || 0;
+        if (t.tipe === 'Transfer') delta -= parseInt(t.nominal) || 0;
+      }
+      if (t.tipe === 'Transfer' && t.akunTujuanId === a.akunId) {
+        delta += parseInt(t.nominal) || 0;
+      }
+    });
+    return total + (parseInt(a.saldoAwal) || 0) + delta;
+  }, 0);
+}
+
+/* ════════════════════════════════════════════
+   RENDER — FAMILY DASHBOARD (page-familyDash)
+════════════════════════════════════════════ */
+function renderFamilyDashboard() {
+  var members  = FamilyData.members;
+  var byMember = FamilyData.byMember;
+
+  if (!members.length) {
+    $('#familyMemberCards').html(`
+      <div class="emptyState" style="grid-column:1/-1">
+        <div class="emptyIcon">👨‍👩‍👧</div>
+        <h3>Belum ada anggota</h3>
+        <p>Isi sheet Members di Spreadsheet terlebih dahulu</p>
+      </div>`);
+    return;
+  }
+
+  // ── Total aset & pengeluaran gabungan ──
+  var totalAset    = 0;
+  var totalKeluar  = 0;
+  var totalMasukF  = 0;
+
+  members.forEach(function (m) {
+    var md = byMember[m.userId] || {};
+    totalAset   += getSaldoMember(md);
+    var txBulan  = txThisMonth(md.transaksi);
+    totalKeluar += sumKeluar(txBulan);
+    totalMasukF += sumMasuk(txBulan);
+  });
+
+  var totalTabungan = totalMasukF - totalKeluar;
+
+  $('#mFamAsset').text(fmtRpF(totalAset, true));
+  $('#mFamExpense').text(fmtRpF(totalKeluar, true));
+  $('#mFamSaving').text(fmtRpF(totalTabungan, true))
+    .css('color', totalTabungan >= 0 ? 'var(--green)' : 'var(--red)');
+  $('#mFamMember').text(members.length);
+
+  // ── Kartu per member ──
+  var cards = members.map(function (m) {
+    var md      = byMember[m.userId] || {};
+    var saldo   = getSaldoMember(md);
+    var txBulan = txThisMonth(md.transaksi);
+    var keluar  = sumKeluar(txBulan);
+    var masuk   = sumMasuk(txBulan);
+    var initial = (m.displayName || m.userId).charAt(0).toUpperCase();
+    var warna   = m.warna || '#3B82F6';
+    var akunCount = (md.akun || []).length;
+
+    // Progress bar porsi pengeluaran vs total
+    var pct = totalKeluar > 0 ? Math.round(keluar / totalKeluar * 100) : 0;
+
+    return `
+      <div class="familyMemberCard">
+        <div class="familyMemberHead">
+          <div class="familyMemberAvatar" style="background:linear-gradient(135deg,${warna},${warna}99)">
+            ${initial}
+          </div>
+          <div>
+            <div class="familyMemberName">${m.displayName || m.userId}</div>
+            <div class="familyMemberRole">${m.role || 'Member'} · ${akunCount} akun</div>
+          </div>
+          <span class="memberBadge" style="margin-left:auto;border-color:${warna}50">
+            <span class="memberDot" style="background:${warna};width:18px;height:18px;font-size:10px">
+              ${initial}
+            </span>
+            ${m.role || 'Member'}
+          </span>
+        </div>
+        <div class="familyStatRow">
+          <div class="familyStat">
+            <div class="familyStatLabel">Saldo</div>
+            <div class="familyStatValue" style="color:${warna}">${fmtRpF(saldo, true)}</div>
+          </div>
+          <div class="familyStat">
+            <div class="familyStatLabel">Keluar Bulan Ini</div>
+            <div class="familyStatValue" style="color:var(--red)">${fmtRpF(keluar, true)}</div>
+          </div>
+          <div class="familyStat">
+            <div class="familyStatLabel">Pemasukan</div>
+            <div class="familyStatValue" style="color:var(--green)">${fmtRpF(masuk, true)}</div>
+          </div>
+          <div class="familyStat">
+            <div class="familyStatLabel">Porsi Pengeluaran</div>
+            <div class="familyStatValue">${pct}%</div>
+          </div>
+        </div>
+        <div class="barBg" style="margin-top:12px">
+          <div class="barFill" style="width:${pct}%;background:${warna};transition:width .5s ease"></div>
+        </div>
+      </div>`;
+  }).join('');
+
+  $('#familyMemberCards').html(cards);
+}
+
+/* ════════════════════════════════════════════
+   RENDER — FAMILY GOALS (page-familyGoals)
+════════════════════════════════════════════ */
+function renderFamilyGoals() {
+  var goals   = FamilyData.familyGoals;
+  var members = FamilyData.members;
+
+  if (!goals.length) {
+    $('#familyGoalList').html(`
+      <div class="emptyState">
+        <div class="emptyIcon">🎯</div>
+        <h3>Belum ada goal bersama</h3>
+        <p>Tambah goal bersama keluarga</p>
+      </div>`);
+    return;
+  }
+
+  var GOAL_COLORS = ['#3B82F6','#A855F7','#22C55E','#EF4444','#F59E0B','#06B6D4'];
+
+  var html = goals.map(function (g, i) {
+    var target  = parseInt(g.targetNominal) || 0;
+    var color   = GOAL_COLORS[i % GOAL_COLORS.length];
+
+    // Parse kontribusi — format JSON string: {"budi":5000000,"sari":3000000}
+    var kontribusi = {};
+    try {
+      kontribusi = typeof g.kontribusi === 'string'
+        ? JSON.parse(g.kontribusi) : (g.kontribusi || {});
+    } catch (e) { kontribusi = {}; }
+
+    var totalKontrib = Object.values(kontribusi).reduce(function (s, v) {
+      return s + (parseInt(v) || 0);
+    }, 0);
+
+    var pct = target > 0 ? Math.min(Math.round(totalKontrib / target * 100), 100) : 0;
+
+    // Split bar per member
+    var splitBars = members.map(function (m) {
+      var val     = parseInt(kontribusi[m.userId]) || 0;
+      var barPct  = target > 0 ? Math.min((val / target * 100), 100) : 0;
+      var warna   = m.warna || '#3B82F6';
+      return `<div class="splitSegment" style="width:${barPct}%;background:${warna}" 
+        title="${m.displayName}: ${fmtRpF(val, true)}"></div>`;
+    }).join('');
+
+    // Badge per member
+    var badges = members.map(function (m) {
+      var val    = parseInt(kontribusi[m.userId]) || 0;
+      var warna  = m.warna || '#3B82F6';
+      var init   = (m.displayName || m.userId).charAt(0).toUpperCase();
+      return `<span class="memberBadge" style="border-color:${warna}50;font-size:10px;padding:1px 7px 1px 3px">
+        <span class="memberDot" style="background:${warna};width:14px;height:14px;font-size:8px">${init}</span>
+        ${fmtRpF(val, true)}
+      </span>`;
+    }).join('');
+
+    var sisa = target - totalKontrib;
+
+    return `
+      <div class="goalItem" data-goalid="${g.goalId}">
+        <div class="goalIcon" style="background:${color}18">${g.ikonGoal || '🎯'}</div>
+        <div class="goalInfo">
+          <div class="goalName">${g.namaGoal}</div>
+          <div class="goalMeta">Target: ${fmtRpF(target, true)} · Deadline: ${g.deadline || '—'}</div>
+          <div class="goalBarWrap" style="margin-top:8px">
+            <div class="splitBar" style="height:6px;border-radius:99px;overflow:hidden;display:flex;background:var(--bg4)">
+              ${splitBars}
+            </div>
+            <div class="goalNums" style="margin-top:6px">
+              <span style="display:flex;gap:6px;flex-wrap:wrap">${badges}</span>
+              <span>Sisa ${fmtRpF(sisa, true)}</span>
+            </div>
+          </div>
+        </div>
+        <div class="goalPct" style="color:${color}">${pct}%</div>
+      </div>`;
+  }).join('');
+
+  $('#familyGoalList').html(html);
+
+  // Update metrics
+  var totalTarget = goals.reduce(function (s, g) { return s + (parseInt(g.targetNominal) || 0); }, 0);
+  var totalSaved  = goals.reduce(function (s, g) {
+    var k = {};
+    try { k = typeof g.kontribusi === 'string' ? JSON.parse(g.kontribusi) : (g.kontribusi || {}); } catch(e){}
+    return s + Object.values(k).reduce(function (ss, v) { return ss + (parseInt(v)||0); }, 0);
+  }, 0);
+  var overallPct = totalTarget > 0 ? Math.round(totalSaved / totalTarget * 100) : 0;
+
+  // Update halaman familyGoals metrics jika ada
+  $('#goal-fam-target').text(fmtRpF(totalTarget, true));
+  $('#goal-fam-saved').text(fmtRpF(totalSaved, true));
+  $('#goal-fam-pct').text(overallPct + '%');
+}
+
+/* ════════════════════════════════════════════
+   RENDER — FAMILY BILLS / TAGIHAN SPLIT (page-familyBills)
+════════════════════════════════════════════ */
+function renderFamilyBills() {
+  var bills   = FamilyData.familyBills;
+  var members = FamilyData.members;
+
+  var totalBills   = bills.reduce(function (s, b) { return s + (parseInt(b.nominal) || 0); }, 0);
+  var pendingBills = bills.filter(function (b) { return b.status !== 'Lunas'; }).length;
+
+  $('#mFamBillTotal').text(fmtRpF(totalBills, true));
+  $('#mFamBillPending').text(pendingBills + ' tagihan');
+
+  if (!bills.length) {
+    $('#familyBillList').html(`
+      <div class="emptyState">
+        <div class="emptyIcon">📋</div>
+        <h3>Belum ada tagihan bersama</h3>
+        <p>Tambah tagihan split di sheet Family_Bills</p>
+      </div>`);
+    return;
+  }
+
+  var BILL_ICONS = {
+    'PLN':'⚡','Listrik':'⚡','Air':'💧','PDAM':'💧',
+    'Internet':'📶','IndiHome':'📶','Netflix':'🎬',
+    'Spotify':'🎵','KPR':'🏠','Rumah':'🏠',
+    'Mobil':'🚗','Asuransi':'🛡️','PayLater':'💳',
+  };
+
+  function getBillIcon(name) {
+    for (var k in BILL_ICONS) {
+      if (name.toLowerCase().includes(k.toLowerCase())) return BILL_ICONS[k];
+    }
+    return '📋';
+  }
+
+  var html = bills.map(function (b) {
+    var nominal = parseInt(b.nominal) || 0;
+
+    // splitMap: {"budi":60,"sari":40} → persentase per member
+    var splitMap = {};
+    try {
+      splitMap = typeof b.splitMap === 'string'
+        ? JSON.parse(b.splitMap) : (b.splitMap || {});
+    } catch (e) {}
+
+    // Split bar
+    var splitBars = members.map(function (m) {
+      var pct   = parseInt(splitMap[m.userId]) || 0;
+      var warna = m.warna || '#3B82F6';
+      var nom   = Math.round(nominal * pct / 100);
+      return `<div style="width:${pct}%;background:${warna}" 
+        title="${m.displayName}: ${pct}% = ${fmtRpF(nom, true)}"></div>`;
+    }).join('');
+
+    // Badge split
+    var badges = members.map(function (m) {
+      var pct   = parseInt(splitMap[m.userId]) || 0;
+      if (!pct) return '';
+      var warna = m.warna || '#3B82F6';
+      var init  = (m.displayName || m.userId).charAt(0).toUpperCase();
+      return `<span class="memberBadge" style="border-color:${warna}50;font-size:10px;padding:1px 7px 1px 3px">
+        <span class="memberDot" style="background:${warna};width:14px;height:14px;font-size:8px">${init}</span>
+        ${pct}%
+      </span>`;
+    }).join('');
+
+    var statusColor = b.status === 'Lunas' ? 'var(--green)' : 'var(--amber)';
+
+    return `
+      <div class="billSplitItem">
+        <div class="billIcon">${getBillIcon(b.namaBill)}</div>
+        <div class="billSplitInfo">
+          <div class="billSplitName">${b.namaBill}</div>
+          <div class="billSplitMeta">${b.bayarOleh || '—'} · tgl ${b.tanggalBayar || '—'} · ${b.frekuensi || 'Bulanan'}</div>
+          <div style="height:5px;border-radius:99px;overflow:hidden;display:flex;background:var(--bg4);margin-top:7px">
+            ${splitBars}
+          </div>
+          <div style="margin-top:5px;display:flex;gap:5px;flex-wrap:wrap">${badges}</div>
+        </div>
+        <div class="billSplitRight">
+          <div class="billAmount">${fmtRpF(nominal)}</div>
+          <div style="font-size:11px;color:${statusColor};margin-top:3px;font-weight:600">${b.status || 'Aktif'}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  $('#familyBillList').html(html);
+}
+
+/**
+ * FinanKu — Family Dashboard
+ *
+ * Letakkan kode ini setelah fungsi setMode() di file JS utama.
+ *
+ * Mencakup:
+ *  - Load data dari getFamilyAll
+ *  - Render metrics gabungan
+ *  - Render kartu per member
+ *  - Render Family Goals + progress split bar
+ *  - Render Tagihan Split
+ *  - Chart porsi pengeluaran & tren keluarga
+ *  - Auto-load saat masuk mode keluarga
+ */
+
+/* ════════════════════════════════════════════
+   FAMILY STATE — cache data keluarga
+════════════════════════════════════════════ */
+var FamilyData = {
+  loaded      : false,
+  members     : [],
+  byMember    : {},
+  familyGoals : [],
+  familyBills : [],
+};
+
+/* ════════════════════════════════════════════
+   LOAD DATA DARI API
+════════════════════════════════════════════ */
+function loadFamilyData(forceRefresh) {
+  // Pakai cache kecuali diminta refresh
+  if (FamilyData.loaded && !forceRefresh) {
+    renderFamilyDashboard();
+    return;
+  }
+
+  showLoading(true);
+  API.get('getFamilyAll')
+    .done(function (res) {
+      if (res.status === 'ok') {
+        FamilyData.members     = res.data.members     || [];
+        FamilyData.byMember    = res.data.byMember    || {};
+        FamilyData.familyGoals = res.data.familyGoals || [];
+        FamilyData.familyBills = res.data.familyBills || [];
+        FamilyData.loaded      = true;
+        renderFamilyDashboard();
+        renderFamilyGoals();
+        renderFamilyBills();
+        renderFamilyCharts();
+      } else {
+        toast('Gagal load data keluarga: ' + res.message, 'error');
+      }
+    })
+    .fail(function () { toast('Koneksi gagal', 'error'); })
+    .always(function () { showLoading(false); });
+}
+
+/* ════════════════════════════════════════════
+   HELPERS
+════════════════════════════════════════════ */
+function fmtRpF(n, compact) {
+  var num = parseInt(n) || 0;
+  if (compact) {
+    if (num >= 1000000000) return 'Rp ' + (num/1000000000).toFixed(1) + ' M';
+    if (num >= 1000000)    return 'Rp ' + (num/1000000).toFixed(1) + ' jt';
+    if (num >= 1000)       return 'Rp ' + (num/1000).toFixed(0) + ' rb';
+  }
+  return 'Rp ' + num.toLocaleString('id-ID');
+}
+
+function getMY() {
+  return {
+    m: window.fkCurrentMonth || (new Date().getMonth() + 1),
+    y: window.fkCurrentYear  || new Date().getFullYear(),
+  };
+}
+
+function txThisMonth(txList) {
+  var ref = getMY();
+  return (txList || []).filter(function (t) {
+    var d = new Date(t.tanggal);
+    return d.getMonth() + 1 === ref.m && d.getFullYear() === ref.y;
+  });
+}
+
+function sumMasuk(txList) {
+  return (txList || []).filter(function (t) { return t.tipe === 'Masuk'; })
+    .reduce(function (s, t) { return s + (parseInt(t.nominal) || 0); }, 0);
+}
+
+function sumKeluar(txList) {
+  return (txList || []).filter(function (t) { return t.tipe === 'Keluar'; })
+    .reduce(function (s, t) { return s + (parseInt(t.nominal) || 0); }, 0);
+}
+
+function getSaldoMember(memberData) {
+  var akun = memberData.akun || [];
+  var tx   = memberData.transaksi || [];
+  return akun.reduce(function (total, a) {
+    var delta = 0;
+    tx.forEach(function (t) {
+      if (t.akunId === a.akunId) {
+        if (t.tipe === 'Masuk')    delta += parseInt(t.nominal) || 0;
+        if (t.tipe === 'Keluar')   delta -= parseInt(t.nominal) || 0;
+        if (t.tipe === 'Transfer') delta -= parseInt(t.nominal) || 0;
+      }
+      if (t.tipe === 'Transfer' && t.akunTujuanId === a.akunId) {
+        delta += parseInt(t.nominal) || 0;
+      }
+    });
+    return total + (parseInt(a.saldoAwal) || 0) + delta;
+  }, 0);
+}
+
+/* ════════════════════════════════════════════
+   RENDER — FAMILY DASHBOARD (page-familyDash)
+════════════════════════════════════════════ */
+function renderFamilyDashboard() {
+  var members  = FamilyData.members;
+  var byMember = FamilyData.byMember;
+
+  if (!members.length) {
+    $('#familyMemberCards').html(`
+      <div class="emptyState" style="grid-column:1/-1">
+        <div class="emptyIcon">👨‍👩‍👧</div>
+        <h3>Belum ada anggota</h3>
+        <p>Isi sheet Members di Spreadsheet terlebih dahulu</p>
+      </div>`);
+    return;
+  }
+
+  // ── Total aset & pengeluaran gabungan ──
+  var totalAset    = 0;
+  var totalKeluar  = 0;
+  var totalMasukF  = 0;
+
+  members.forEach(function (m) {
+    var md = byMember[m.userId] || {};
+    totalAset   += getSaldoMember(md);
+    var txBulan  = txThisMonth(md.transaksi);
+    totalKeluar += sumKeluar(txBulan);
+    totalMasukF += sumMasuk(txBulan);
+  });
+
+  var totalTabungan = totalMasukF - totalKeluar;
+
+  $('#mFamAsset').text(fmtRpF(totalAset, true));
+  $('#mFamExpense').text(fmtRpF(totalKeluar, true));
+  $('#mFamSaving').text(fmtRpF(totalTabungan, true))
+    .css('color', totalTabungan >= 0 ? 'var(--green)' : 'var(--red)');
+  $('#mFamMember').text(members.length);
+
+  // ── Kartu per member ──
+  var cards = members.map(function (m) {
+    var md      = byMember[m.userId] || {};
+    var saldo   = getSaldoMember(md);
+    var txBulan = txThisMonth(md.transaksi);
+    var keluar  = sumKeluar(txBulan);
+    var masuk   = sumMasuk(txBulan);
+    var initial = (m.displayName || m.userId).charAt(0).toUpperCase();
+    var warna   = m.warna || '#3B82F6';
+    var akunCount = (md.akun || []).length;
+
+    // Progress bar porsi pengeluaran vs total
+    var pct = totalKeluar > 0 ? Math.round(keluar / totalKeluar * 100) : 0;
+
+    return `
+      <div class="familyMemberCard">
+        <div class="familyMemberHead">
+          <div class="familyMemberAvatar" style="background:linear-gradient(135deg,${warna},${warna}99)">
+            ${initial}
+          </div>
+          <div>
+            <div class="familyMemberName">${m.displayName || m.userId}</div>
+            <div class="familyMemberRole">${m.role || 'Member'} · ${akunCount} akun</div>
+          </div>
+          <span class="memberBadge" style="margin-left:auto;border-color:${warna}50">
+            <span class="memberDot" style="background:${warna};width:18px;height:18px;font-size:10px">
+              ${initial}
+            </span>
+            ${m.role || 'Member'}
+          </span>
+        </div>
+        <div class="familyStatRow">
+          <div class="familyStat">
+            <div class="familyStatLabel">Saldo</div>
+            <div class="familyStatValue" style="color:${warna}">${fmtRpF(saldo, true)}</div>
+          </div>
+          <div class="familyStat">
+            <div class="familyStatLabel">Keluar Bulan Ini</div>
+            <div class="familyStatValue" style="color:var(--red)">${fmtRpF(keluar, true)}</div>
+          </div>
+          <div class="familyStat">
+            <div class="familyStatLabel">Pemasukan</div>
+            <div class="familyStatValue" style="color:var(--green)">${fmtRpF(masuk, true)}</div>
+          </div>
+          <div class="familyStat">
+            <div class="familyStatLabel">Porsi Pengeluaran</div>
+            <div class="familyStatValue">${pct}%</div>
+          </div>
+        </div>
+        <div class="barBg" style="margin-top:12px">
+          <div class="barFill" style="width:${pct}%;background:${warna};transition:width .5s ease"></div>
+        </div>
+      </div>`;
+  }).join('');
+
+  $('#familyMemberCards').html(cards);
+}
+
+/* ════════════════════════════════════════════
+   RENDER — FAMILY GOALS (page-familyGoals)
+════════════════════════════════════════════ */
+function renderFamilyGoals() {
+  var goals   = FamilyData.familyGoals;
+  var members = FamilyData.members;
+
+  if (!goals.length) {
+    $('#familyGoalList').html(`
+      <div class="emptyState">
+        <div class="emptyIcon">🎯</div>
+        <h3>Belum ada goal bersama</h3>
+        <p>Tambah goal bersama keluarga</p>
+      </div>`);
+    return;
+  }
+
+  var GOAL_COLORS = ['#3B82F6','#A855F7','#22C55E','#EF4444','#F59E0B','#06B6D4'];
+
+  var html = goals.map(function (g, i) {
+    var target  = parseInt(g.targetNominal) || 0;
+    var color   = GOAL_COLORS[i % GOAL_COLORS.length];
+
+    // Parse kontribusi — format JSON string: {"budi":5000000,"sari":3000000}
+    var kontribusi = {};
+    try {
+      kontribusi = typeof g.kontribusi === 'string'
+        ? JSON.parse(g.kontribusi) : (g.kontribusi || {});
+    } catch (e) { kontribusi = {}; }
+
+    var totalKontrib = Object.values(kontribusi).reduce(function (s, v) {
+      return s + (parseInt(v) || 0);
+    }, 0);
+
+    var pct = target > 0 ? Math.min(Math.round(totalKontrib / target * 100), 100) : 0;
+
+    // Split bar per member
+    var splitBars = members.map(function (m) {
+      var val     = parseInt(kontribusi[m.userId]) || 0;
+      var barPct  = target > 0 ? Math.min((val / target * 100), 100) : 0;
+      var warna   = m.warna || '#3B82F6';
+      return `<div class="splitSegment" style="width:${barPct}%;background:${warna}" 
+        title="${m.displayName}: ${fmtRpF(val, true)}"></div>`;
+    }).join('');
+
+    // Badge per member
+    var badges = members.map(function (m) {
+      var val    = parseInt(kontribusi[m.userId]) || 0;
+      var warna  = m.warna || '#3B82F6';
+      var init   = (m.displayName || m.userId).charAt(0).toUpperCase();
+      return `<span class="memberBadge" style="border-color:${warna}50;font-size:10px;padding:1px 7px 1px 3px">
+        <span class="memberDot" style="background:${warna};width:14px;height:14px;font-size:8px">${init}</span>
+        ${fmtRpF(val, true)}
+      </span>`;
+    }).join('');
+
+    var sisa = target - totalKontrib;
+
+    return `
+      <div class="goalItem" data-goalid="${g.goalId}">
+        <div class="goalIcon" style="background:${color}18">${g.ikonGoal || '🎯'}</div>
+        <div class="goalInfo">
+          <div class="goalName">${g.namaGoal}</div>
+          <div class="goalMeta">Target: ${fmtRpF(target, true)} · Deadline: ${g.deadline || '—'}</div>
+          <div class="goalBarWrap" style="margin-top:8px">
+            <div class="splitBar" style="height:6px;border-radius:99px;overflow:hidden;display:flex;background:var(--bg4)">
+              ${splitBars}
+            </div>
+            <div class="goalNums" style="margin-top:6px">
+              <span style="display:flex;gap:6px;flex-wrap:wrap">${badges}</span>
+              <span>Sisa ${fmtRpF(sisa, true)}</span>
+            </div>
+          </div>
+        </div>
+        <div class="goalPct" style="color:${color}">${pct}%</div>
+      </div>`;
+  }).join('');
+
+  $('#familyGoalList').html(html);
+
+  // Update metrics
+  var totalTarget = goals.reduce(function (s, g) { return s + (parseInt(g.targetNominal) || 0); }, 0);
+  var totalSaved  = goals.reduce(function (s, g) {
+    var k = {};
+    try { k = typeof g.kontribusi === 'string' ? JSON.parse(g.kontribusi) : (g.kontribusi || {}); } catch(e){}
+    return s + Object.values(k).reduce(function (ss, v) { return ss + (parseInt(v)||0); }, 0);
+  }, 0);
+  var overallPct = totalTarget > 0 ? Math.round(totalSaved / totalTarget * 100) : 0;
+
+  // Update halaman familyGoals metrics jika ada
+  $('#goal-fam-target').text(fmtRpF(totalTarget, true));
+  $('#goal-fam-saved').text(fmtRpF(totalSaved, true));
+  $('#goal-fam-pct').text(overallPct + '%');
+}
+
+/* ════════════════════════════════════════════
+   RENDER — FAMILY BILLS / TAGIHAN SPLIT (page-familyBills)
+════════════════════════════════════════════ */
+function renderFamilyBills() {
+  var bills   = FamilyData.familyBills;
+  var members = FamilyData.members;
+
+  var totalBills   = bills.reduce(function (s, b) { return s + (parseInt(b.nominal) || 0); }, 0);
+  var pendingBills = bills.filter(function (b) { return b.status !== 'Lunas'; }).length;
+
+  $('#mFamBillTotal').text(fmtRpF(totalBills, true));
+  $('#mFamBillPending').text(pendingBills + ' tagihan');
+
+  if (!bills.length) {
+    $('#familyBillList').html(`
+      <div class="emptyState">
+        <div class="emptyIcon">📋</div>
+        <h3>Belum ada tagihan bersama</h3>
+        <p>Tambah tagihan split di sheet Family_Bills</p>
+      </div>`);
+    return;
+  }
+
+  var BILL_ICONS = {
+    'PLN':'⚡','Listrik':'⚡','Air':'💧','PDAM':'💧',
+    'Internet':'📶','IndiHome':'📶','Netflix':'🎬',
+    'Spotify':'🎵','KPR':'🏠','Rumah':'🏠',
+    'Mobil':'🚗','Asuransi':'🛡️','PayLater':'💳',
+  };
+
+  function getBillIcon(name) {
+    for (var k in BILL_ICONS) {
+      if (name.toLowerCase().includes(k.toLowerCase())) return BILL_ICONS[k];
+    }
+    return '📋';
+  }
+
+  var html = bills.map(function (b) {
+    var nominal = parseInt(b.nominal) || 0;
+
+    // splitMap: {"budi":60,"sari":40} → persentase per member
+    var splitMap = {};
+    try {
+      splitMap = typeof b.splitMap === 'string'
+        ? JSON.parse(b.splitMap) : (b.splitMap || {});
+    } catch (e) {}
+
+    // Split bar
+    var splitBars = members.map(function (m) {
+      var pct   = parseInt(splitMap[m.userId]) || 0;
+      var warna = m.warna || '#3B82F6';
+      var nom   = Math.round(nominal * pct / 100);
+      return `<div style="width:${pct}%;background:${warna}" 
+        title="${m.displayName}: ${pct}% = ${fmtRpF(nom, true)}"></div>`;
+    }).join('');
+
+    // Badge split
+    var badges = members.map(function (m) {
+      var pct   = parseInt(splitMap[m.userId]) || 0;
+      if (!pct) return '';
+      var warna = m.warna || '#3B82F6';
+      var init  = (m.displayName || m.userId).charAt(0).toUpperCase();
+      return `<span class="memberBadge" style="border-color:${warna}50;font-size:10px;padding:1px 7px 1px 3px">
+        <span class="memberDot" style="background:${warna};width:14px;height:14px;font-size:8px">${init}</span>
+        ${pct}%
+      </span>`;
+    }).join('');
+
+    var statusColor = b.status === 'Lunas' ? 'var(--green)' : 'var(--amber)';
+
+    return `
+      <div class="billSplitItem">
+        <div class="billIcon">${getBillIcon(b.namaBill)}</div>
+        <div class="billSplitInfo">
+          <div class="billSplitName">${b.namaBill}</div>
+          <div class="billSplitMeta">${b.bayarOleh || '—'} · tgl ${b.tanggalBayar || '—'} · ${b.frekuensi || 'Bulanan'}</div>
+          <div style="height:5px;border-radius:99px;overflow:hidden;display:flex;background:var(--bg4);margin-top:7px">
+            ${splitBars}
+          </div>
+          <div style="margin-top:5px;display:flex;gap:5px;flex-wrap:wrap">${badges}</div>
+        </div>
+        <div class="billSplitRight">
+          <div class="billAmount">${fmtRpF(nominal)}</div>
+          <div style="font-size:11px;color:${statusColor};margin-top:3px;font-weight:600">${b.status || 'Aktif'}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  $('#familyBillList').html(html);
+}
+
+/* ════════════════════════════════════════════
+   RENDER — FAMILY CHARTS
+════════════════════════════════════════════ */
+// Registry chart family — di luar fungsi supaya persist antar panggilan
+var FCharts = {};
+
+function mkFChart(id, cfg) {
+  var canvas = document.getElementById(id);
+  if (!canvas) return;
+  // Destroy instance lama jika ada
+  if (FCharts[id]) {
+    FCharts[id].destroy();
+    delete FCharts[id];
+  }
+  // Destroy juga via Chart.js registry (jaga-jaga jika instance tidak tersimpan)
+  var existing = Chart.getChart(id);
+  if (existing) existing.destroy();
+
+  FCharts[id] = new Chart(canvas.getContext('2d'), cfg);
+}
+
+function renderFamilyCharts() {
+  var members  = FamilyData.members;
+  var byMember = FamilyData.byMember;
+
+  if (!members.length) return;
+
+  var GRID  = 'rgba(30,42,64,.7)';
+  var TICK  = '#4E5F82';
+  var scaleX = { grid: { color: GRID }, ticks: { color: TICK } };
+  var scaleY = {
+    grid : { color: GRID },
+    ticks: { color: TICK, callback: function(v) { return fmtRpF(v, true); } }
+  };
+
+  // ── Pie porsi pengeluaran ──
+  var keluarPerMember = members.map(function (m) {
+    var md = byMember[m.userId] || {};
+    return sumKeluar(txThisMonth(md.transaksi));
+  });
+
+  mkFChart('chartFamPie', {
+    type: 'doughnut',
+    data: {
+      labels  : members.map(function (m) { return m.displayName || m.userId; }),
+      datasets: [{
+        data           : keluarPerMember,
+        backgroundColor: members.map(function (m) { return (m.warna || '#3B82F6') + 'dd'; }),
+        borderWidth    : 2,
+        borderColor    : '#0E1320',
+        hoverOffset    : 6,
+      }]
+    },
+    options: {
+      cutout : '55%',
+      plugins: {
+        legend : { position: 'right', labels: { color: '#8C9BBF', font: { size: 11 } } },
+        tooltip: { callbacks: { label: function(c) { return ' ' + c.label + ': ' + fmtRpF(c.raw, true); } } },
+      },
+      maintainAspectRatio: false,
+    }
+  });
+
+  // ── Bar tren 3 bulan per member ──
+  var ref = getMY();
+  var months3 = [];
+  for (var i = 2; i >= 0; i--) {
+    var mo = ref.m - i, yr = ref.y;
+    if (mo <= 0) { mo += 12; yr--; }
+    months3.push({ m: mo, y: yr });
+  }
+  var MONTHS_SHORT = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+
+  var datasets = members.map(function (m) {
+    var md   = byMember[m.userId] || {};
+    var txAll = md.transaksi || [];
+    var data  = months3.map(function (mo) {
+      var filtered = txAll.filter(function (t) {
+        var d = new Date(t.tanggal);
+        return d.getMonth() + 1 === mo.m && d.getFullYear() === mo.y;
+      });
+      return sumKeluar(filtered);
+    });
+    return {
+      label          : m.displayName || m.userId,
+      data           : data,
+      backgroundColor: (m.warna || '#3B82F6') + 'bb',
+      borderRadius   : 5,
+      borderSkipped  : false,
+    };
+  });
+
+  mkFChart('chartFamTren', {
+    type: 'bar',
+    data: {
+      labels  : months3.map(function (mo) { return MONTHS_SHORT[mo.m - 1] + ' ' + mo.y; }),
+      datasets: datasets,
+    },
+    options: {
+      scales : { x: scaleX, y: scaleY },
+      plugins: {
+        legend : { position: 'top', labels: { color: '#8C9BBF', font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: function(c) { return ' ' + c.dataset.label + ': ' + fmtRpF(c.raw, true); }
+          }
+        },
+      },
+      maintainAspectRatio: false,
+    }
+  });
+
+  // ── Laporan merge chart (page-familyReport) ──
+  var totalPerMonth = months3.map(function (mo) {
+    return members.reduce(function (s, m) {
+      var md = byMember[m.userId] || {};
+      var tx = (md.transaksi || []).filter(function (t) {
+        var d = new Date(t.tanggal);
+        return d.getMonth() + 1 === mo.m && d.getFullYear() === mo.y;
+      });
+      return s + sumKeluar(tx);
+    }, 0);
+  });
+
+  mkFChart('chartFamReport', {
+    type: 'line',
+    data: {
+      labels  : months3.map(function (mo) { return MONTHS_SHORT[mo.m - 1] + ' ' + mo.y; }),
+      datasets: [{
+        label          : 'Total Pengeluaran Keluarga',
+        data           : totalPerMonth,
+        borderColor    : '#3B82F6',
+        backgroundColor: 'rgba(59,130,246,.12)',
+        tension        : .4,
+        fill           : true,
+        pointRadius    : 5,
+        pointBackgroundColor: '#3B82F6',
+      }]
+    },
+    options: {
+      scales : { x: scaleX, y: scaleY },
+      plugins: {
+        legend : { display: false },
+        tooltip: { callbacks: { label: function(c) { return ' ' + fmtRpF(c.raw, true); } } },
+      },
+      maintainAspectRatio: false,
+    }
+  });
+
+  // ── Pie porsi per anggota (familyReport) ──
+  mkFChart('chartFamPorsi', {
+    type: 'doughnut',
+    data: {
+      labels  : members.map(function (m) { return m.displayName || m.userId; }),
+      datasets: [{
+        data           : keluarPerMember,
+        backgroundColor: members.map(function (m) { return (m.warna || '#3B82F6') + 'dd'; }),
+        borderWidth    : 2,
+        borderColor    : '#0E1320',
+      }]
+    },
+    options: {
+      cutout : '50%',
+      plugins: {
+        legend : { position: 'bottom', labels: { color: '#8C9BBF', font: { size: 11 } } },
+        tooltip: { callbacks: { label: function(c) { return ' ' + c.label + ': ' + fmtRpF(c.raw, true); } } },
+      },
+      maintainAspectRatio: false,
+    }
+  });
+}
+
+/* ════════════════════════════════════════════
+   OVERRIDE setMode — auto-load saat masuk keluarga
+════════════════════════════════════════════ */
+// Simpan setMode asli
+var _setModeOriginal = typeof setMode === 'function' ? setMode : null;
+
+setMode = function (mode) {
+  // Panggil setMode asli dulu
+  if (_setModeOriginal) _setModeOriginal(mode);
+
+  // Auto-load family data saat masuk mode keluarga
+  if (mode === 'keluarga') {
+    loadFamilyData(false);
+  }
+};
+
+/* ════════════════════════════════════════════
+   REFRESH BUTTON — di topbar family mode
+════════════════════════════════════════════ */
+$(document).on('click', '#btnUploadFamily', function () {
+  loadFamilyData(true); // force refresh
+  toast('Data keluarga di-refresh...', 'info', 2000);
+});
+
+/* ════════════════════════════════════════════
+   NAV — auto render saat pindah halaman family
+════════════════════════════════════════════ */
+$(document).on('click', '.navItem[data-page]', function () {
+  var pageId = $(this).data('page');
+  if (!FamilyData.loaded) return;
+
+  setTimeout(function () {
+    if (pageId === 'familyDash')   { renderFamilyDashboard(); renderFamilyCharts(); }
+    if (pageId === 'familyGoals')  { renderFamilyGoals(); }
+    if (pageId === 'familyBills')  { renderFamilyBills(); }
+    if (pageId === 'familyReport') { renderFamilyCharts(); }
+  }, 50);
+});
+
+console.log('FinanKu — Family Dashboard ready');
+
+/* ════════════════════════════════════════════
+   OVERRIDE setMode — auto-load saat masuk keluarga
+════════════════════════════════════════════ */
+// Hook langsung ke tombol — tidak perlu override setMode
+$('#modeKeluarga').on('click', function () {
+  loadFamilyData(false);
+});
+
+// Refresh saat pindah halaman family via nav
+$(document).on('click', '.navItem[data-page]', function () {
+  var pageId = $(this).data('page');
+  var famPages = ['familyDash','familyGoals','familyBills','familyReport'];
+  if (famPages.indexOf(pageId) === -1) return;
+  if (!FamilyData.loaded) {
+    loadFamilyData(false);
+    return;
+  }
+  setTimeout(function () {
+    if (pageId === 'familyDash')   { renderFamilyDashboard(); renderFamilyCharts(); }
+    if (pageId === 'familyGoals')  { renderFamilyGoals(); }
+    if (pageId === 'familyBills')  { renderFamilyBills(); }
+    if (pageId === 'familyReport') { renderFamilyCharts(); }
+  }, 50);
+});
+
+/* ════════════════════════════════════════════
+   REFRESH BUTTON — di topbar family mode
+════════════════════════════════════════════ */
+$(document).on('click', '#btnUploadFamily', function () {
+  loadFamilyData(true); // force refresh
+  toast('Data keluarga di-refresh...', 'info', 2000);
+});
+
+/* ════════════════════════════════════════════
+   NAV — auto render saat pindah halaman family
+════════════════════════════════════════════ */
+$(document).on('click', '.navItem[data-page]', function () {
+  var pageId = $(this).data('page');
+  if (!FamilyData.loaded) return;
+
+  setTimeout(function () {
+    if (pageId === 'familyDash')   { renderFamilyDashboard(); renderFamilyCharts(); }
+    if (pageId === 'familyGoals')  { renderFamilyGoals(); }
+    if (pageId === 'familyBills')  { renderFamilyBills(); }
+    if (pageId === 'familyReport') { renderFamilyCharts(); }
+  }, 50);
+});
+
+console.log('FinanKu — Family Dashboard ready');
+
+
   /* ════════════════════════════════════════════
      INIT — cek session
   ════════════════════════════════════════════ */
@@ -2907,39 +3988,53 @@ $(function () {
   /* ════════════════════════════════════════════
      RENDER — TRANSAKSI
   ════════════════════════════════════════════ */
-  function renderTxItem(tx) {
-    const akun     = Cache.get('akun').find(a => a.akunId === tx.akunId);
-    const akunName = akun ? akun.namaAkun : tx.akunId || '—';
-    const icon     = KAT_ICONS[tx.kategori] || '📦';
-    const color    = KAT_COLORS[tx.kategori] || '#6B7280';
-    const amtClass = tx.tipe === 'Masuk' ? 'in' : tx.tipe === 'Transfer' ? 'tf' : 'out';
-    const amtSign  = tx.tipe === 'Masuk' ? '+' : tx.tipe === 'Transfer' ? '⇄' : '-';
-    const badgeClass = tx.tipe === 'Masuk' ? 'tbIn' : tx.tipe === 'Transfer' ? 'tbTf' : 'tbOut';
-    return `
-      <div class="txItem" data-txid="${tx.txId}">
-        <div class="txIcon" style="background:${color}20">${icon}</div>
-        <div class="txInfo">
-          <div class="txName">${tx.nama}</div>
-          <div class="txMeta">${fmtDate(tx.tanggal)} · ${akunName} · ${tx.kategori}</div>
-        </div>
-        <div class="txRight">
-          <div class="txAmount ${amtClass}">${amtSign}${fmtRp(tx.nominal)}</div>
-          <span class="txBadge ${badgeClass}">${tx.tipe}</span>
-        </div>
-        <button class="btnDelTx" data-txid="${tx.txId}"
-          style="background:none;border:none;color:var(--text3);cursor:pointer;
-                 padding:4px 6px;border-radius:6px;font-size:14px;margin-left:4px"
-          title="Hapus">✕</button>
-      </div>`;
-  }
-  function renderTxList(selector, txList) {
-    $(selector).html(txList.length ? txList.map(renderTxItem).join('') : `
-      <div class="emptyState">
-        <div class="emptyIcon">📭</div>
-        <h3>Belum ada transaksi</h3>
-        <p>Klik "+ Tambah Transaksi" atau upload spreadsheet</p>
-      </div>`);
-  }
+    /* ── Render satu item transaksi dengan tombol edit ── */
+    function renderTxItem(tx) {
+      const akun     = Cache.get('akun').find(a => a.akunId === tx.akunId);
+      const akunName = akun ? akun.namaAkun : tx.akunId || '—';
+      const icon     = KAT_ICONS[tx.kategori]  || '📦';
+      const color    = KAT_COLORS[tx.kategori] || '#6B7280';
+
+
+      const BTN = `background:none;border:none;cursor:pointer;
+      padding:4px 6px;border-radius:6px;font-size:13px;
+      color:var(--text3);transition:color .15s;margin-left:2px`;
+
+      const amtClass   = tx.tipe === 'Masuk' ? 'in' : tx.tipe === 'Transfer' ? 'tf' : 'out';
+      const amtSign    = tx.tipe === 'Masuk' ? '+' : tx.tipe === 'Transfer' ? '⇄' : '-';
+      const badgeClass = tx.tipe === 'Masuk' ? 'tbIn' : tx.tipe === 'Transfer' ? 'tbTf' : 'tbOut';
+
+      return `
+        <div class="txItem" data-txid="${tx.txId}">
+          <div class="txIcon" style="background:${color}20">${icon}</div>
+          <div class="txInfo">
+            <div class="txName">${tx.nama}</div>
+            <div class="txMeta">${fmtDate(tx.tanggal)} · ${akunName} · ${tx.kategori}</div>
+          </div>
+          <div class="txRight">
+            <div class="txAmount ${amtClass}">${amtSign}${fmtRp(tx.nominal)}</div>
+            <span class="txBadge ${badgeClass}">${tx.tipe}</span>
+          </div>
+          <button class="btnEditTx" data-txid="${tx.txId}"
+            style="${BTN}" title="Edit transaksi">✏️</button>
+          <button class="btnDelTx" data-txid="${tx.txId}"
+            style="${BTN}" title="Hapus transaksi">✕</button>
+        </div>`;
+    }
+
+    function renderTxList(selector, txList) {
+      if (!txList || !txList.length) {
+        $(selector).html(`
+          <div class="emptyState">
+            <div class="emptyIcon">📭</div>
+            <h3>Belum ada transaksi</h3>
+            <p>Klik "+ Tambah Transaksi" atau upload spreadsheet</p>
+          </div>`);
+        return;
+      }
+      $(selector).html(txList.map(renderTxItem).join(''));
+    }
+
   function getFilteredTx() {
     const m = window.fkCurrentMonth || new Date().getMonth() + 1;
     const y = window.fkCurrentYear  || new Date().getFullYear();
@@ -3195,13 +4290,13 @@ $(function () {
           Cache.get('transaksi').push(tx);
           $('#drawerTx').removeClass('open');
           $('#txNama, #txSubKat, #txCatatan').val('');
-          $('#txNominal, #txKategori, #txAkun').val('');
+          $('#txNominal, #txKategori, #txAkun, #numtxNominal').val('');
           $('#txTanggal').val(today());
           refreshAll();
           toast('Transaksi berhasil disimpan', 'success');
         } else { toast('Gagal: ' + res.message, 'error'); }
       })
-      .fail(function() { toast('Koneksi gagal', 'error'); })
+      .fail(function() { toast('Koneksi gagal ', 'error'); })
       .always(function() { showLoading(false); });
   }
 
@@ -3229,7 +4324,7 @@ $(function () {
           toast('Akun berhasil disimpan', 'success');
         } else { toast('Gagal: ' + res.message, 'error'); }
       })
-      .fail(function() { toast('Koneksi gagal', 'error'); })
+      .fail(function() { toast('Koneksi gagal ', 'error'); })
       .always(function() { showLoading(false); });
   }
 
@@ -3258,7 +4353,7 @@ $(function () {
           toast(existing ? 'Budget diperbarui' : 'Budget disimpan', 'success');
         } else { toast('Gagal: ' + res.message, 'error'); }
       })
-      .fail(function() { toast('Koneksi gagal', 'error'); })
+      .fail(function() { toast('Koneksi gagal ', 'error'); })
       .always(function() { showLoading(false); });
   }
 
@@ -3282,11 +4377,12 @@ $(function () {
           Cache.get('tagihan').push(tagihanData);
           $('#drawerTagihan').removeClass('open');
           $('#tagihanNama, #tagihanNominal, #tagihanTglBayar, #tagihanMulai, #tagihanSelesai').val('');
+          $('#numtagihanNominal').html('');
           refreshAll();
           toast('Tagihan berhasil disimpan', 'success');
         } else { toast('Gagal: ' + res.message, 'error'); }
       })
-      .fail(function() { toast('Koneksi gagal', 'error'); })
+      .fail(function() { toast('Koneksi gagal ', 'error'); })
       .always(function() { showLoading(false); });
   }
 
@@ -3319,7 +4415,7 @@ $(function () {
           toast('Goal berhasil disimpan', 'success');
         } else { toast('Gagal: ' + res.message, 'error'); }
       })
-      .fail(function() { toast('Koneksi gagal', 'error'); })
+      .fail(function() { toast('Koneksi gagal ', 'error'); })
       .always(function() { showLoading(false); });
   }
 
@@ -3342,7 +4438,7 @@ $(function () {
           refreshAll(); toast('Transaksi dihapus', 'warn');
         } else { toast('Gagal: ' + res.message, 'error'); }
       })
-      .fail(function() { toast('Koneksi gagal', 'error'); })
+      .fail(function() { toast('Koneksi gagal ', 'error'); })
       .always(function() { showLoading(false); });
   });
 
@@ -3362,7 +4458,7 @@ $(function () {
           refreshAll(); toast('Tagihan dihapus', 'warn');
         } else { toast('Gagal: ' + res.message, 'error'); }
       })
-      .fail(function() { toast('Koneksi gagal', 'error'); })
+      .fail(function() { toast('Koneksi gagal ', 'error'); })
       .always(function() { showLoading(false); });
   });
 
@@ -3382,7 +4478,7 @@ $(function () {
           refreshAll(); toast('Goal dihapus', 'warn');
         } else { toast('Gagal: ' + res.message, 'error'); }
       })
-      .fail(function() { toast('Koneksi gagal', 'error'); })
+      .fail(function() { toast('Koneksi gagal ', 'error'); })
       .always(function() { showLoading(false); });
   });
 
@@ -3472,7 +4568,7 @@ $(function () {
               toast('File berhasil diimpor ke Sheets', 'success');
             } else { toast('Gagal import: ' + res.message, 'error'); }
           })
-          .fail(function() { toast('Koneksi gagal', 'error'); })
+          .fail(function() { toast('Koneksi gagal ', 'error'); })
           .always(function() { showLoading(false); });
       } catch (err) {
         console.error('Gagal parse Excel:', err);
@@ -4015,6 +5111,10 @@ $(function () {
       toast(`Data: ${Cache.get('transaksi').length} transaksi · ${Cache.get('akun').length} akun · ${Cache.get('budget').length} budget · ${Cache.get('tagihan').length} tagihan · ${Cache.get('goals').length} goals`, 'info', 5000);
     }
 
+
+
+    
+
     /* ── EVENT LISTENERS ── */
     $('#btnExportCSV').on('click', function () { exportCSV(false); });
     $('#btnExportXLSX, #btnExportLaporan, #btnExportFamReport').on('click', exportXLSX);
@@ -4052,14 +5152,763 @@ $(function () {
     window.FK.resetAllData    = resetAllData;
     window.FK.showDataSummary = showDataSummary;
 
-    const hasTx = Cache.get('transaksi').length > 0;
-    if (!hasTx) setTimeout(() => loadDemoData(true), 400);
-    else setTimeout(() => { refreshAll(); renderCharts(); }, 300);
+    // const hasTx = Cache.get('transaksi').length > 0;
+    // if (!hasTx) setTimeout(() => loadDemoData(true), 400);
+    // else setTimeout(() => { refreshAll(); renderCharts(); }, 300);
 
     console.log('FinanKu v2 — Export & Demo ready');
     console.log('Shortcuts: N=Tambah Tx · D=Dashboard · T=Transaksi · I=Info Data');
 
   }); // end waitForExport
+ 
+
+  /* ════════════════════════════════════════════
+     WAIT — pastikan semua Part sudah siap
+  ════════════════════════════════════════════ */
+  function waitFK(cb) {
+    if (window.FK && window.FK.Cache && window.FK.renderAllCharts) cb();
+    else setTimeout(() => waitFK(cb), 100);
+  }
+
+  waitFK(function () {
+
+    const Cache      = window.FK.Cache;
+    const fmtRp      = window.FK.fmtRp;
+    const refreshAll = window.FK.refreshAll;
+    const toast      = window.FK.toast;
+
+    /* ════════════════════════════════════════════
+       EDIT STATE — simpan data yang sedang diedit
+    ════════════════════════════════════════════ */
+    const EditState = {
+      mode  : 'add',   // 'add' | 'edit'
+      module: null,    // 'transaksi' | 'akun' | 'budget' | 'tagihan' | 'goals'
+      data  : null,    // object data asli
+    };
+
+    function setEditMode(module, data) {
+      EditState.mode   = 'edit';
+      EditState.module = module;
+      EditState.data   = data;
+    }
+
+    function setAddMode(module) {
+      EditState.mode   = 'add';
+      EditState.module = module;
+      EditState.data   = null;
+    }
+
+    function isEditing() { return EditState.mode === 'edit'; }
+
+    /* ════════════════════════════════════════════
+       HELPER — update judul drawer
+    ════════════════════════════════════════════ */
+    function setDrawerTitle(drawerId, title) {
+      $('#' + drawerId + ' .drawerTitle').text(title);
+    }
+
+    function resetDrawerTitle(drawerId, defaultTitle) {
+      $('#' + drawerId + ' .drawerTitle').text(defaultTitle);
+    }
+
+    /* ════════════════════════════════════════════
+       HELPER — tombol simpan label
+    ════════════════════════════════════════════ */
+    function setSaveLabel(btnId, label) {
+      $('#' + btnId).text(label);
+    }
+
+    /* ════════════════════════════════════════════
+       POPULATE FORM — isi field form dengan data lama
+    ════════════════════════════════════════════ */
+
+    // ── Transaksi ──
+    function populateFormTx(tx) {
+      // Tipe — segmented control
+      $('.segBtn').removeClass('active');
+      $(`.segBtn[data-tipe="${tx.tipe}"]`).addClass('active');
+
+      // Show/hide akun tujuan
+      if (tx.tipe === 'Transfer') $('#txAkunTujuanWrap').show();
+      else $('#txAkunTujuanWrap').hide();
+
+      $('#txTanggal').val(tx.tanggal || '');
+      $('#txNominal').val(tx.nominal || '');  
+      const nom = parseInt(tx.nominal) || 0;
+      $('#numtxNominal').val(nom ? nom.toLocaleString('id-ID') : '');
+
+      $('#txNama').val(tx.nama || '');
+      $('#txKategori').val(tx.kategori || '');
+      $('#txSubKat').val(tx.subKategori || '');
+      $('#txAkun').val(tx.akunId || '');
+      $('#txAkunTujuan').val(tx.akunTujuanId || '');
+      $('#txCatatan').val(tx.catatan || '');
+      $('#txErr').removeClass('show');
+    }
+
+    // ── Akun ──
+    function populateFormAkun(akun) {
+      $('#akunNama').val(akun.namaAkun || '');
+      $('#akunTipe').val(akun.tipeAkun || 'Bank');
+      $('#akunSaldoAwal').val(akun.saldoAwal || '');
+      $('#akunPemilik').val(akun.pemilik || '');
+
+      // Color picker
+      $('#akunColorPicker .colorDot').removeClass('selected');
+      const $dot = $(`#akunColorPicker .colorDot[data-color="${akun.warna}"]`);
+      if ($dot.length) {
+        $dot.addClass('selected');
+      } else {
+        // Warna tidak ada di picker — pilih yang pertama
+        $('#akunColorPicker .colorDot').first().addClass('selected');
+      }
+      $('#akunErr').removeClass('show');
+    }
+
+    // ── Budget ──
+    function populateFormBudget(budget) {
+      $('#budgetKategori').val(budget.kategori || '');
+      $('#budgetSubKat').val(budget.subKategori || '');
+      $('#budgetLimit').val(budget.limitBulanan || '');
+      $('#budgetTipe').val(budget.tipeKebutuhan || 'Kebutuhan');
+      $('#budgetErr').removeClass('show');
+    }
+
+    // ── Tagihan ──
+    function populateFormTagihan(tagihan) {
+      $('#tagihanNama').val(tagihan.namaBill || '');
+      $('#tagihanKategori').val(tagihan.kategori || '');
+      $('#tagihanNominal').val(tagihan.nominal || '');
+      $('#tagihanFrekuensi').val(tagihan.frekuensi || 'Bulanan');
+      $('#tagihanTglBayar').val(tagihan.tanggalBayar || '');
+      $('#tagihanAkun').val(tagihan.akunId || '');
+      $('#tagihanStatus').val(tagihan.status || 'Aktif');
+      $('#tagihanMulai').val(tagihan.tanggalMulai || '');
+      $('#tagihanSelesai').val(tagihan.tanggalSelesai || '');
+      $('#tagihanErr').removeClass('show');
+    }
+
+    // ── Goals ──
+    function populateFormGoal(goal) {
+      $('#goalNama').val(goal.namaGoal || '');
+      $('#goalTarget').val(goal.targetNominal || '');
+      $('#goalTerkumpul').val(goal.sudahTerkumpul || '');
+      $('#goalDeadline').val(goal.deadline || '');
+      $('#goalPerBulan').val(goal.nabungPerBulan || '');
+      $('#goalErr').removeClass('show');
+    }
+
+    /* ════════════════════════════════════════════
+       RESET FORM — kosongkan semua field
+    ════════════════════════════════════════════ */
+    function resetFormTx() {
+      $('.segBtn').removeClass('active');
+      $('.segBtn.sOut').addClass('active');
+      $('#txAkunTujuanWrap').hide();
+      $('#txTanggal').val(new Date().toISOString().split('T')[0]);
+      $('#txNominal, #txNama, #txSubKat, #txCatatan, #numtxNominal').val('');
+      $('#txKategori, #txAkun, #txAkunTujuan').val('');
+      $('#txErr').removeClass('show');
+    }
+
+    function resetFormAkun() {
+      $('#akunNama, #akunPemilik, #akunSaldoAwal').val('');
+      $('#akunTipe').val('Bank');
+      $('#akunColorPicker .colorDot').removeClass('selected');
+      $('#akunColorPicker .colorDot').first().addClass('selected');
+      $('#akunErr').removeClass('show');
+    }
+
+    function resetFormBudget() {
+      $('#budgetKategori, #budgetSubKat, #budgetLimit').val('');
+      $('#budgetTipe').val('Kebutuhan');
+      $('#budgetErr').removeClass('show');
+    }
+
+    function resetFormTagihan() {
+      $('#tagihanNama, #tagihanNominal, #tagihanTglBayar').val('');
+      $('#numtagihanNominal').html('');
+      $('#tagihanMulai, #tagihanSelesai').val('');
+      $('#tagihanKategori').val('Tagihan');
+      $('#tagihanFrekuensi').val('Bulanan');
+      $('#tagihanStatus').val('Aktif');
+      $('#tagihanErr').removeClass('show');
+    }
+
+    function resetFormGoal() {
+      $('#goalNama, #goalTarget, #goalTerkumpul, #goalPerBulan').val('');
+      $('#goalDeadline').val('');
+      $('#goalErr').removeClass('show');
+    }
+
+    /* ════════════════════════════════════════════
+       OPEN DRAWER EDIT — isi form + set mode edit
+    ════════════════════════════════════════════ */
+    function openEditTx(txId) {
+      const tx = Cache.get('transaksi').find(t => t.txId === txId);
+      if (!tx) return;
+
+      setEditMode('transaksi', tx);
+      setDrawerTitle('drawerTx', 'Edit Transaksi');
+      setSaveLabel('btnSaveTx', 'Simpan Perubahan');
+      populateFormTx(tx);
+      $('#drawerTx').addClass('open');
+    }
+
+    function openEditAkun(akunId) {
+      const akun = Cache.get('akun').find(a => a.akunId === akunId);
+      if (!akun) return;
+
+      setEditMode('akun', akun);
+      setDrawerTitle('drawerAkun', 'Edit Akun');
+      setSaveLabel('btnSaveAkun', 'Simpan Perubahan');
+      populateFormAkun(akun);
+      $('#drawerAkun').addClass('open');
+    }
+
+    function openEditBudget(budgetId) {
+      const budget = Cache.get('budget').find(b => b.budgetId === budgetId);
+      if (!budget) return;
+
+      setEditMode('budget', budget);
+      setDrawerTitle('drawerBudget', 'Edit Budget');
+      setSaveLabel('btnSaveBudget', 'Simpan Perubahan');
+      populateFormBudget(budget);
+      $('#drawerBudget').addClass('open');
+    }
+
+    function openEditTagihan(tagihanId) {
+      const tagihan = Cache.get('tagihan').find(t => t.tagihanId === tagihanId);
+      if (!tagihan) return;
+
+      setEditMode('tagihan', tagihan);
+      setDrawerTitle('drawerTagihan', 'Edit Tagihan');
+      setSaveLabel('btnSaveTagihan', 'Simpan Perubahan');
+      populateFormTagihan(tagihan);
+      $('#drawerTagihan').addClass('open');
+    }
+
+    function openEditGoal(goalId) {
+      const goal = Cache.get('goals').find(g => g.goalId === goalId);
+      if (!goal) return;
+
+      setEditMode('goals', goal);
+      setDrawerTitle('drawerGoal', 'Edit Goal');
+      setSaveLabel('btnSaveGoal', 'Simpan Perubahan');
+      populateFormGoal(goal);
+      $('#drawerGoal').addClass('open');
+    }
+
+    /* ════════════════════════════════════════════
+       RESET DRAWER KE MODE ADD saat ditutup
+    ════════════════════════════════════════════ */
+    function resetDrawerToAdd(drawerId, defaultTitle, defaultLabel, btnId, resetFn) {
+      setAddMode(null);
+      resetDrawerTitle(drawerId, defaultTitle);
+      setSaveLabel(btnId, defaultLabel);
+      resetFn();
+    }
+
+    // Hook ke tombol close & batal
+    $(document).on('click', '[data-close]', function () {
+      const id = $(this).data('close');
+      switch (id) {
+        case 'drawerTx':
+          resetDrawerToAdd('drawerTx', 'Tambah Transaksi', 'Simpan Transaksi', 'btnSaveTx', resetFormTx);
+          break;
+        case 'drawerAkun':
+          resetDrawerToAdd('drawerAkun', 'Tambah Akun', 'Simpan Akun', 'btnSaveAkun', resetFormAkun);
+          break;
+        case 'drawerBudget':
+          resetDrawerToAdd('drawerBudget', 'Atur Budget', 'Simpan Budget', 'btnSaveBudget', resetFormBudget);
+          break;
+        case 'drawerTagihan':
+          resetDrawerToAdd('drawerTagihan', 'Tambah Tagihan Berulang', 'Simpan Tagihan', 'btnSaveTagihan', resetFormTagihan);
+          break;
+        case 'drawerGoal':
+          resetDrawerToAdd('drawerGoal', 'Tambah Target Tabungan', 'Simpan Goal', 'btnSaveGoal', resetFormGoal);
+          break;
+      }
+    });
+
+    // Reset juga saat klik overlay
+    $(document).on('click', '.modalOverlay', function (e) {
+      if (!$(e.target).hasClass('modalOverlay')) return;
+      const id = $(this).attr('id');
+      switch (id) {
+        case 'drawerTx':      resetDrawerToAdd('drawerTx',      'Tambah Transaksi',        'Simpan Transaksi', 'btnSaveTx',      resetFormTx);      break;
+        case 'drawerAkun':    resetDrawerToAdd('drawerAkun',    'Tambah Akun',             'Simpan Akun',      'btnSaveAkun',    resetFormAkun);    break;
+        case 'drawerBudget':  resetDrawerToAdd('drawerBudget',  'Atur Budget',             'Simpan Budget',    'btnSaveBudget',  resetFormBudget);  break;
+        case 'drawerTagihan': resetDrawerToAdd('drawerTagihan', 'Tambah Tagihan Berulang', 'Simpan Tagihan',   'btnSaveTagihan', resetFormTagihan); break;
+        case 'drawerGoal':    resetDrawerToAdd('drawerGoal',    'Tambah Target Tabungan',  'Simpan Goal',      'btnSaveGoal',    resetFormGoal);    break;
+      }
+    });
+
+    /* ════════════════════════════════════════════
+       SAVE — deteksi add/edit lalu call API
+    ════════════════════════════════════════════ */
+
+    // ── TRANSAKSI ──
+    $('#btnSaveTx').off('click').on('click', function () {
+      const tipe         = $('.segBtn.active').data('tipe') || 'Keluar';
+      const tanggal      = $('#txTanggal').val();
+      const nominal      = $('#txNominal').val();
+      const nama         = $('#txNama').val().trim();
+      const kategori     = $('#txKategori').val();
+      const subKategori  = $('#txSubKat').val().trim();
+      const akunId       = $('#txAkun').val();
+      const akunTujuanId = tipe === 'Transfer' ? $('#txAkunTujuan').val() : '';
+      const catatan      = $('#txCatatan').val().trim();
+
+      if (!tanggal || !nominal || !nama || !kategori || !akunId) {
+        $('#txErr').text('Mohon lengkapi semua field wajib.').addClass('show');
+        return;
+      }
+      if (tipe === 'Transfer' && !akunTujuanId) {
+        $('#txErr').text('Akun tujuan wajib diisi untuk Transfer.').addClass('show');
+        return;
+      }
+      $('#txErr').removeClass('show');
+
+      const payload = {
+        tanggal, nama, kategori, subKategori,
+        akunId, akunTujuanId,
+        nominal: parseInt(nominal) || 0,
+        tipe, catatan,
+      };
+
+      if (isEditing()) {
+        // Edit — pakai id lama
+        payload.txId = EditState.data.txId;
+        payload.userId = EditState.data.userId || '';
+
+        showLoading(true);
+        API.get('updateTransaksi', payload)
+          .done(function (res) {
+            if (res.status === 'ok') {
+              // Update cache
+              const idx = Cache.get('transaksi').findIndex(t => t.txId === payload.txId);
+              if (idx !== -1) Cache.get('transaksi')[idx] = { ...EditState.data, ...payload };
+              $('#drawerTx').removeClass('open');
+              resetDrawerToAdd('drawerTx', 'Tambah Transaksi', 'Simpan Transaksi', 'btnSaveTx', resetFormTx);
+              refreshAll();
+              toast('Transaksi berhasil diperbarui', 'success');
+            } else {
+              toast('Gagal: ' + res.message, 'error');
+            }
+          })
+          .fail(function () { toast('Koneksi gagal', 'error'); })
+          .always(function () { showLoading(false); });
+
+      } else {
+        // Add baru — pakai genId
+        payload.txId = genId('TX');
+        showLoading(true);
+        API.get('addTransaksi', payload)
+          .done(function (res) {
+            if (res.status === 'ok') {
+              Cache.get('transaksi').push(payload);
+              $('#drawerTx').removeClass('open');
+              resetFormTx();
+              refreshAll();
+              toast('Transaksi berhasil disimpan', 'success');
+            } else {
+              toast('Gagal: ' + res.message, 'error');
+            }
+          })
+          .fail(function () { toast('Koneksi gagal', 'error'); })
+          .always(function () { showLoading(false); });
+      }
+    });
+
+    // ── AKUN ──
+    $('#btnSaveAkun').off('click').on('click', function () {
+      const namaAkun  = $('#akunNama').val().trim();
+      const tipeAkun  = $('#akunTipe').val();
+      const saldoAwal = parseInt($('#akunSaldoAwal').val()) || 0;
+      const warna     = $('#akunColorPicker .colorDot.selected').data('color') || '#3B82F6';
+      const pemilik   = $('#akunPemilik').val().trim();
+
+      if (!namaAkun) {
+        $('#akunErr').addClass('show');
+        return;
+      }
+      $('#akunErr').removeClass('show');
+
+      const payload = { namaAkun, tipeAkun, saldoAwal, warna, pemilik, aktif: true };
+
+      if (isEditing()) {
+        payload.akunId = EditState.data.akunId;
+        payload.userId = EditState.data.userId || '';
+
+        showLoading(true);
+        API.get('updateAkun', payload)
+          .done(function (res) {
+            if (res.status === 'ok') {
+              const idx = Cache.get('akun').findIndex(a => a.akunId === payload.akunId);
+              if (idx !== -1) Cache.get('akun')[idx] = { ...EditState.data, ...payload };
+              $('#drawerAkun').removeClass('open');
+              resetDrawerToAdd('drawerAkun', 'Tambah Akun', 'Simpan Akun', 'btnSaveAkun', resetFormAkun);
+              refreshAll();
+              toast('Akun berhasil diperbarui', 'success');
+            } else {
+              toast('Gagal: ' + res.message, 'error');
+            }
+          })
+          .fail(function () { toast('Koneksi gagal', 'error'); })
+          .always(function () { showLoading(false); });
+
+      } else {
+        payload.akunId = genId('AKN');
+        showLoading(true);
+        API.get('addAkun', payload)
+          .done(function (res) {
+            if (res.status === 'ok') {
+              Cache.get('akun').push(payload);
+              $('#drawerAkun').removeClass('open');
+              resetFormAkun();
+              refreshAll();
+              toast('Akun berhasil disimpan', 'success');
+            } else {
+              toast('Gagal: ' + res.message, 'error');
+            }
+          })
+          .fail(function () { toast('Koneksi gagal', 'error'); })
+          .always(function () { showLoading(false); });
+      }
+    });
+
+    // ── BUDGET ──
+    $('#btnSaveBudget').off('click').on('click', function () {
+      const kategori      = $('#budgetKategori').val();
+      const subKategori   = $('#budgetSubKat').val().trim();
+      const limitBulanan  = parseInt($('#budgetLimit').val()) || 0;
+      const tipeKebutuhan = $('#budgetTipe').val();
+
+      if (!kategori || !limitBulanan) {
+        $('#budgetErr').addClass('show');
+        return;
+      }
+      $('#budgetErr').removeClass('show');
+
+      const payload = { kategori, subKategori, limitBulanan, tipeKebutuhan };
+
+      if (isEditing()) {
+        payload.budgetId = EditState.data.budgetId;
+        payload.userId   = EditState.data.userId || '';
+
+        showLoading(true);
+        API.get('updateBudget', payload)
+          .done(function (res) {
+            if (res.status === 'ok') {
+              const idx = Cache.get('budget').findIndex(b => b.budgetId === payload.budgetId);
+              if (idx !== -1) Cache.get('budget')[idx] = { ...EditState.data, ...payload };
+              $('#drawerBudget').removeClass('open');
+              resetDrawerToAdd('drawerBudget', 'Atur Budget', 'Simpan Budget', 'btnSaveBudget', resetFormBudget);
+              refreshAll();
+              toast('Budget berhasil diperbarui', 'success');
+            } else {
+              toast('Gagal: ' + res.message, 'error');
+            }
+          })
+          .fail(function () { toast('Koneksi gagal', 'error'); })
+          .always(function () { showLoading(false); });
+
+      } else {
+        // Cek duplikat kategori — update jika sudah ada
+        const existing = Cache.get('budget').find(b => b.kategori === kategori);
+        if (existing) {
+          payload.budgetId = existing.budgetId;
+          payload.userId   = existing.userId || '';
+          showLoading(true);
+          API.get('updateBudget', payload)
+            .done(function (res) {
+              if (res.status === 'ok') {
+                const idx = Cache.get('budget').findIndex(b => b.budgetId === existing.budgetId);
+                if (idx !== -1) Cache.get('budget')[idx] = { ...existing, ...payload };
+                $('#drawerBudget').removeClass('open');
+                resetFormBudget();
+                refreshAll();
+                toast('Budget ' + kategori + ' diperbarui', 'success');
+              } else {
+                toast('Gagal: ' + res.message, 'error');
+              }
+            })
+            .fail(function () { toast('Koneksi gagal', 'error'); })
+            .always(function () { showLoading(false); });
+        } else {
+          payload.budgetId = genId('BDG');
+          showLoading(true);
+          API.get('addBudget', payload)
+            .done(function (res) {
+              if (res.status === 'ok') {
+                Cache.get('budget').push(payload);
+                $('#drawerBudget').removeClass('open');
+                resetFormBudget();
+                refreshAll();
+                toast('Budget berhasil disimpan', 'success');
+              } else {
+                toast('Gagal: ' + res.message, 'error');
+              }
+            })
+            .fail(function () { toast('Koneksi gagal', 'error'); })
+            .always(function () { showLoading(false); });
+        }
+      }
+    });
+
+    // ── TAGIHAN ──
+    $('#btnSaveTagihan').off('click').on('click', function () {
+      const namaBill     = $('#tagihanNama').val().trim();
+      const kategori     = $('#tagihanKategori').val();
+      const nominal      = parseInt($('#tagihanNominal').val()) || 0;
+      const frekuensi    = $('#tagihanFrekuensi').val();
+      const tanggalBayar = $('#tagihanTglBayar').val();
+      const akunId       = $('#tagihanAkun').val();
+      const status       = $('#tagihanStatus').val();
+      const tanggalMulai    = $('#tagihanMulai').val();
+      const tanggalSelesai  = $('#tagihanSelesai').val();
+
+      if (!namaBill || !nominal || !akunId) {
+        $('#tagihanErr').addClass('show');
+        return;
+      }
+      $('#tagihanErr').removeClass('show');
+
+      const payload = { namaBill, kategori, nominal, frekuensi, tanggalBayar, akunId, status, tanggalMulai, tanggalSelesai };
+
+      if (isEditing()) {
+        payload.tagihanId = EditState.data.tagihanId;
+        payload.userId    = EditState.data.userId || '';
+
+        showLoading(true);
+        API.get('updateTagihan', payload)
+          .done(function (res) {
+            if (res.status === 'ok') {
+              const idx = Cache.get('tagihan').findIndex(t => t.tagihanId === payload.tagihanId);
+              if (idx !== -1) Cache.get('tagihan')[idx] = { ...EditState.data, ...payload };
+              $('#drawerTagihan').removeClass('open');
+              resetDrawerToAdd('drawerTagihan', 'Tambah Tagihan Berulang', 'Simpan Tagihan', 'btnSaveTagihan', resetFormTagihan);
+              refreshAll();
+              toast('Tagihan berhasil diperbarui', 'success');
+            } else {
+              toast('Gagal: ' + res.message, 'error');
+            }
+          })
+          .fail(function () { toast('Koneksi gagal', 'error'); })
+          .always(function () { showLoading(false); });
+
+      } else {
+        payload.tagihanId = genId('TGH');
+        showLoading(true);
+        API.get('addTagihan', payload)
+          .done(function (res) {
+            if (res.status === 'ok') {
+              Cache.get('tagihan').push(payload);
+              $('#drawerTagihan').removeClass('open');
+              resetFormTagihan();
+              refreshAll();
+              toast('Tagihan berhasil disimpan', 'success');
+            } else {
+              toast('Gagal: ' + res.message, 'error');
+            }
+          })
+          .fail(function () { toast('Koneksi gagal', 'error'); })
+          .always(function () { showLoading(false); });
+      }
+    });
+
+    // ── GOALS ──
+    $('#btnSaveGoal').off('click').on('click', function () {
+      const namaGoal       = $('#goalNama').val().trim();
+      const targetNominal  = parseInt($('#goalTarget').val()) || 0;
+      const sudahTerkumpul = parseInt($('#goalTerkumpul').val()) || 0;
+      const deadline       = $('#goalDeadline').val();
+      let   nabungPerBulan = parseInt($('#goalPerBulan').val()) || 0;
+
+      if (!namaGoal || !targetNominal) {
+        $('#goalErr').addClass('show');
+        return;
+      }
+      $('#goalErr').removeClass('show');
+
+      // Auto-hitung nabungPerBulan jika kosong
+      if (!nabungPerBulan && deadline) {
+        const now    = new Date();
+        const dl     = new Date(deadline + '-01');
+        const months = Math.max(1,
+          (dl.getFullYear() - now.getFullYear()) * 12 + (dl.getMonth() - now.getMonth())
+        );
+        nabungPerBulan = Math.ceil((targetNominal - sudahTerkumpul) / months);
+      }
+
+      const payload = {
+        namaGoal, targetNominal, sudahTerkumpul,
+        deadline, nabungPerBulan,
+        ikonGoal: '🎯',
+        status  : '🔄 On Track',
+      };
+
+      if (isEditing()) {
+        payload.goalId  = EditState.data.goalId;
+        payload.userId  = EditState.data.userId || '';
+        payload.ikonGoal= EditState.data.ikonGoal || '🎯';
+        payload.status  = EditState.data.status   || '🔄 On Track';
+
+        showLoading(true);
+        API.get('updateGoal', payload)
+          .done(function (res) {
+            if (res.status === 'ok') {
+              const idx = Cache.get('goals').findIndex(g => g.goalId === payload.goalId);
+              if (idx !== -1) Cache.get('goals')[idx] = { ...EditState.data, ...payload };
+              $('#drawerGoal').removeClass('open');
+              resetDrawerToAdd('drawerGoal', 'Tambah Target Tabungan', 'Simpan Goal', 'btnSaveGoal', resetFormGoal);
+              refreshAll();
+              toast('Goal berhasil diperbarui', 'success');
+            } else {
+              toast('Gagal: ' + res.message, 'error');
+            }
+          })
+          .fail(function () { toast('Koneksi gagal', 'error'); })
+          .always(function () { showLoading(false); });
+
+      } else {
+        payload.goalId = genId('GLS');
+        showLoading(true);
+        API.get('addGoal', payload)
+          .done(function (res) {
+            if (res.status === 'ok') {
+              Cache.get('goals').push(payload);
+              $('#drawerGoal').removeClass('open');
+              resetFormGoal();
+              refreshAll();
+              toast('Goal berhasil disimpan', 'success');
+            } else {
+              toast('Gagal: ' + res.message, 'error');
+            }
+          })
+          .fail(function () { toast('Koneksi gagal', 'error'); })
+          .always(function () { showLoading(false); });
+      }
+    });
+
+    /* ════════════════════════════════════════════
+       EVENT LISTENERS — tombol edit di setiap list item
+       Tambahkan tombol edit ke render function yang ada
+    ════════════════════════════════════════════ */
+
+    // ── Klik tombol edit transaksi ──
+    $(document).on('click', '.btnEditTx', function (e) {
+      e.stopPropagation();
+      openEditTx($(this).data('txid'));
+    });
+
+    // ── Klik tombol edit akun (dari akunGrid) ──
+    $(document).on('click', '.btnEditAkun', function (e) {
+      e.stopPropagation();
+      openEditAkun($(this).data('akunid'));
+    });
+
+    // ── Klik tombol edit budget ──
+    $(document).on('click', '.btnEditBudget', function (e) {
+      e.stopPropagation();
+      openEditBudget($(this).data('budgetid'));
+    });
+
+    // ── Klik tombol edit tagihan ──
+    $(document).on('click', '.btnEditTagihan', function (e) {
+      e.stopPropagation();
+      openEditTagihan($(this).data('tagihanid'));
+    });
+
+    // ── Klik tombol edit goal ──
+    $(document).on('click', '.btnEditGoal', function (e) {
+      e.stopPropagation();
+      openEditGoal($(this).data('goalid'));
+    });
+
+    /* ════════════════════════════════════════════
+       PATCH RENDER — inject tombol edit ke HTML
+       yang sudah dirender Part 02
+
+       Cara kerja: override fungsi render di window.FK
+       supaya setiap item punya tombol ✏️ edit
+    ════════════════════════════════════════════ */
+    const BTN_STYLE = `
+      background:none;border:none;color:var(--text3);cursor:pointer;
+      padding:4px 6px;border-radius:6px;font-size:13px;
+      transition:color .15s;margin-left:2px`;
+ 
+    // ── Patch renderBillItem — tambah tombol edit ──
+    function patchBillItems() {
+      // Tambah tombol edit ke billItem yang sudah dirender
+      $(document).on('mouseenter', '.billItem', function () {
+        if (!$(this).find('.btnEditTagihan').length) {
+          const id = $(this).data('tagihanid');
+          $(this).find('.btnDelTagihan').before(
+            `<button class="btnEditTagihan" data-tagihanid="${id}"
+              style="${BTN_STYLE}" title="Edit">✏️</button>`
+          );
+        }
+      });
+    }
+
+    // ── Patch goalItem — tambah tombol edit ──
+    function patchGoalItems() {
+      $(document).on('mouseenter', '.goalItem', function () {
+        if (!$(this).find('.btnEditGoal').length) {
+          const id = $(this).data('goalid');
+          $(this).find('.btnDelGoal').before(
+            `<button class="btnEditGoal" data-goalid="${id}"
+              style="${BTN_STYLE}" title="Edit">✏️</button>`
+          );
+        }
+      });
+    }
+
+    // ── Patch akunCard — tambah tombol edit ──
+    function patchAkunCards() {
+      $(document).on('mouseenter', '.akunCard', function () {
+        if (!$(this).find('.btnEditAkun').length) {
+          const id = $(this).data('akunid');
+          $(this).append(
+            `<button class="btnEditAkun" data-akunid="${id}"
+              style="position:absolute;bottom:12px;right:12px;
+              background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.2);
+              color:#fff;cursor:pointer;padding:4px 8px;border-radius:6px;font-size:12px;"
+              title="Edit">✏️</button>`
+          );
+        }
+      });
+    }
+
+    // ── Patch budgetItem — tombol edit di samping delete ──
+    $(document).on('click', '.budgetItem', function () {
+      // Ambil nama kategori dari elemen
+      const katName = $(this).find('.budgetCat').text().trim().replace(/^.\s/, '');
+      const budget  = Cache.get('budget').find(b => b.kategori === katName);
+      if (budget) openEditBudget(budget.budgetId);
+    });
+ 
+
+    // Init patch
+    patchBillItems();
+    patchGoalItems();
+    patchAkunCards();
+
+    /* ════════════════════════════════════════════
+       EXPOSE ke window
+    ════════════════════════════════════════════ */
+    window.FK.openEditTx      = openEditTx;
+    window.FK.openEditAkun    = openEditAkun;
+    window.FK.openEditBudget  = openEditBudget;
+    window.FK.openEditTagihan = openEditTagihan;
+    window.FK.openEditGoal    = openEditGoal;
+    window.FK.EditState       = EditState;
+
+    console.log('FinanKu v2 — Edit/Update ready (semua modul)');
+
+  }); // en 
 
 }); // end $(function)
 </script>
