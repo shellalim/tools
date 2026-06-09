@@ -2130,6 +2130,17 @@ a { text-decoration: none; color: inherit; }
         </div>
       </div>
 
+      <div class="formGroup" id="txForUserWrap">
+        <label class="formLabel">
+          Untuk Siapa
+          <span style="color:var(--text4)">(opsional)</span>
+        </label>
+        <select class="formSelect" id="txForUser">
+          <option value="">Untuk diri sendiri</option>
+        </select>
+        <div class="formHint">Isi jika kamu bayar untuk anggota keluarga lain</div>
+      </div>
+
       <div class="formGroup">
         <label class="formLabel">Catatan <span style="color:var(--text4)">(opsional)</span></label>
         <textarea class="formTextarea" id="txCatatan" placeholder="Catatan tambahan..."></textarea>
@@ -2166,12 +2177,19 @@ a { text-decoration: none; color: inherit; }
             <option value="E-Wallet">💚 E-Wallet</option>
             <option value="Tunai">💵 Tunai</option>
             <option value="Investasi">📈 Investasi</option>
+            <option value="Kredit">💳 Kartu Kredit</option>
           </select>
         </div>
         <div>
           <label class="formLabel">Saldo Awal (Rp)</label>
           <input class="formInput" type="hidden" id="akunSaldoAwal" placeholder="0" min="0">
           <input class="formInput" type="text" id="numakunSaldoAwal" placeholder="Rp 1.000.000">
+        </div>
+        <div id="akunHutangWrap" style="display: none;">
+          <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:13px; margin-bottom:0;">
+            <input type="checkbox" id="akunIsHutang" style="width:18px; height:18px; cursor:pointer;">
+            Adalah Hutang
+          </label>
         </div>
       </div>
 
@@ -2419,8 +2437,8 @@ a { text-decoration: none; color: inherit; }
 
 <script>
   window.addEventListener("DOMContentLoaded", initRupiahInputs);
-  // const API_URL = 'https://script.google.com/macros/s/AKfycbwAw6FhivK84gsMRcjsqkJUQN_P1GuDtkNpUxts3nO8a9WiO60kDEL6yZV_UXuTTCOWLw/exec';
-  const API_URL = 'https://script.google.com/macros/s/AKfycbwxRUH3tHRH9kNdYhQrvQNRSvZ_7JG3Wv5fqDMQjlfhKsvpPqoS4F4rwbSYu4cpx3Rt/exec';
+  const API_URL = 'https://script.google.com/macros/s/AKfycbyx2xu5A8TgG1wU4V6g8l_XgVKlkowYdVuSmnD426ZJrDfy0OEsQHDL7rwY5XsWcyjgrg/exec';
+  // const API_URL = 'https://script.google.com/macros/s/AKfycbwxRUH3tHRH9kNdYhQrvQNRSvZ_7JG3Wv5fqDMQjlfhKsvpPqoS4F4rwbSYu4cpx3Rt/exec';
 
 /* ════════════════════════════════════════════
    API HELPER
@@ -2437,6 +2455,11 @@ const API = {
   get(action, params = {}) {
     return $.get(API_URL, { ...params, action ,
       userId: getCurrentUserId()
+    });
+  },
+  getNoFilter(action, params = {}) {
+    return $.get(API_URL, { ...params, action ,
+      userId: "*"
     });
   },
   post(action, data) {
@@ -2590,6 +2613,7 @@ function initFromSheets() {
       if (res.status === 'ok') {
         Cache.set('transaksi', res.data.transaksi);
         Cache.set('akun',      res.data.akun);
+        Cache.set('akunAll',      res.data.akunNoFilter);
         Cache.set('budget',    res.data.budget);
         Cache.set('tagihan',   res.data.tagihan);
         Cache.set('goals',     res.data.goals);
@@ -2638,8 +2662,8 @@ $(function () {
   let currentUser  = null;
   let currentPage  = 'dashboard';
   let currentMode  = 'pribadi';
-  let currentMonth = 5;
-  let currentYear  = 2026;
+  let currentMonth = new Date().getMonth() + 1;  // otomatis bulan sekarang
+  let currentYear  = new Date().getFullYear();    // otomatis tahun sekarang
 
   const MONTHS_ID = ['Januari','Februari','Maret','April','Mei','Juni',
                      'Juli','Agustus','September','Oktober','November','Desember'];
@@ -2862,6 +2886,13 @@ $(function () {
     $(this).closest('.colorPicker').find('.colorDot').removeClass('selected');
     $(this).addClass('selected');
   });
+  
+  $(document).on('change', '#akunTipe', function () {
+    const isKredit = $(this).val() === 'Kredit';
+    $('#akunHutangWrap').toggle(isKredit);
+    if (!isKredit) $('#akunIsHutang').prop('checked', false);
+  });
+  
   $(document).on('click', '.periodBtn', function () {
     $(this).closest('.reportPeriod').find('.periodBtn').removeClass('active');
     $(this).addClass('active');
@@ -2963,6 +2994,31 @@ function sumKeluar(txList) {
   return (txList || []).filter(function (t) { return t.tipe === 'Keluar'; })
     .reduce(function (s, t) { return s + (parseInt(t.nominal) || 0); }, 0);
 }
+// Pengeluaran efektif — termasuk yang dibayarkan oleh member lain
+function sumKeluarEfektif(userId, allTxAllMembers) {
+  return allTxAllMembers
+    .filter(function(t) {
+      return t.tipe === 'Keluar' && (
+        // Transaksi milik sendiri yang BUKAN untuk orang lain
+        (t.userId === userId && (!t.forUserId || t.forUserId === userId)) ||
+        // Atau dibayar orang lain UNTUK user ini
+        (t.forUserId === userId && t.userId !== userId)
+      );
+    })
+    .reduce(function(s, t) { return s + (parseInt(t.nominal)||0); }, 0);
+}
+
+// Berapa yang sudah dibayarkan member ini untuk orang lain
+function sumBayarUntukOrang(userId, allTxAllMembers) {
+  debugger
+  return allTxAllMembers
+    .filter(function(t) {
+      return t.tipe === 'Keluar' &&
+             t.userId === userId &&
+             t.forUserId && t.forUserId !== userId;
+    })
+    .reduce(function(s, t) { return s + (parseInt(t.nominal)||0); }, 0);
+}
 
 function getSaldoMember(memberData) {
   var akun = memberData.akun || [];
@@ -2989,7 +3045,13 @@ function getSaldoMember(memberData) {
 function renderFamilyDashboard() {
   var members  = FamilyData.members;
   var byMember = FamilyData.byMember;
-
+  var allTxAllMembers = [];
+  members.forEach(function(m) {
+    var md = byMember[m.userId] || {};
+    (md.transaksi || []).forEach(function(t) {
+      allTxAllMembers.push(t);
+    });
+  }); 
   if (!members.length) {
     $('#familyMemberCards').html(`
       <div class="emptyState" style="grid-column:1/-1">
@@ -3026,8 +3088,12 @@ function renderFamilyDashboard() {
     var md      = byMember[m.userId] || {};
     var saldo   = getSaldoMember(md);
     var txBulan = txThisMonth(md.transaksi);
+    var txBulanAll = txThisMonth(allTxAllMembers);
     var keluar  = sumKeluar(txBulan);
     var masuk   = sumMasuk(txBulan);
+    var keluarEfektif = sumKeluarEfektif(m.userId, txBulanAll);
+    var bayarUntukOrang = sumBayarUntukOrang(m.userId, txBulanAll);
+    console.log(bayarUntukOrang)
     var initial = (m.displayName || m.userId).charAt(0).toUpperCase();
     var warna   = m.warna || '#3B82F6';
     var akunCount = (md.akun || []).length;
@@ -3069,6 +3135,17 @@ function renderFamilyDashboard() {
             <div class="familyStatLabel">Porsi Pengeluaran</div>
             <div class="familyStatValue">${pct}%</div>
           </div>
+           ${bayarUntukOrang > 0 ? `
+          <div class="familyStat">
+            <div class="familyStatLabel">Bayar untuk orang lain</div>
+            <div class="familyStatValue" style="color:var(--amber)">-${fmtRpF(bayarUntukOrang, true)}</div>
+          </div>` : ''}
+
+          ${keluarEfektif !== keluar ? `
+          <div class="familyStat">
+            <div class="familyStatLabel">Pengeluaran Efektif</div>
+            <div class="familyStatValue" style="color:var(--red)">${fmtRpF(keluarEfektif, true)}</div>
+          </div>` : ''}
         </div>
         <div class="barBg" style="margin-top:12px">
           <div class="barFill" style="width:${pct}%;background:${warna};transition:width .5s ease"></div>
@@ -3296,6 +3373,7 @@ var FamilyData = {
 ════════════════════════════════════════════ */
 function loadFamilyData(forceRefresh) {
   // Pakai cache kecuali diminta refresh
+  debugger
   if (FamilyData.loaded && !forceRefresh) {
     renderFamilyDashboard();
     return;
@@ -3975,11 +4053,37 @@ console.log('FinanKu — Family Dashboard ready');
      POPULATE DROPDOWNS
   ════════════════════════════════════════════ */
   function populateAkunDropdowns() {
+    debugger
     const akunList = Cache.get('akun');
+    const akunAllList = Cache.get('akunAll');
     const opts = akunList.map(a => `<option value="${a.akunId}">${a.namaAkun}</option>`).join('');
-    $('#txAkun, #txAkunTujuan, #tagihanAkun').html('<option value="">Pilih akun</option>' + opts);
+    const optsAll = akunAllList.map(a => `<option value="${a.akunId}">${a.namaAkun}</option>`).join('');
+    $('#txAkun').html('<option value="">Pilih akun</option>' + opts);
+    $('#txAkunTujuan, #tagihanAkun').html('<option value="">Pilih akun</option>' + optsAll);
     $('#txFilterAkun').html('<option value="">Semua Akun</option>' + opts);
   }
+  function populateForUserDropdown() {
+  var members = FamilyData.members || [];
+  var session = JSON.parse(sessionStorage.getItem('finanku_session') || '{}');
+  var myUserId = session.userId || '';
+
+  // Hanya tampil jika ada members dan mode keluarga aktif
+  if (!members.length) {
+    $('#txForUserWrap').hide();
+    return;
+  }
+
+  $('#txForUserWrap').show();
+  var opts = '<option value="">Untuk diri sendiri</option>' +
+    members
+      .filter(function(m) { return m.userId !== myUserId; })
+      .map(function(m) {
+        return '<option value="' + m.userId + '">' + 
+          (m.displayName || m.userId) + '</option>';
+      }).join('');
+
+  $('#txForUser').html(opts);
+}
   function populateKategoriDropdown() {
     const kats = [...new Set(Cache.get('transaksi').map(t => t.kategori))].filter(Boolean).sort();
     $('#txFilterKat').html('<option value="">Semua Kategori</option>' + kats.map(k => `<option value="${k}">${k}</option>`).join(''));
@@ -4092,13 +4196,21 @@ console.log('FinanKu — Family Dashboard ready');
       return;
     }
     $('#akunGrid').html(list.map(a => {
+      // Di renderAkunGrid
       const saldo = getSaldoAkun(a.akunId);
+      
+      const isKredit = a.tipeAkun === 'Kredit';
+      const saldoColor = isKredit && saldo < 0 ? 'var(--red)' : 'var(--green)';
+      const saldoLabel = isKredit ? 'Hutang: ' : 'Saldo: ';
+
       return `<div class="akunCard" style="background:linear-gradient(135deg,${a.warna}dd,${a.warna}99)" data-akunid="${a.akunId}">
-        <div class="akunCardChip">${a.tipeAkun === 'E-Wallet' ? '💚' : '💳'}</div>
+        <div class="akunCardChip">${a.tipeAkun === 'E-Wallet' ? '💚' : a.tipeAkun === 'Kredit' ? '💳' : '🏦'}</div>
         <div class="akunCardName">${a.namaAkun}</div>
         <div class="akunCardType">${a.tipeAkun}${a.pemilik ? ' · ' + a.pemilik : ''}</div>
-        <div class="akunCardSaldo">${fmtRp(saldo, true)}</div>
-        <div class="akunCardSub">${fmtRp(saldo)}</div>
+        <div class="akunCardSaldo">${isKredit && saldo < 0 ? '-' : ''}${fmtRp(Math.abs(saldo), true)}</div>
+        <div class="akunCardSub" style="${isKredit && saldo < 0 ? 'color:var(--red)' : ''}">
+          ${saldoLabel}${fmtRp(Math.abs(saldo))}
+        </div>
       </div>`;
     }).join(''));
     $('#akunTabs').html('<div class="akunTab active" data-akunid="">Semua</div>' +
@@ -4304,10 +4416,19 @@ console.log('FinanKu — Family Dashboard ready');
     const namaAkun = $('#akunNama').val().trim();
     if (!namaAkun) { $('#akunErr').addClass('show'); return; }
     $('#akunErr').removeClass('show');
+    let saldoAwal = parseInt($('#akunSaldoAwal').val()) || 0;
+    const tipeAkun = $('#akunTipe').val();
+    const isHutang = $('#akunIsHutang').prop('checked');
+    
+    // Jika Kredit dan checkbox Hutang dicentang, kalikan dengan -1
+    if (tipeAkun === 'Kredit' && isHutang && saldoAwal > 0) {
+      saldoAwal = -saldoAwal;
+    }
+    
     const akun = {
       action: 'addAkun',
-      akunId: genId('AKN'), namaAkun, tipeAkun: $('#akunTipe').val(),
-      saldoAwal: parseInt($('#akunSaldoAwal').val()) || 0,
+      akunId: genId('AKN'), namaAkun, tipeAkun: tipeAkun,
+      saldoAwal: saldoAwal,
       warna: $('#akunColorPicker .colorDot.selected').data('color') || '#3B82F6',
       pemilik: $('#akunPemilik').val().trim(), aktif: true,
     };
@@ -4611,6 +4732,10 @@ console.log('FinanKu — Family Dashboard ready');
     window.fkCurrentYear  = y;
     refreshAll();
   });
+  $('#btnTambahTx, #fabBtn').on('click', function () {
+    if (!$('#txTanggal').val()) $('#txTanggal').val(today());
+    populateForUserDropdown(); // ← tambah ini
+  });
 
   /* ════════════════════════════════════════════
      EXPOSE ke window
@@ -4625,8 +4750,8 @@ console.log('FinanKu — Family Dashboard ready');
   window.FK.refreshAll      = refreshAll;
   window.FK.toast           = toast;
 
-  window.fkCurrentMonth = window.fkCurrentMonth || 5;
-  window.fkCurrentYear  = window.fkCurrentYear  || 2026;
+  window.fkCurrentMonth = window.fkCurrentMonth || new Date().getMonth() + 1;
+  window.fkCurrentYear  = window.fkCurrentYear  || new Date().getFullYear();
 
   console.log('FinanKu v2 — Core ready');
 
@@ -4704,11 +4829,28 @@ console.log('FinanKu — Family Dashboard ready');
       const expense  = totalKeluar(txMonth);
       const cashflow = income - expense;
       const akunList = Cache.get('akun');
-      const totalSaldo = akunList.reduce((s, a) => s + getSaldo(a.akunId), 0);
+      // const totalSaldo = akunList.reduce((s, a) => s + getSaldo(a.akunId), 0);
+      // CC hutang dikurangi dari total aset
+      const totalSaldo = akunList.reduce((s, a) => {
+        const saldo = getSaldo(a.akunId);
+        // Kredit negatif = hutang, sudah otomatis mengurangi total
+        return s + saldo;
+      }, 0);
+
+      // Pisah juga untuk info tambahan
+      const totalHutangCC = akunList
+        .filter(a => a.tipeAkun === 'Kredit')
+        .reduce((s, a) => {
+          const saldo = getSaldo(a.akunId);
+          return s + (saldo < 0 ? Math.abs(saldo) : 0);
+        }, 0);
       $('#mIncome').text(fmtRp(income, true));
       $('#mExpense').text(fmtRp(expense, true));
       $('#mBalance').text(fmtRp(totalSaldo, true));
-      $('#mBalanceSub').text(akunList.length + ' akun aktif');
+      $('#mBalanceSub').text(
+        akunList.length + ' akun aktif' +
+        (totalHutangCC > 0 ? ' · Hutang CC: ' + fmtRp(totalHutangCC, true) : '')
+      );
       $('#mCashflow').text(fmtRp(Math.abs(cashflow), true)).css('color', cashflow>=0 ? 'var(--green)' : 'var(--red)');
       $('#mCashflowSub').text(cashflow>=0 ? '✅ Surplus' : '⚠️ Defisit').removeClass('up down').addClass(cashflow>=0 ? 'up' : 'down');
       const savePct    = income > 0 ? Math.round((cashflow/income)*100) : 0;
@@ -5243,6 +5385,7 @@ console.log('FinanKu — Family Dashboard ready');
       $('#txAkun').val(tx.akunId || '');
       $('#txAkunTujuan').val(tx.akunTujuanId || '');
       $('#txCatatan').val(tx.catatan || '');
+      $('#txForUser').val(tx.forUserId || '');
       $('#txErr').removeClass('show');
     }
 
@@ -5308,12 +5451,14 @@ console.log('FinanKu — Family Dashboard ready');
       $('#txTanggal').val(new Date().toISOString().split('T')[0]);
       $('#txNominal, #txNama, #txSubKat, #txCatatan, #numtxNominal').val('');
       $('#txKategori, #txAkun, #txAkunTujuan').val('');
+      $('#txForUser').val('');
       $('#txErr').removeClass('show');
     }
 
     function resetFormAkun() {
-      $('#akunNama, #akunPemilik, #akunSaldoAwal').val('');
+      $('#akunNama, #akunPemilik, #akunSaldoAwal, #numakunSaldoAwal').val('');
       $('#akunTipe').val('Bank');
+      $('#akunIsHutang').prop('checked', false);
       $('#akunColorPicker .colorDot').removeClass('selected');
       $('#akunColorPicker .colorDot').first().addClass('selected');
       $('#akunErr').removeClass('show');
@@ -5475,6 +5620,7 @@ console.log('FinanKu — Family Dashboard ready');
         akunId, akunTujuanId,
         nominal: parseInt(nominal) || 0,
         tipe, catatan,
+        forUserId: $('#txForUser').val() || '',
       };
 
       if (isEditing()) {
