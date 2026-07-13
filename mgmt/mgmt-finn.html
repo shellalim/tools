@@ -2603,6 +2603,46 @@ function initRupiahInputs() {
   });
 }
 
+const KURS_KEY = 'finanku_kurs';
+const DEFAULT_KURS = { IDR: 1, SGD: 13500 };
+
+const Kurs = {
+  data: {},
+
+  load() {
+    try {
+      const raw = localStorage.getItem(KURS_KEY);
+      this.data = raw ? JSON.parse(raw) : { ...DEFAULT_KURS };
+    } catch (e) {
+      this.data = { ...DEFAULT_KURS };
+    }
+    // Make sure IDR is always 1 and any missing currency falls back to default
+    this.data.IDR = 1;
+    Object.keys(DEFAULT_KURS).forEach(cur => {
+      if (this.data[cur] === undefined) this.data[cur] = DEFAULT_KURS[cur];
+    });
+  },
+
+  save() {
+    localStorage.setItem(KURS_KEY, JSON.stringify(this.data));
+  },
+
+  get(currency) {
+    if (!currency || currency === 'IDR') return 1;
+    return this.data[currency] || DEFAULT_KURS[currency] || 1;
+  },
+
+  set(currency, rate) {
+    this.data[currency] = parseFloat(rate) || DEFAULT_KURS[currency] || 1;
+    this.save();
+  },
+
+  toIDR(amount, currency) {
+    if (!currency || currency === 'IDR') return amount;
+    return Math.round((parseInt(amount) || 0) * this.get(currency));
+  }
+};
+
 /* ════════════════════════════════════════════
    INIT FROM SHEETS
 ════════════════════════════════════════════ */
@@ -4226,7 +4266,7 @@ console.log('FinanKu — Family Dashboard ready');
         if (t.tipe === 'Keluar')   delta -= parseInt(t.nominal) || 0;
         if (t.tipe === 'Transfer') delta -= parseInt(t.nominal) || 0;
       }
-      if (t.tipe === 'Transfer' && t.akunTujuanId === akunId) delta += parseInt(t.nominal) || 0;
+      // if (t.tipe === 'Transfer' && t.akunTujuanId === akunId) delta += parseInt(t.nominal) || 0;
     });
     debugger
     Cache.get('transaksiAll').forEach(t => {
@@ -4247,18 +4287,24 @@ console.log('FinanKu — Family Dashboard ready');
     $('#akunGrid').html(list.map(a => {
       // Di renderAkunGrid
       const saldo = getSaldoAkun(a.akunId);
-      
+
+      // Deteksi SGD dari nama akun
+      const isSGD = (a.namaAkun || '').toUpperCase().includes('SGD');
+      const kursRate = isSGD ? Kurs.get('SGD') : 1;
+      const saldoIDR = isSGD ? Math.round(saldo * kursRate) : saldo;
+
       const isKredit = a.tipeAkun === 'Kredit';
-      const saldoColor = isKredit && saldo < 0 ? 'var(--red)' : 'var(--green)';
+      const displaySaldo = isSGD ? saldoIDR : saldo;   // gunakan nilai IDR untuk ditampilkan
+      const saldoColor = isKredit && displaySaldo < 0 ? 'var(--red)' : 'var(--green)';
       const saldoLabel = isKredit ? 'Hutang: ' : 'Saldo: ';
 
       return `<div class="akunCard" style="background:linear-gradient(135deg,${a.warna}dd,${a.warna}99)" data-akunid="${a.akunId}">
         <div class="akunCardChip">${a.tipeAkun === 'E-Wallet' ? '💚' : a.tipeAkun === 'Kredit' ? '💳' : '🏦'}</div>
         <div class="akunCardName">${a.namaAkun}</div>
         <div class="akunCardType">${a.tipeAkun}${a.pemilik ? ' · ' + a.pemilik : ''}</div>
-        <div class="akunCardSaldo">${isKredit && saldo < 0 ? '-' : ''}${fmtRp(Math.abs(saldo), true)}</div>
-        <div class="akunCardSub" style="${isKredit && saldo < 0 ? 'color:var(--red)' : ''}">
-          ${saldoLabel}${fmtRp(Math.abs(saldo))}
+        <div class="akunCardSaldo">${isKredit && displaySaldo < 0 ? '-' : ''}${fmtRp(Math.abs(displaySaldo), true)}</div>
+        <div class="akunCardSub" style="${isKredit && displaySaldo < 0 ? 'color:var(--red)' : ''}">
+          ${isSGD ? `S$${Math.abs(saldo).toLocaleString('en-US')} · ` : ''}${saldoLabel}${fmtRp(Math.abs(displaySaldo))}
         </div>
       </div>`;
     }).join(''));
@@ -4867,17 +4913,23 @@ console.log('FinanKu — Family Dashboard ready');
           if (t.tipe === 'Keluar')   delta -= parseInt(t.nominal)||0;
           if (t.tipe === 'Transfer') delta -= parseInt(t.nominal)||0;
         }
-        if (t.tipe === 'Transfer' && t.akunTujuanId === akunId) delta += parseInt(t.nominal)||0;
+        // if (t.tipe === 'Transfer' && t.akunTujuanId === akunId) delta += parseInt(t.nominal)||0;
       });
 
-      // Credit — incoming transfers from ANYONE, scan the unfiltered pool
+      // Dedup the pool by txId before scanning for credits
       const pool = Cache.get('transaksiAll') || Cache.get('transaksi');
+      const seen = new Set();
       pool.forEach(t => {
         if (t.tipe === 'Transfer' && t.akunTujuanId === akunId) {
+          if (seen.has(t.txId)) return;   // skip duplicate
+          seen.add(t.txId);
           delta += parseInt(t.nominal)||0;
         }
       });
-      return (parseInt(akun.saldoAwal)||0) + delta;
+      // return (parseInt(akun.saldoAwal)||0) + delta;
+
+      const rawBalance = (parseInt(akun.saldoAwal)||0) + delta;
+      return Kurs.toIDR(rawBalance, akun.mataUang);
     }
 
     function renderDashMetrics() {
