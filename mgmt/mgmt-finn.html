@@ -2437,7 +2437,7 @@ a { text-decoration: none; color: inherit; }
 
 <script>
   window.addEventListener("DOMContentLoaded", initRupiahInputs);
-  const API_URL = 'https://script.google.com/macros/s/AKfycbyx2xu5A8TgG1wU4V6g8l_XgVKlkowYdVuSmnD426ZJrDfy0OEsQHDL7rwY5XsWcyjgrg/exec';
+  const API_URL = 'https://script.google.com/macros/s/AKfycbwmPXUmB1Ho2nKVtHCVfg8fntdldb0PM8fwYuPwD8rqskgkFsl-VstN1mTBjqc9upmytg/exec';
   // const API_URL = 'https://script.google.com/macros/s/AKfycbwxRUH3tHRH9kNdYhQrvQNRSvZ_7JG3Wv5fqDMQjlfhKsvpPqoS4F4rwbSYu4cpx3Rt/exec';
 
 /* ════════════════════════════════════════════
@@ -2614,6 +2614,7 @@ function initFromSheets() {
         Cache.set('transaksi', res.data.transaksi);
         Cache.set('akun',      res.data.akun);
         Cache.set('akunAll',      res.data.akunNoFilter);
+        Cache.set('transaksiAll', res.data.transaksiNoFilter);
         Cache.set('budget',    res.data.budget);
         Cache.set('tagihan',   res.data.tagihan);
         Cache.set('goals',     res.data.goals);
@@ -3020,9 +3021,12 @@ function sumBayarUntukOrang(userId, allTxAllMembers) {
     .reduce(function(s, t) { return s + (parseInt(t.nominal)||0); }, 0);
 }
 
-function getSaldoMember(memberData) {
+function getSaldoMember(memberData, allTx) {
   var akun = memberData.akun || [];
-  var tx   = memberData.transaksi || [];
+  var tx   = allTx || memberData.transaksi || [];
+  console.log(allTx);
+  console.log(tx);
+
   return akun.reduce(function (total, a) {
     var delta = 0;
     tx.forEach(function (t) {
@@ -3045,13 +3049,12 @@ function getSaldoMember(memberData) {
 function renderFamilyDashboard() {
   var members  = FamilyData.members;
   var byMember = FamilyData.byMember;
+   // build once
   var allTxAllMembers = [];
   members.forEach(function(m) {
     var md = byMember[m.userId] || {};
-    (md.transaksi || []).forEach(function(t) {
-      allTxAllMembers.push(t);
-    });
-  }); 
+    (md.transaksi || []).forEach(function(t) { allTxAllMembers.push(t); });
+  });
   if (!members.length) {
     $('#familyMemberCards').html(`
       <div class="emptyState" style="grid-column:1/-1">
@@ -3069,7 +3072,7 @@ function renderFamilyDashboard() {
 
   members.forEach(function (m) {
     var md = byMember[m.userId] || {};
-    totalAset   += getSaldoMember(md);
+    totalAset   += getSaldoMember(md, allTxAllMembers);
     var txBulan  = txThisMonth(md.transaksi);
     totalKeluar += sumKeluar(txBulan);
     totalMasukF += sumMasuk(txBulan);
@@ -3086,7 +3089,7 @@ function renderFamilyDashboard() {
   // ── Kartu per member ──
   var cards = members.map(function (m) {
     var md      = byMember[m.userId] || {};
-    var saldo   = getSaldoMember(md);
+    var saldo   = getSaldoMember(md, allTxAllMembers);
     var txBulan = txThisMonth(md.transaksi);
     var txBulanAll = txThisMonth(allTxAllMembers);
     var keluar  = sumKeluar(txBulan);
@@ -3464,6 +3467,13 @@ function renderFamilyDashboard() {
   var members  = FamilyData.members;
   var byMember = FamilyData.byMember;
 
+   // build once
+  var allTxAllMembers = [];
+  members.forEach(function(m) {
+    var md = byMember[m.userId] || {};
+    (md.transaksi || []).forEach(function(t) { allTxAllMembers.push(t); });
+  });
+  
   if (!members.length) {
     $('#familyMemberCards').html(`
       <div class="emptyState" style="grid-column:1/-1">
@@ -3481,7 +3491,7 @@ function renderFamilyDashboard() {
 
   members.forEach(function (m) {
     var md = byMember[m.userId] || {};
-    totalAset   += getSaldoMember(md);
+    totalAset   += getSaldoMember(md, allTxAllMembers);
     var txBulan  = txThisMonth(md.transaksi);
     totalKeluar += sumKeluar(txBulan);
     totalMasukF += sumMasuk(txBulan);
@@ -3498,7 +3508,7 @@ function renderFamilyDashboard() {
   // ── Kartu per member ──
   var cards = members.map(function (m) {
     var md      = byMember[m.userId] || {};
-    var saldo   = getSaldoMember(md);
+    var saldo   = getSaldoMember(md, allTxAllMembers);
     var txBulan = txThisMonth(md.transaksi);
     var keluar  = sumKeluar(txBulan);
     var masuk   = sumMasuk(txBulan);
@@ -4092,14 +4102,23 @@ console.log('FinanKu — Family Dashboard ready');
   /* ════════════════════════════════════════════
      RENDER — TRANSAKSI
   ════════════════════════════════════════════ */
+    function getDisplayNameByUserId(userId) {
+      const user = AUTH_CONFIG.users.find(u => u.userId === userId);
+      return user ? user.displayName : (userId || 'Anggota lain');
+    }
     /* ── Render satu item transaksi dengan tombol edit ── */
     function renderTxItem(tx) {
-      const akun     = Cache.get('akun').find(a => a.akunId === tx.akunId);
-      const akunName = akun ? akun.namaAkun : tx.akunId || '—';
+
+      const myAkunIds = getMyAkunIds();
+      const isIncoming = tx.tipe === 'Transfer'
+        && myAkunIds.includes(tx.akunTujuanId)
+        && !myAkunIds.includes(tx.akunId);
+
+      const displayAkunId = isIncoming ? tx.akunTujuanId : tx.akunId;
+      const akun     = Cache.get('akun').find(a => a.akunId === displayAkunId);
+      const akunName = akun ? akun.namaAkun : displayAkunId || '—';
       const icon     = KAT_ICONS[tx.kategori]  || '📦';
       const color    = KAT_COLORS[tx.kategori] || '#6B7280';
-
-
       const BTN = `background:none;border:none;cursor:pointer;
       padding:4px 6px;border-radius:6px;font-size:13px;
       color:var(--text3);transition:color .15s;margin-left:2px`;
@@ -4108,12 +4127,18 @@ console.log('FinanKu — Family Dashboard ready');
       const amtSign    = tx.tipe === 'Masuk' ? '+' : tx.tipe === 'Transfer' ? '⇄' : '-';
       const badgeClass = tx.tipe === 'Masuk' ? 'tbIn' : tx.tipe === 'Transfer' ? 'tbTf' : 'tbOut';
 
+      // Build the meta line — show sender name if this is an incoming transfer
+      let metaLine = `${fmtDate(tx.tanggal)} · ${akunName} · ${tx.kategori}`;
+      if (isIncoming) {
+        const senderName = getDisplayNameByUserId(tx.userId);
+        metaLine = `${fmtDate(tx.tanggal)} · Dari: ${senderName} · ke ${akunName}`;
+      }
       return `
         <div class="txItem" data-txid="${tx.txId}">
           <div class="txIcon" style="background:${color}20">${icon}</div>
           <div class="txInfo">
             <div class="txName">${tx.nama}</div>
-            <div class="txMeta">${fmtDate(tx.tanggal)} · ${akunName} · ${tx.kategori}</div>
+            <div class="txMeta">${metaLine}</div>
           </div>
           <div class="txRight">
             <div class="txAmount ${amtClass}">${amtSign}${fmtRp(tx.nominal)}</div>
@@ -4139,10 +4164,27 @@ console.log('FinanKu — Family Dashboard ready');
       $(selector).html(txList.map(renderTxItem).join(''));
     }
 
+  function getMyAkunIds() {
+    return Cache.get('akun').map(a => a.akunId);
+  }
+
+  function getIncomingTransfers() {
+    const myAkunIds = getMyAkunIds();
+    const myTxIds = new Set(Cache.get('transaksi').map(t => t.txId));
+    return Cache.get('transaksiAll').filter(t =>
+      t.tipe === 'Transfer' &&
+      myAkunIds.includes(t.akunTujuanId) &&
+      !myTxIds.has(t.txId)          // avoid duplicate if it's somehow already yours
+    );
+  }
+
   function getFilteredTx() {
     const m = window.fkCurrentMonth || new Date().getMonth() + 1;
     const y = window.fkCurrentYear  || new Date().getFullYear();
-    let list = Cache.get('transaksi').filter(t => {
+
+    const combined = [...Cache.get('transaksi'), ...getIncomingTransfers()];
+
+    let list = combined.filter(t => {
       if (!t.tanggal) return false;
       const d = new Date(t.tanggal);
       return d.getMonth() + 1 === m && d.getFullYear() === y;
@@ -4163,7 +4205,8 @@ console.log('FinanKu — Family Dashboard ready');
   function refreshDashTx() {
     const m = window.fkCurrentMonth || new Date().getMonth() + 1;
     const y = window.fkCurrentYear  || new Date().getFullYear();
-    const list = Cache.get('transaksi')
+    const combined = [...Cache.get('transaksi'), ...getIncomingTransfers()];
+    const list = combined
       .filter(t => { const d = new Date(t.tanggal); return d.getMonth()+1===m && d.getFullYear()===y; })
       .sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal))
       .slice(0, 8);
@@ -4184,6 +4227,12 @@ console.log('FinanKu — Family Dashboard ready');
         if (t.tipe === 'Transfer') delta -= parseInt(t.nominal) || 0;
       }
       if (t.tipe === 'Transfer' && t.akunTujuanId === akunId) delta += parseInt(t.nominal) || 0;
+    });
+    debugger
+    Cache.get('transaksiAll').forEach(t => {
+      if (t.tipe === 'Transfer' && t.akunTujuanId === akunId) {
+        delta += parseInt(t.nominal) || 0;
+      }
     });
     return (parseInt(akun.saldoAwal) || 0) + delta;
   }
@@ -4226,7 +4275,9 @@ console.log('FinanKu — Family Dashboard ready');
     } else {
       $tab.css({ background: 'var(--blue)', borderColor: 'var(--blue)', color: '#fff' });
     }
-    renderTxList('#akunTxList', Cache.get('transaksi')
+    const combined = [...Cache.get('transaksi'), ...getIncomingTransfers()];
+
+    renderTxList('#akunTxList', combined
       .filter(t => !akunId || t.akunId === akunId)
       .sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal))
       .slice(0, 60));
@@ -4436,7 +4487,6 @@ console.log('FinanKu — Family Dashboard ready');
 
     $.get(API_URL, akun)
       .done(function(res) {
-        console.log(res);
         if (res.status === 'ok') {
           Cache.get('akun').push(akun);
           $('#drawerAkun').removeClass('open');
@@ -4818,6 +4868,14 @@ console.log('FinanKu — Family Dashboard ready');
           if (t.tipe === 'Transfer') delta -= parseInt(t.nominal)||0;
         }
         if (t.tipe === 'Transfer' && t.akunTujuanId === akunId) delta += parseInt(t.nominal)||0;
+      });
+
+      // Credit — incoming transfers from ANYONE, scan the unfiltered pool
+      const pool = Cache.get('transaksiAll') || Cache.get('transaksi');
+      pool.forEach(t => {
+        if (t.tipe === 'Transfer' && t.akunTujuanId === akunId) {
+          delta += parseInt(t.nominal)||0;
+        }
       });
       return (parseInt(akun.saldoAwal)||0) + delta;
     }
