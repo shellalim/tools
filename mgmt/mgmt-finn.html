@@ -2090,6 +2090,7 @@ a { text-decoration: none; color: inherit; }
       <div class="formGroup">
         <label class="formLabel">Nama Transaksi</label>
         <input class="formInput" type="text" id="txNama" placeholder="Contoh: Makan Siang Warteg">
+        <datalist id="txNamaSuggestions"></datalist>
       </div>
 
       <div class="formRow">
@@ -2098,14 +2099,21 @@ a { text-decoration: none; color: inherit; }
           <select class="formSelect" id="txKategori">
             <option value="">Pilih kategori</option>
             <option>Makan &amp; Minum</option>
+            <option>Kebutuhan Rumah</option>
+            <option>Belanja</option>
             <option>Transportasi</option>
             <option>Tagihan</option>
-            <option>Belanja</option>
             <option>Hiburan</option>
             <option>Kesehatan</option>
             <option>Investasi</option>
             <option>Cicilan</option>
             <option>Asuransi</option>
+            <option>Renovasi</option>
+            <option>Kas IT</option>
+            <option>Sosial &amp; Hadiah</option>
+            <option>Keperluan Mama</option>
+            <option>Pemasukan</option>
+            <option>Transfer</option>
             <option>Lain-lain</option>
           </select>
         </div>
@@ -2554,7 +2562,140 @@ function toast(msg, type = 'success', duration = 3000) {
     setTimeout(() => $t.remove(), 260);
   }, duration);
 }
+let KategoriSuggestMap = {};
 
+function buildKategoriSuggestMap() {
+  // Mulai dari seed dictionary
+  KategoriSuggestMap = { ...SEED_KATEGORI };
+
+  // Hitung frekuensi kategori per nama dari histori transaksi asli
+  const freq = {};
+  Cache.get('transaksi').forEach(t => {
+    if (!t.nama || !t.kategori) return;
+    const key = t.nama.trim().toLowerCase();
+    if (!freq[key]) freq[key] = {};
+    freq[key][t.kategori] = (freq[key][t.kategori] || 0) + 1;
+  });
+
+  // Histori nyata menang atas seed — pilih kategori paling sering dipakai
+  Object.entries(freq).forEach(([key, katCounts]) => {
+    const best = Object.entries(katCounts).sort((a, b) => b[1] - a[1])[0][0];
+    KategoriSuggestMap[key] = best;
+  });
+}
+
+function populateTxNamaSuggestions() {
+  const names = [...new Set(Cache.get('transaksi').map(t => t.nama).filter(Boolean))].sort();
+  $('#txNamaSuggestions').html(
+    names.map(n => `<option value="${n.replace(/"/g, '&quot;')}"></option>`).join('')
+  );
+}
+
+let txKategoriTouched = false;   // flag: user sudah ubah kategori manual di sesi input ini
+
+$(document).on('change', '#txKategori', function () {
+  txKategoriTouched = true;
+});
+
+$(document).on('input', '#txNama', function () {
+  if (txKategoriTouched) return;   // jangan timpa pilihan manual user
+
+  const suggestedKat = suggestKategoriFromPartial($(this).val());
+  if (suggestedKat && $('#txKategori').val() !== suggestedKat) {
+    $('#txKategori').val(suggestedKat);
+    $('#txKategori').css('box-shadow', '0 0 0 3px var(--blueGlow)');
+    setTimeout(() => $('#txKategori').css('box-shadow', ''), 500);
+  }
+});
+function suggestKategoriFromPartial(inputText) {
+  const key = inputText.trim().toLowerCase();
+  if (!key || key.length < 3) return null;   // minimal 3 huruf biar ga terlalu agresif
+
+  // 1. Exact match dulu
+  if (KategoriSuggestMap[key]) return KategoriSuggestMap[key];
+
+  // 2. Cari semua nama histori yang MENGANDUNG teks ketikan (bukan cuma prefix)
+  const matches = Object.keys(KategoriSuggestMap).filter(k => k.includes(key));
+  if (!matches.length) return null;
+
+  // 3. Hitung kategori mana yang paling dominan di antara semua match
+  const katFreq = {};
+  matches.forEach(k => {
+    const kat = KategoriSuggestMap[k];
+    katFreq[kat] = (katFreq[kat] || 0) + 1;
+  });
+
+  const sorted = Object.entries(katFreq).sort((a, b) => b[1] - a[1]);
+  const [topKat, topCount] = sorted[0];
+  const totalMatches = matches.length;
+
+  // Kalau kategori dominan mencakup >= 70% dari semua yang cocok, dianggap cukup yakin
+  if (topCount / totalMatches >= 0.7) return topKat;
+
+  return null;   // terlalu ambigu, jangan auto-fill, biarkan user pilih manual
+}
+
+const SEED_KATEGORI = {
+  "coffee fore":"Makan & Minum","gajian":"Pemasukan","tf ke maybank":"Transfer",
+  "bensin raize":"Transportasi","vitamin myoinositol":"Kesehatan","bensin stargazer":"Transportasi",
+  "roti gembul":"Makan & Minum","kas it - dp hwaga tiban":"Kas IT","shopee - plastik kecil":"Kebutuhan Rumah",
+  "outing it":"Kas IT","it - kue bolu":"Kas IT","rumah readymix cor":"Renovasi",
+  "untuk moba":"Hiburan","beli dm moba":"Hiburan","bayar kk uob":"Tagihan",
+  "beli telur indomaret 2pack":"Kebutuhan Rumah","balancing cash":"Lain-lain","makan kfc":"Makan & Minum",
+  "persembahan":"Sosial & Hadiah","dp divan custom":"Renovasi","beli pocari":"Makan & Minum",
+  "beli jambu":"Makan & Minum","jajan indormaret":"Makan & Minum","transfer handy":"Transfer",
+  "upah tukang":"Renovasi","kontrol gigi":"Kesehatan","tiktok - alat hemat listrik":"Kebutuhan Rumah",
+  "tiktok - sikat gigi setahun":"Kebutuhan Rumah","makan podomoro":"Makan & Minum",
+  "kpr - melati bunga":"Cicilan","kpr - melati pokok":"Cicilan","parkir":"Transportasi",
+  "martabak pencenongan":"Makan & Minum","tagihan air gpi":"Tagihan","transfer dari penyewa apt":"Pemasukan",
+  "biaya admin":"Tagihan","tagihan air melati":"Tagihan","beli fanta":"Makan & Minum",
+  "hadiah ultah mega":"Sosial & Hadiah","depo exness":"Investasi","tagihan baloi apt":"Tagihan",
+  "beli tepung protein":"Kesehatan","sarapan pagi":"Makan & Minum","beli lasegar":"Makan & Minum",
+  "indomaret - handsplast":"Kesehatan","beli nasi padang 4bkgs":"Makan & Minum","pasang ixianet":"Tagihan",
+  "laundry dan air":"Kebutuhan Rumah","tf ke seabank untuk divan dan cc":"Transfer",
+  "custom divan - 60%":"Renovasi","untuk belanja bulanan makan":"Kebutuhan Rumah",
+  "belanja bulanan di bps":"Kebutuhan Rumah","custom divan tahap 50%":"Renovasi",
+  "tiktok - alat parut":"Kebutuhan Rumah","tiktok - handy cooler":"Kebutuhan Rumah",
+  "grab - dimsum pjs":"Makan & Minum","balancing":"Lain-lain","balancing maybank":"Lain-lain",
+  "tf ke cash":"Transfer","belanja bulanan rumah":"Kebutuhan Rumah","belanja pasar tos 3000":"Kebutuhan Rumah",
+  "cicilan stargazer":"Cicilan","makan nasi goreng - cg fellowship":"Makan & Minum",
+  "tagihan tokopedia":"Tagihan","cake mega":"Sosial & Hadiah","kas it - treat weekly":"Kas IT",
+  "parkir gb":"Transportasi","beliv cakery - brownies":"Makan & Minum","tiktok - sendal handy":"Belanja",
+  "admin bank":"Tagihan","adm bca + balancing":"Tagihan","beli kepiting 1,1 kg":"Kebutuhan Rumah",
+  "makan bakso berdua":"Makan & Minum","makan siang nasi lele goreng":"Makan & Minum",
+  "beli ikan lebam dan belanak tiban ciptaland":"Kebutuhan Rumah","divan progress finishing":"Renovasi",
+  "gaji":"Pemasukan","transfer ke seabank":"Transfer","jajan bakso":"Makan & Minum",
+  "galon rumah":"Kebutuhan Rumah","custom divan finishing + ongkir":"Renovasi",
+  "beli bahan material bangun tembok":"Renovasi","tiktok - sabun baju dan citrus":"Kebutuhan Rumah",
+  "iuran rumah":"Tagihan","trasnfer ke handy":"Transfer","trasnfer ke handy untuk cc bca":"Transfer",
+  "tiktok - handy kabel cast":"Belanja","tagihan juni":"Tagihan","tf dari suwarti kado cemeg":"Pemasukan",
+  "penyewa tagihan apt":"Pemasukan","biaya admin bank":"Tagihan","kas it":"Kas IT","jajan kas it":"Kas IT",
+  "belanja arak masak top 100":"Kebutuhan Rumah","divan - lunas":"Renovasi","tiktok - kartu uno":"Hiburan",
+  "gift - ihya cake":"Sosial & Hadiah","makan bakso hypermart":"Makan & Minum","shopee - sprei set":"Kebutuhan Rumah",
+  "dari mama":"Pemasukan","tokopedia -tagihan air baloi dan melati":"Tagihan",
+  "ikan lebam dan bawal":"Kebutuhan Rumah","tiktok - cable cast dll":"Hiburan",
+  "transfer ke handy untuk bensin":"Transfer","tukar uang dengan nadia":"Transfer",
+  "transfer koko aliang untuk sedot wc":"Keperluan Mama","trasnfer ke maybank":"Transfer",
+  "klinik gigi kontrol":"Kesehatan","es durian spo nyono":"Makan & Minum","bahan material - munah":"Renovasi",
+  "bubur ayam teteh":"Makan & Minum","ixianet internet":"Tagihan","transfer ke handy":"Transfer",
+  "transfer dari maybank":"Transfer","intenet three aon - handy":"Tagihan",
+  "transfer ke handy - untuk pampers":"Transfer","upah tukang - fase 3":"Renovasi",
+  "kpr bunga":"Cicilan","kpr pokok":"Cicilan","makan":"Makan & Minum","upah tukang fase 3":"Renovasi",
+  "jasa buang puing":"Renovasi","makan gojek":"Makan & Minum","top up inet":"Tagihan",
+  "shopee - sendok":"Kebutuhan Rumah","minum lasegar":"Makan & Minum","tukar uang tunai":"Transfer",
+  "jajan tianlala":"Makan & Minum","superfood kinohitmitsu":"Kesehatan","tarik bibit":"Investasi",
+  "cc tokopedia":"Tagihan","balancing bca":"Lain-lain","gaji juni":"Pemasukan","topup gopay":"Transfer",
+  "tf handy":"Transfer","saringan dapur mama":"Keperluan Mama","tiktok sendok":"Kebutuhan Rumah",
+  "makan bpk ula kisat":"Makan & Minum","laundry":"Tagihan","salep kaki bentol":"Kesehatan",
+  "tiket horizon 2":"Transportasi","potong rambut handy":"Belanja","share tea":"Makan & Minum",
+  "makan sany noodle":"Makan & Minum","makan naspad":"Makan & Minum","air minum":"Makan & Minum",
+  "inet roaming":"Tagihan","tax ferry":"Transportasi","es krim dan lays":"Makan & Minum",
+  "shopee superfood":"Kesehatan","roti mama":"Keperluan Mama","dp granit":"Renovasi",
+  "tissue dapur dan besar":"Kebutuhan Rumah","minum penkop":"Makan & Minum","lampu philips 4 pcs":"Kebutuhan Rumah",
+  "jual emas":"Investasi","mrt":"Transportasi","mrt card":"Transportasi","makan kwetiau india":"Makan & Minum",
+  "minum avocad passion":"Makan & Minum","tax ferry sg":"Transportasi","dari cc susie":"Investasi",
+  "warisan papa":"Pemasukan",
+};
 /* ════════════════════════════════════════════
    LOADING STATE
 ════════════════════════════════════════════ */
@@ -4066,15 +4207,19 @@ console.log('FinanKu — Family Dashboard ready');
   /* ════════════════════════════════════════════
      CONSTANTS
   ════════════════════════════════════════════ */
-  const KAT_ICONS = {
-    'Makan & Minum':'🍜','Transportasi':'🚗','Tagihan':'📱','Belanja':'🛍️',
-    'Hiburan':'🎬','Kesehatan':'💊','Investasi':'📈','Cicilan':'🏠',
-    'Asuransi':'🛡️','Lain-lain':'📦','Pemasukan':'💰','Transfer':'🔄',
+ const KAT_ICONS = {
+  'Makan & Minum':'🍜','Transportasi':'🚗','Tagihan':'📱','Belanja':'🛍️',
+  'Hiburan':'🎬','Kesehatan':'💊','Investasi':'📈','Cicilan':'🏠',
+  'Asuransi':'🛡️','Lain-lain':'📦','Pemasukan':'💰','Transfer':'🔄',
+  'Kebutuhan Rumah':'🧺','Renovasi':'🔨','Kas IT':'💼',
+  'Sosial & Hadiah':'🎁','Keperluan Mama':'👵',
   };
   const KAT_COLORS = {
     'Makan & Minum':'#22C55E','Transportasi':'#3B82F6','Tagihan':'#A855F7',
     'Belanja':'#F59E0B','Hiburan':'#EF4444','Kesehatan':'#06B6D4',
     'Investasi':'#64748B','Cicilan':'#F97316','Asuransi':'#EC4899','Lain-lain':'#6B7280',
+    'Kebutuhan Rumah':'#84CC16','Renovasi':'#B45309','Kas IT':'#0EA5E9',
+    'Sosial & Hadiah':'#D946EF','Keperluan Mama':'#F43F5E',
   };
   const MONTHS_ID_SHORT = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 
@@ -4801,6 +4946,8 @@ console.log('FinanKu — Family Dashboard ready');
   function refreshAll() {
     populateAkunDropdowns();
     populateKategoriDropdown();
+    populateTxNamaSuggestions(); 
+    buildKategoriSuggestMap();  
     refreshDashTx();
     refreshTxPage();
     renderAkunGrid();
@@ -4822,13 +4969,13 @@ console.log('FinanKu — Family Dashboard ready');
   $(document).on('click', '.akunTab', function () { filterAkunTx($(this).data('akunid')); });
   $('#uploadPribadi').on('change', function () { if (this.files[0]) parseExcel(this.files[0], true); });
   $('#uploadKeluarga').on('change', function () { if (this.files[0]) parseExcel(this.files[0], false); });
-  $('#btnTambahTx, #fabBtn').on('click', function () { if (!$('#txTanggal').val()) $('#txTanggal').val(today()); });
   $(document).on('finanku:monthChanged', function (e, m, y) {
     window.fkCurrentMonth = m;
     window.fkCurrentYear  = y;
     refreshAll();
   });
   $('#btnTambahTx, #fabBtn').on('click', function () {
+    txKategoriTouched = false;
     if (!$('#txTanggal').val()) $('#txTanggal').val(today());
     populateForUserDropdown(); // ← tambah ini
   });
